@@ -1,0 +1,79 @@
+const nodemailer = require('nodemailer');
+require('dotenv').config();
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+const sendVerificationEmail = async (email, token) => {
+    // We create two different links by adding a "role" parameter at the end
+    const applicantUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&role=applicant`;
+    const adminUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&role=admin`;
+
+    const mailOptions = {
+        from: `"DepEd HRMIS" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Verify your HRMIS Account & Select Role',
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                <h2 style="color: #1B3A6B; text-align: center;">HRMIS Account Verification</h2>
+                <p>To complete your registration for the DepEd SDO Dapitan City HRMIS, please verify your email by selecting your intended role below:</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 15px; margin: 30px 0; text-align: center;">
+                    <!-- Button for Applicant -->
+                    <div style="margin-bottom: 20px;">
+                        <a href="${applicantUrl}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as APPLICANT</a>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for a teaching position.</p>
+                    </div>
+
+                    <!-- Button for Admin/HR -->
+                    <div>
+                        <a href="${adminUrl}" style="background-color: #1B3A6B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as ADMIN / HR</a>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this for HR Office, HRMPSB, or Appointing Authority access.</p>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">By clicking a link above, you verify your email and set your system permissions.</p>
+            </div>
+        `
+    };
+
+    return transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendVerificationEmail };
+
+const sendResetPasswordEmail = async (email, token) => {
+    // This link will take the user to a special page to enter a new password
+    const url = `${process.env.BASE_URL}/api/auth/reset-password-page?token=${token}`;
+
+    const mailOptions = {
+        from: `"DepEd HRMIS" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Password Reset Request - HRMIS',
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                <h2 style="color: #1B3A6B; text-align: center;">Password Reset</h2>
+                <p>We received a request to reset the password for your HRMIS account.</p>
+                <p>Click the button below to set a new password. This link will expire in 30 minutes.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${url}" style="background-color: #E11D48; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+                </div>
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">If you did not request this, please ignore this email and your password will remain unchanged.</p>
+            </div>
+        `
+    };
+
+    return transporter.sendMail(mailOptions);
+};
+
+// Update your module.exports at the bottom to include it:
+module.exports = { sendVerificationEmail, sendResetPasswordEmail };
