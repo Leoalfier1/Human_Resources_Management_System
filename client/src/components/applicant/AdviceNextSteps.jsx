@@ -4,8 +4,7 @@ import io from 'socket.io-client';
 import {
     Star, Download, Upload, CheckCircle2, Clock, AlertCircle, Loader2, FileText
 } from 'lucide-react';
-
-const API = 'http://localhost:5000';
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 const AdviceNextSteps = () => {
     const [applicationId, setApplicationId] = useState(null);
@@ -21,7 +20,7 @@ const AdviceNextSteps = () => {
     const fetchAdvice = async (id, isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const res = await fetch(`${API}/api/applications/${id}/advice`, {
+            const res = await fetch(`${API_BASE}/api/applications/${id}/advice`, {
                 headers: { 'Authorization': `Bearer ${token()}` }
             });
             const json = await res.json();
@@ -44,7 +43,7 @@ const AdviceNextSteps = () => {
     useEffect(() => {
         const init = async () => {
             try {
-                const res = await fetch(`${API}/api/applications/my-latest`, {
+                const res = await fetch(`${API_BASE}/api/applications/my-latest`, {
                     headers: { 'Authorization': `Bearer ${token()}` }
                 });
                 if (!res.ok) { setLoading(false); setError('No active application found.'); return; }
@@ -63,7 +62,7 @@ const AdviceNextSteps = () => {
     // (uploadAppointmentDocument) and appointmentController.js / verifyDocument on the admin side
     useEffect(() => {
         if (!applicationId) return;
-        const socket = io(API);
+        const socket = io(SERVER_BASE);
 
         socket.emit('join-application-room', `application-${applicationId}`);
 
@@ -91,7 +90,7 @@ const AdviceNextSteps = () => {
         formData.append('document_type', docType);
 
         try {
-            const res = await fetch(`${API}/api/applications/${applicationId}/appointment-documents`, {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/appointment-documents`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token()}` },
                 body: formData
@@ -111,7 +110,7 @@ const AdviceNextSteps = () => {
 
     const handleDownloadPDF = async () => {
         try {
-            const res = await fetch(`${API}/api/applications/${applicationId}/advice/pdf`, {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/advice/pdf`, {
                 headers: { 'Authorization': `Bearer ${token()}` }
             });
             if (!res.ok) throw new Error('Could not generate PDF.');

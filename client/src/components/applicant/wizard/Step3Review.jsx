@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, User, Phone, Mail, MapPin, Briefcase, FileText, Loader2 } from 'lucide-react';
+import { API_BASE } from '../../../utils/api';
 
 const Step3Review = ({ applicationId, onNext, onPrev }) => {
     const [application, setApplication] = useState(null);
@@ -11,7 +12,7 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
         const fetchApplication = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`http://localhost:5000/api/applications/${applicationId}`, {
+                const res = await fetch(`${API_BASE}/api/applications/${applicationId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -31,7 +32,7 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
         setSubmitting(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/applications/${applicationId}`, {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

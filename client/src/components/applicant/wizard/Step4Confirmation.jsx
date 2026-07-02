@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Copy, FileText, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../../utils/api';
 
 const Step4Confirmation = ({ applicationId, vacancy, refNo }) => {
     const navigate = useNavigate();
@@ -12,7 +13,7 @@ const Step4Confirmation = ({ applicationId, vacancy, refNo }) => {
         const fetchDocCount = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`http://localhost:5000/api/applications/${applicationId}`, {
+                const res = await fetch(`${API_BASE}/api/applications/${applicationId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {

@@ -6,9 +6,8 @@ import {
     BookOpen, Briefcase
 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-
-const API = 'http://localhost:5000/api';
 
 // ─── CALENDAR COUNTDOWN WIDGET (Detail version) ───────────────────────────────
 const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
@@ -70,7 +69,7 @@ const JobDetail = () => {
                 setError(null);
 
                 // Fetch vacancy detail (public)
-                const res = await fetch(`${API}/vacancies/${id}`);
+                const res = await fetch(`${API_BASE}/api/vacancies/${id}`);
                 if (!res.ok) {
                     const err = await res.json();
                     throw new Error(err.message || 'Vacancy not found.');
@@ -81,7 +80,7 @@ const JobDetail = () => {
                 // Check has-applied (only if logged-in applicant)
                 if (isAuthenticated && isApplicant) {
                     const token = localStorage.getItem('token');
-                    const appRes = await fetch(`${API}/vacancies/${id}/has-applied`, {
+                    const appRes = await fetch(`${API_BASE}/api/vacancies/${id}/has-applied`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     if (appRes.ok) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Upload, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { API_BASE } from '../../../utils/api';
 
 // ── Teaching fallback document list ──────────────────────────────
 // Used when the vacancy has no rows in vacancy_required_documents
@@ -46,7 +47,7 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
         const fetchData = async () => {
             try {
                 // 1. Fetch the vacancy's required docs from the backend
-                const resReq = await fetch(`http://localhost:5000/api/vacancies/${vacancyId}`);
+                const resReq = await fetch(`${API_BASE}/api/vacancies/${vacancyId}`);
                 const dataReq = await resReq.json();
 
                 const backendDocs = dataReq.required_documents || [];
@@ -66,7 +67,7 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
 
                 // 2. Fetch any documents already uploaded for this application draft
                 const token = localStorage.getItem('token');
-                const resApp = await fetch(`http://localhost:5000/api/applications/${applicationId}`, {
+                const resApp = await fetch(`${API_BASE}/api/applications/${applicationId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (resApp.ok) {
@@ -121,7 +122,7 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/applications/${applicationId}/documents`, {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/documents`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -146,7 +147,7 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
     const handleRemove = async (docId) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/applications/${applicationId}/documents/${docId}`, {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/documents/${docId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

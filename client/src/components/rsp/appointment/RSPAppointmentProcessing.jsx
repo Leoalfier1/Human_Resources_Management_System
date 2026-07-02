@@ -5,8 +5,8 @@ import {
     Loader2, Clock, ChevronDown, Users
 } from 'lucide-react';
 import CompletenessRing from './CompletenessRing';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
 const authHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
 
 // ── Toast ─────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ const RSPAppointmentProcessing = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`${API}/api/rsp/vacancies`, { headers: authHeader() });
+                const res = await fetch(`${API_BASE}/api/rsp/vacancies`, { headers: authHeader() });
                 const list = await res.json();
                 const active = Array.isArray(list) ? list : [];
                 setVacancies(active);
@@ -68,7 +68,7 @@ const RSPAppointmentProcessing = () => {
         const load = async () => {
             try {
                 const res = await fetch(
-                    `${API}/api/rsp/appointment/processing?vacancy_id=${vacancyId}`,
+                    `${API_BASE}/api/rsp/appointment/processing?vacancy_id=${vacancyId}`,
                     { headers: authHeader() }
                 );
                 const data = await res.json();
@@ -84,7 +84,7 @@ const RSPAppointmentProcessing = () => {
     const fetchDocs = async (id) => {
         try {
             const res = await fetch(
-                `${API}/api/rsp/appointment/documents/${id}`,
+                `${API_BASE}/api/rsp/appointment/documents/${id}`,
                 { headers: authHeader() }
             );
             const data = await res.json();
@@ -100,7 +100,7 @@ const RSPAppointmentProcessing = () => {
     const handleVerify = async (docId) => {
         try {
             const res = await fetch(
-                `${API}/api/rsp/appointment/documents/${docId}/verify`,
+                `${API_BASE}/api/rsp/appointment/documents/${docId}/verify`,
                 { method: 'PATCH', headers: authHeader() }
             );
             if (res.ok) {
@@ -121,7 +121,7 @@ const RSPAppointmentProcessing = () => {
             const formData = new FormData();
             formData.append('file', file);
             const res = await fetch(
-                `${API}/api/rsp/appointment/documents/${docId}/upload`,
+                `${API_BASE}/api/rsp/appointment/documents/${docId}/upload`,
                 { method: 'POST', headers: authHeader(), body: formData }
             );
             const data = await res.json();
@@ -142,7 +142,7 @@ const RSPAppointmentProcessing = () => {
     const handleIssue = async () => {
         setIssuing(true);
         try {
-            const res = await fetch(`${API}/api/rsp/appointment/issue`, {
+            const res = await fetch(`${API_BASE}/api/rsp/appointment/issue`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...authHeader() },
                 body: JSON.stringify({
@@ -156,7 +156,7 @@ const RSPAppointmentProcessing = () => {
                 showToast('success', data.message);
                 // Reload appointees to reflect new status
                 const res2 = await fetch(
-                    `${API}/api/rsp/appointment/processing?vacancy_id=${vacancyId}`,
+                    `${API_BASE}/api/rsp/appointment/processing?vacancy_id=${vacancyId}`,
                     { headers: authHeader() }
                 );
                 const list = await res2.json();

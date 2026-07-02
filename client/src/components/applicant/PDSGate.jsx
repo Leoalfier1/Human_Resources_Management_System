@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, FileText, Loader2 } from 'lucide-react';
-
-const API = 'http://localhost:5000';
+import { API_BASE } from '../../utils/api';
 
 /**
  * usePDSGate — lightweight hook to check PDS completion before allowing
@@ -29,7 +28,7 @@ export const usePDSGate = () => {
         const check = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/api/applicant/pds/status`, {
+                const res = await fetch(`${API_BASE}/api/applicant/pds/status`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();

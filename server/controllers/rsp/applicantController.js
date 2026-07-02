@@ -7,7 +7,7 @@ exports.getApplicants = async (req, res) => {
 
         let query = `
             SELECT a.id, a.full_name, a.email, a.status, a.ref_no, a.submitted_at, a.current_school, a.applicant_id,
-                   v.position_title, v.subject, v.assigned_school
+                   v.position_title, v.subject, v.assigned_school, v.position_type
             FROM applications a
             LEFT JOIN vacancies v ON a.vacancy_id = v.id
             WHERE a.status != 'draft'
@@ -33,6 +33,13 @@ exports.getApplicants = async (req, res) => {
             query += vacancyFilter;
             countQuery += vacancyFilter;
             params.push(vacancy_id);
+        }
+
+        if (req.query.position_type && req.query.position_type !== 'all') {
+            const ptFilter = ` AND v.position_type = ?`;
+            query += ptFilter;
+            countQuery += ptFilter;
+            params.push(req.query.position_type);
         }
 
         if (search) {

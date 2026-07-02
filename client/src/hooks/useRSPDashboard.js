@@ -3,11 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import io from 'socket.io-client';
 
-// NOTE: Matches the hardcoded pattern used by every other RSP hook
-// (useComparativeAssessment, useDeliberation, etc.) instead of apiFetch(),
-// which depended on VITE_API_BASE_URL — an env var that was never defined
-// anywhere in the project, causing every dashboard request to silently fail.
-const API = 'http://localhost:5000';
+import { API_BASE } from '../utils/api';
 
 /**
  * Custom Hook for the Admin RSP Dashboard
@@ -25,7 +21,7 @@ export const useRSPDashboard = () => {
 
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API}/api/rsp/dashboard/consolidated`, {
+        const response = await fetch(`${API_BASE}/api/rsp/dashboard/consolidated`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -51,7 +47,7 @@ export const useRSPDashboard = () => {
         fetchData(); // Run initial fetch on mount
 
         // Connect to the backend socket
-        const socket = io(API);
+        const socket = io(API_BASE);
 
         socket.on('connect', () => {
             console.log("📡 Admin Dashboard connected to real-time events");

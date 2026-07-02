@@ -117,6 +117,36 @@ const RSPDashboard = () => {
         />
       </div>
 
+      {/* POSITION TYPE BREAKDOWN */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Teaching Positions</h4>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-black text-[#1B3A6B]">{data?.summary?.teachingPostings || 0}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active Postings</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-black text-emerald-600">{data?.summary?.teachingApplicants || 0}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Applicants</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Non-Teaching Positions</h4>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-black text-amber-600">{data?.summary?.nonTeachingPostings || 0}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active Postings</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-black text-amber-600">{data?.summary?.nonTeachingApplicants || 0}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Applicants</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 11-STAGE PROGRESS TRACKER */}
       <VacancyProgressTracker vacancies={data?.activePostings} />
 

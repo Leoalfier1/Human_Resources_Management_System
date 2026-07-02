@@ -6,8 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
-
-const API = 'http://localhost:5000/api';
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 const AdviceNextSteps = () => {
     const { user } = useAuth();
@@ -24,7 +23,7 @@ const AdviceNextSteps = () => {
         const resolveId = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/applications/my-latest`, {
+                const res = await fetch(`${API_BASE}/api/applications/my-latest`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -51,7 +50,7 @@ const AdviceNextSteps = () => {
         const fetchAdvice = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/applications/${appId}/advice`, {
+                const res = await fetch(`${API_BASE}/api/applications/${appId}/advice`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -75,7 +74,7 @@ const AdviceNextSteps = () => {
         fetchAdvice();
 
         // Socket for real-time doc verification updates
-        socket = io('http://localhost:5000');
+        socket = io(SERVER_BASE);
         socket.emit('join-application-room', `application-${appId}`);
         socket.on('application:document-update', fetchAdvice);
         socket.on('application:stage-update', fetchAdvice);
@@ -101,7 +100,7 @@ const AdviceNextSteps = () => {
             formData.append('file', file);
             formData.append('document_type', pendingDocType);
 
-            const res = await fetch(`${API}/applications/${appId}/appointment-documents`, {
+            const res = await fetch(`${API_BASE}/api/applications/${appId}/appointment-documents`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -110,7 +109,7 @@ const AdviceNextSteps = () => {
             if (res.ok) {
                 // Re-fetch to get updated doc list
                 const token2 = localStorage.getItem('token');
-                const res2 = await fetch(`${API}/applications/${appId}/advice`, {
+                const res2 = await fetch(`${API_BASE}/api/applications/${appId}/advice`, {
                     headers: { 'Authorization': `Bearer ${token2}` }
                 });
                 if (res2.ok) setData(await res2.json());
@@ -132,7 +131,7 @@ const AdviceNextSteps = () => {
         if (!appId) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API}/applications/${appId}/advice/pdf`, {
+            const res = await fetch(`${API_BASE}/api/applications/${appId}/advice/pdf`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -358,7 +357,7 @@ const AdviceNextSteps = () => {
                                             
                                             {hasFile && doc.file_name && (
                                                 <a 
-                                                    href={`http://localhost:5000${doc.file_path}`} 
+                                                    href={`${SERVER_BASE}${doc.file_path}`} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
                                                     className="text-[9px] font-bold text-blue-500 hover:underline mt-2 block truncate max-w-[200px]"

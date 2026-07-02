@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import io from 'socket.io-client';
 import { Check, Clock, Bell, Trophy, ChevronRight } from 'lucide-react';
-
-const API = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000'; 
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 // 11-Stage RSP Process labels, matching the PRIME-HRM workflow used elsewhere in the system
 const STAGE_LABELS = [
@@ -37,14 +35,14 @@ const ApplicationStatus = () => {
                 const token = localStorage.getItem('token');
 
                 // Resolve the applicant's latest non-draft application ID first
-                const latestRes = await fetch(`${API}/applications/my-latest`, {
+                const latestRes = await fetch(`${API_BASE}/api/applications/my-latest`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!latestRes.ok) { setLoading(false); return; }
                 const latest = await latestRes.json();
                 setApplicationId(latest.applicationId);
 
-                const res = await fetch(`${API}/applications/${latest.applicationId}/status`, {
+                const res = await fetch(`${API_BASE}/api/applications/${latest.applicationId}/status`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -62,7 +60,7 @@ const ApplicationStatus = () => {
 
     useEffect(() => {
         if (!applicationId) return;
-        const socket = io(SOCKET_URL);
+        const socket = io(SERVER_BASE);
         socket.emit('join-application-room', `application-${applicationId}`);
 
         const silentRefresh = () => fetchStatus(true);

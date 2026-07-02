@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../../context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { API_BASE } from '../../../utils/api';
 
 const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext }) => {
     const { user } = useAuth();
@@ -33,7 +34,7 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
             let appId = applicationId;
 
             if (!appId) {
-                const res1 = await fetch('http://localhost:5000/api/applications', {
+                const res1 = await fetch(`${API_BASE}/api/applications`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({ vacancy_id: vacancy.id })
@@ -43,7 +44,7 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                 setApplicationId(appId);
             }
 
-            await fetch(`http://localhost:5000/api/applications/${appId}`, {
+            await fetch(`${API_BASE}/api/applications/${appId}`, {
                 method: 'PATCH',
                 headers,
                 body: JSON.stringify(formData)

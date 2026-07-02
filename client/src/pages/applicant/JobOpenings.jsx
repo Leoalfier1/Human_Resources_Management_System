@@ -4,9 +4,8 @@ import {
     Briefcase, Clock, Search, SlidersHorizontal, X,
     ChevronDown, BookOpen, GraduationCap, Building2
 } from 'lucide-react';
+import { API_BASE } from '../../utils/api';
 import JobCard from '../../components/applicant/JobCard';
-
-const API = 'http://localhost:5000/api';
 
 // ─── STAT CARD ────────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, icon, suffix = '' }) => (
@@ -136,7 +135,7 @@ const JobOpenings = () => {
 
     // Load settings once
     useEffect(() => {
-        fetch(`${API}/vacancies/settings`)
+        fetch(`${API_BASE}/api/vacancies/settings`)
             .then(r => r.json())
             .then(d => setSettings(d))
             .catch(() => {});
@@ -145,7 +144,7 @@ const JobOpenings = () => {
     // Load schools for filter drawer
     useEffect(() => {
         const token = localStorage.getItem('token');
-        fetch(`${API}/vacancies?search=`, {
+        fetch(`${API_BASE}/api/vacancies?search=`, {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         })
             .then(r => r.json())
@@ -173,7 +172,7 @@ const JobOpenings = () => {
         if (filters.school) params.set('school', filters.school);
 
         const token = localStorage.getItem('token');
-        fetch(`${API}/vacancies?${params}`, {
+        fetch(`${API_BASE}/api/vacancies?${params}`, {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         })
             .then(r => r.json())

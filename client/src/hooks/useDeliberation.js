@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '../utils/api';
 
 export const useDeliberation = (vacancyId) => {
     const [data, setData] = useState([]);
@@ -10,7 +11,7 @@ export const useDeliberation = (vacancyId) => {
         setLoading(true);
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5000/api/rsp/deliberation/ranked-list?vacancy_id=${vacancyId}`, {
+            const res = await fetch(`${API_BASE}/api/rsp/deliberation/ranked-list?vacancy_id=${vacancyId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const json = await res.json();
@@ -26,7 +27,7 @@ export const useDeliberation = (vacancyId) => {
     const updateBI = async (applicant_id, notes) => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5000/api/rsp/deliberation/notes`, {
+            const res = await fetch(`${API_BASE}/api/rsp/deliberation/notes`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ applicant_id, background_investigation_notes: notes })
@@ -46,7 +47,7 @@ export const useDeliberation = (vacancyId) => {
     const recommend = async (applicant_id, val) => {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5000/api/rsp/deliberation/recommend`, {
+            const res = await fetch(`${API_BASE}/api/rsp/deliberation/recommend`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ applicant_id, is_recommended: val })
@@ -69,7 +70,7 @@ export const useDeliberation = (vacancyId) => {
         setIsEndorsing(true);
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5000/api/rsp/deliberation/endorse`, {
+            const res = await fetch(`${API_BASE}/api/rsp/deliberation/endorse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ vacancy_id: vacancyId })

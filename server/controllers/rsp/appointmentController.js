@@ -1,17 +1,34 @@
 const db = require('../../db');
 
-const REQUIRED_APPT_DOCS = [
-    "Official Transcript of Records",
-    "Original Diploma (BSEd)",
-    "Updated Personal Data Sheet (CS Form 212)",
-    "NBI Clearance (issued within 6 months)",
-    "Medical Certificate (from government hospital)",
-    "Dental Certificate",
-    "4 pcs. Passport-size ID photos (white background)",
-    "Marriage Certificate (for married female)",
-    "Authenticated Service Record",
-    "Certificate of No Pending Administrative Case"
-];
+const getRequiredApptDocs = (positionType = 'teaching') => {
+    const common = [
+        "Official Transcript of Records",
+        "Updated Personal Data Sheet (CS Form 212)",
+        "NBI Clearance (issued within 6 months)",
+        "Medical Certificate (from government hospital)",
+        "Dental Certificate",
+        "4 pcs. Passport-size ID photos (white background)",
+        "Marriage Certificate (for married female)",
+        "Authenticated Service Record",
+        "Certificate of No Pending Administrative Case"
+    ];
+
+    if (positionType === 'non_teaching') {
+        return [
+            ...common.slice(0, 1),
+            "Original Diploma (relevant degree)",
+            ...common.slice(1, 3),
+            "CSC Eligibility / Professional Civil Service Eligibility",
+            ...common.slice(3)
+        ];
+    }
+
+    return [
+        ...common.slice(0, 1),
+        "Original Diploma (BSEd / BEEd)",
+        ...common.slice(1)
+    ];
+};
 
 // ── 1. GET APPOINTEES FOR PROCESSING ─────────────────────────────
 // Returns applicants with status 'selected' or 'appointed' for a vacancy
@@ -49,10 +66,19 @@ const getProcessingAppointees = async (req, res) => {
 };
 
 // ── 2. GET DOCUMENT CHECKLIST ─────────────────────────────────────
-// Seeds the 10-doc list if not yet created, returns status per doc
+// Seeds doc list if not yet created, returns status per doc
 const getDocuments = async (req, res) => {
     try {
         const { applicantId } = req.params;
+
+        // Determine position_type from this applicant's vacancy
+        const [appVac] = await db.query(
+            `SELECT v.position_type FROM applications a
+             JOIN vacancies v ON a.vacancy_id = v.id
+             WHERE a.id = ?`, [applicantId]
+        );
+        const posType = appVac.length > 0 ? (appVac[0].position_type || 'teaching') : 'teaching';
+        const REQUIRED_APPT_DOCS = getRequiredApptDocs(posType);
 
         // Seed if first time
         const [existing] = await db.query(

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Award, AlertTriangle, Send, Loader2, Lock, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useDeliberation } from '../../../hooks/useDeliberation';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
+const API = API_BASE;
 
 const NotesCell = ({ applicant, onSave }) => {
     const [value, setValue] = useState(applicant.background_investigation_notes || '');

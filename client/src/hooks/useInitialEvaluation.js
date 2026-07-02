@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../utils/api';
 
 export const useInitialEvaluation = (vacancyId) => {
     const [queueData, setQueueData] = useState(null);
@@ -8,7 +9,7 @@ export const useInitialEvaluation = (vacancyId) => {
 
     const fetchQueue = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/rsp/evaluation/queue?vacancy_id=${vacancyId}`, {
+        const res = await fetch(`${API_BASE}/api/rsp/evaluation/queue?vacancy_id=${vacancyId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -20,7 +21,7 @@ export const useInitialEvaluation = (vacancyId) => {
 
     const fetchDetails = async (id) => {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/rsp/evaluation/applicant/${id}`, {
+        const res = await fetch(`${API_BASE}/api/rsp/evaluation/applicant/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();

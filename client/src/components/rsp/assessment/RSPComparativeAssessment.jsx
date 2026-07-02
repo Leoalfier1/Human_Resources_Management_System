@@ -2,18 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Send, Star, Loader2 } from 'lucide-react';
 import { useComparativeAssessment } from '../../../hooks/useComparativeAssessment';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
+const API = API_BASE;
 
-const CATEGORY_TABS = [
-    { key: 'classroom_observable', letter: 'A', label: 'Classroom Observable Indicators', sub: 'Demonstration Teaching', weight: 60 },
-    { key: 'non_classroom_observable', letter: 'B', label: 'Non-Classroom Observable Indicators', sub: 'Interview / BEI', weight: 20 },
-    { key: 'document_evaluation', letter: 'C', label: 'Document Evaluation', sub: 'Education / Training / Experience', weight: 20 },
-];
+const getCategoryTabs = (positionType) => {
+    if (positionType === 'non_teaching') {
+        return [
+            { key: 'classroom_observable', letter: 'A', label: 'Technical / Skills Interview', sub: 'Technical Questions', weight: 40 },
+            { key: 'non_classroom_observable', letter: 'B', label: 'Non-Classroom Observable Indicators', sub: 'Interview / BEI', weight: 30 },
+            { key: 'document_evaluation', letter: 'C', label: 'Document Evaluation', sub: 'Education / Training / Experience', weight: 30 },
+        ];
+    }
+    return [
+        { key: 'classroom_observable', letter: 'A', label: 'Classroom Observable Indicators', sub: 'Demonstration Teaching', weight: 60 },
+        { key: 'non_classroom_observable', letter: 'B', label: 'Non-Classroom Observable Indicators', sub: 'Interview / BEI', weight: 20 },
+        { key: 'document_evaluation', letter: 'C', label: 'Document Evaluation', sub: 'Education / Training / Experience', weight: 20 },
+    ];
+};
 
 const RSPComparativeAssessment = () => {
     const {
-        vacancyId, criteria, applicants, rankings, scores,
+        vacancyId, vacancy, criteria, applicants, rankings, scores,
         selectedAppId, setSelectedAppId, loading,
         refreshRankings, refreshScores, submitAssessment
     } = useComparativeAssessment();
@@ -96,9 +106,16 @@ const RSPComparativeAssessment = () => {
         }
     };
 
-    const subA = computeSubscore('classroom_observable', 60);
-    const subB = computeSubscore('non_classroom_observable', 20);
-    const subC = computeSubscore('document_evaluation', 20);
+    const posType = vacancy?.position_type || 'teaching';
+    const CATEGORY_TABS = getCategoryTabs(posType);
+
+    const weightA = CATEGORY_TABS[0].weight;
+    const weightB = CATEGORY_TABS[1].weight;
+    const weightC = CATEGORY_TABS[2].weight;
+
+    const subA = computeSubscore('classroom_observable', weightA);
+    const subB = computeSubscore('non_classroom_observable', weightB);
+    const subC = computeSubscore('document_evaluation', weightC);
     const total = subA + subB + subC;
 
     if (loading) {
@@ -108,7 +125,7 @@ const RSPComparativeAssessment = () => {
     const activeCriteria = criteria.filter(c => c.category === activeTab);
     const activeTabDef = CATEGORY_TABS.find(t => t.key === activeTab);
     const subscoreMap = { classroom_observable: subA, non_classroom_observable: subB, document_evaluation: subC };
-    const maxMap = { classroom_observable: 60, non_classroom_observable: 20, document_evaluation: 20 };
+    const maxMap = { classroom_observable: weightA, non_classroom_observable: weightB, document_evaluation: weightC };
 
     return (
         <div className="flex gap-6 select-none">
@@ -118,7 +135,7 @@ const RSPComparativeAssessment = () => {
                     <div>
                         <h2 className="text-xl font-black text-[#1B3A6B] uppercase italic">HRMPSB Comparative Assessment Workspace</h2>
                         <p className="text-[11px] font-bold text-slate-400 mt-0.5">
-                            Teacher III (Mathematics) · V-2025-001 · {applicants.length} qualified applicants
+                            {vacancy?.position_title || 'Position'} · {vacancy?.ref_no || '—'} · {applicants.length} qualified applicant(s)
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -289,9 +306,9 @@ const RSPComparativeAssessment = () => {
                     </h4>
                     <div className="space-y-3 mb-4">
                         {[
-                            { label: 'Classroom Observable', val: subA, max: 60 },
-                            { label: 'Non-Classroom Observable', val: subB, max: 20 },
-                            { label: 'Document Evaluation', val: subC, max: 20 },
+                            { label: CATEGORY_TABS[0].label, val: subA, max: weightA },
+                            { label: CATEGORY_TABS[1].label, val: subB, max: weightB },
+                            { label: CATEGORY_TABS[2].label, val: subC, max: weightC },
                         ].map(row => (
                             <div key={row.label} className="flex justify-between items-center text-xs">
                                 <span className="font-bold text-slate-500">{row.label}</span>

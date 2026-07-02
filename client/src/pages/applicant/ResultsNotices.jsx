@@ -6,8 +6,7 @@ import {
     ChevronRight, Loader2
 } from 'lucide-react';
 import { io } from 'socket.io-client';
-
-const API = 'http://localhost:5000/api';
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 // Categorize a notification by sniffing its message text, since the
 // notifications table only stores a plain message string (no type column).
@@ -75,7 +74,7 @@ const ResultsNotices = () => {
         const fetchLatest = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/applications/my-latest`, {
+                const res = await fetch(`${API_BASE}/api/applications/my-latest`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!res.ok) throw new Error('No active applications found.');
@@ -97,7 +96,7 @@ const ResultsNotices = () => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/applications/${appId}/status`, {
+                const res = await fetch(`${API_BASE}/api/applications/${appId}/status`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!res.ok) throw new Error('Could not load your results.');
@@ -114,7 +113,7 @@ const ResultsNotices = () => {
         fetchData();
 
         // Real-time: join this applicant's private room and refresh on any update
-        socket = io('http://localhost:5000');
+        socket = io(SERVER_BASE);
         socket.emit('join-application-room', `application-${appId}`);
         socket.on('application:notification', fetchData);
         socket.on('application:stage-update', fetchData);

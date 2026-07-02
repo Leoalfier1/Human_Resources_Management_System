@@ -5,8 +5,8 @@ import {
     CheckCircle2, Shield, Loader2, AlertCircle,
     Printer, ChevronDown, Users
 } from 'lucide-react';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
 const token = () => localStorage.getItem('token');
 const authHeader = () => ({ 'Authorization': `Bearer ${token()}` });
 
@@ -62,7 +62,7 @@ const RSPNoticeOfAppointment = () => {
     useEffect(() => {
         const fetchVacancies = async () => {
             try {
-                const res = await fetch(`${API}/api/rsp/vacancies`, { headers: authHeader() });
+                const res = await fetch(`${API_BASE}/api/rsp/vacancies`, { headers: authHeader() });
                 const list = await res.json();
                 const active = Array.isArray(list) ? list.filter(v => v.status === 'active' || v.computed_status === 'active') : [];
                 setVacancies(active);
@@ -81,7 +81,7 @@ const RSPNoticeOfAppointment = () => {
         const fetchAppointees = async () => {
             try {
                 const res = await fetch(
-                    `${API}/api/rsp/notice-of-appointment/vacancy/${vacancyId}`,
+                    `${API_BASE}/api/rsp/notice-of-appointment/vacancy/${vacancyId}`,
                     { headers: authHeader() }
                 );
                 const list = await res.json();
@@ -103,7 +103,7 @@ const RSPNoticeOfAppointment = () => {
         const fetchNotice = async () => {
             try {
                 const res = await fetch(
-                    `${API}/api/rsp/notice-of-appointment/${applicantId}`,
+                    `${API_BASE}/api/rsp/notice-of-appointment/${applicantId}`,
                     { headers: authHeader() }
                 );
                 const json = await res.json();
@@ -124,7 +124,7 @@ const RSPNoticeOfAppointment = () => {
         setPosting(true);
         try {
             const res = await fetch(
-                `${API}/api/rsp/notice-of-appointment/${data.notice.appointment_id}/post`,
+                `${API_BASE}/api/rsp/notice-of-appointment/${data.notice.appointment_id}/post`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -135,7 +135,7 @@ const RSPNoticeOfAppointment = () => {
             if (!res.ok) throw new Error(json.message);
             showToast('success', json.message);
             // Refresh
-            const res2 = await fetch(`${API}/api/rsp/notice-of-appointment/${applicantId}`, { headers: authHeader() });
+            const res2 = await fetch(`${API_BASE}/api/rsp/notice-of-appointment/${applicantId}`, { headers: authHeader() });
             setData(await res2.json());
             setSelectedChannels([]);
         } catch (e) {
@@ -150,7 +150,7 @@ const RSPNoticeOfAppointment = () => {
         setDownloading(true);
         try {
             const res = await fetch(
-                `${API}/api/rsp/notice-of-appointment/${applicantId}/pdf`,
+                `${API_BASE}/api/rsp/notice-of-appointment/${applicantId}/pdf`,
                 { headers: authHeader() }
             );
             if (!res.ok) throw new Error('PDF generation failed.');

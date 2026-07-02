@@ -1,17 +1,33 @@
 const db = require('../../db');
 
-const REQUIRED_DOCS = [
-    "Original/Authenticated Transcript of Records",
-    "Original/Authenticated BSEd/BSE Diploma",
-    "Updated Personal Data Sheet (CS Form 212)",
-    "NBI Clearance (issued within 6 months)",
-    "Medical Certificate (from government hospital)",
-    "Dental Certificate",
-    "4 pcs. Passport-size ID photos (white background)",
-    "Marriage Certificate (for married female)",
-    "Authenticated Service Record",
-    "Certificate of No Pending Administrative Case"
-];
+const getRequiredDocs = (positionType = 'teaching') => {
+    const common = [
+        "Original/Authenticated Transcript of Records",
+        "Updated Personal Data Sheet (CS Form 212)",
+        "NBI Clearance (issued within 6 months)",
+        "Medical Certificate (from government hospital)",
+        "Dental Certificate",
+        "4 pcs. Passport-size ID photos (white background)",
+        "Marriage Certificate (for married female)",
+        "Authenticated Service Record",
+        "Certificate of No Pending Administrative Case"
+    ];
+
+    if (positionType === 'non_teaching') {
+        return [
+            common[0],
+            "Original/Authenticated Diploma (relevant degree)",
+            ...common.slice(1, 9),
+            "CSC Eligibility / Professional Civil Service Eligibility"
+        ];
+    }
+
+    return [
+        common[0],
+        "Original/Authenticated BSEd/BEEd Diploma",
+        ...common.slice(1, 10)
+    ];
+};
 
 // GET /api/rsp/congratulatory-advice/eligible-appointees?vacancy_id=X
 const getEligible = async (req, res) => {
@@ -80,13 +96,18 @@ const getAdviceDetail = async (req, res) => {
         const docDeadline = new Date();
         docDeadline.setDate(docDeadline.getDate() + 7);
 
+        // Determine position_type for dynamic doc list
+        const [vacType] = await db.query('SELECT position_type FROM vacancies WHERE id = ?', [detail.vacancy_id]);
+        const posType = vacType.length > 0 ? (vacType[0].position_type || 'teaching') : 'teaching';
+        const docs = getRequiredDocs(posType);
+
         res.json({
             ...detail,
             place_of_assignment:          detail.place_of_assignment          || detail.assigned_school,
             report_date:                  detail.report_date                  || nextMonth.toISOString().split('T')[0],
             document_submission_deadline: detail.document_submission_deadline || docDeadline.toISOString().split('T')[0],
             appointing_authority_name:    detail.appointing_authority_name    || 'Schools Division Superintendent',
-            required_docs: REQUIRED_DOCS
+            required_docs: docs
         });
     } catch (error) {
         console.error('getAdviceDetail Error:', error);
@@ -258,7 +279,16 @@ const generatePDF = async (req, res) => {
         );
         doc.moveDown();
 
-        REQUIRED_DOCS.forEach((item, i) => {
+        // Look up position_type for dynamic doc list
+        const [vacRow] = await db.query(
+            `SELECT v.position_type FROM applications a
+             JOIN vacancies v ON a.vacancy_id = v.id WHERE a.id = ?`,
+            [applicantId]
+        );
+        const pdfPosType = vacRow.length > 0 ? (vacRow[0].position_type || 'teaching') : 'teaching';
+        const pdfDocs = getRequiredDocs(pdfPosType);
+
+        pdfDocs.forEach((item, i) => {
             doc.fontSize(10).text(`${i + 1}. ${item}`, { indent: 20 });
         });
 

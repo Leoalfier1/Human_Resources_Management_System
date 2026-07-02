@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const API = 'http://localhost:5000';
+import { API_BASE } from '../utils/api';
 
 export const usePersonalDataSheet = () => {
     const [pds, setPds] = useState(null);
@@ -21,7 +21,7 @@ export const usePersonalDataSheet = () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API}/api/applicant/pds`, { headers: authHeaders() });
+            const res = await fetch(`${API_BASE}/api/applicant/pds`, { headers: authHeaders() });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Could not load your PDS.');
             setPds(data.pds);
@@ -39,7 +39,7 @@ export const usePersonalDataSheet = () => {
     const save = useCallback(async (fields) => {
         setSaving(true);
         try {
-            const res = await fetch(`${API}/api/applicant/pds`, {
+            const res = await fetch(`${API_BASE}/api/applicant/pds`, {
                 method: 'PATCH',
                 headers: authHeaders(),
                 body: JSON.stringify(fields)
@@ -61,7 +61,7 @@ export const usePersonalDataSheet = () => {
     const submit = useCallback(async () => {
         setSubmitting(true);
         try {
-            const res = await fetch(`${API}/api/applicant/pds/submit`, {
+            const res = await fetch(`${API_BASE}/api/applicant/pds/submit`, {
                 method: 'POST',
                 headers: authHeaders()
             });

@@ -6,13 +6,15 @@ import {
     Trash2, FileText, Building2, Hash, Calendar, Users
 } from 'lucide-react';
 import { FileDropzone, PublishToggles } from './FormExtras';
+import { API_BASE, SERVER_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000/api/rsp/vacancies';
-const SERVER = 'http://localhost:5000';
+const API = `${API_BASE}/api/rsp/vacancies`;
+const SERVER = SERVER_BASE;
 
 const EMPTY_FORM = {
     position_title: '', item_number: '', salary_grade: 'SG-1',
     assigned_school: '', no_of_vacancies: 1,
+    position_type: 'teaching',
     posting_date: new Date().toISOString().split('T')[0],
     minimum_qualifications: '',
     publish_division_website: false,
@@ -92,7 +94,8 @@ const VacancyViewModal = ({ vacancy, onClose, onEdit }) => {
                         {[
                             { icon: Hash,      label: 'Item Number',    value: vacancy.item_number },
                             { icon: Building2, label: 'Salary Grade',   value: vacancy.salary_grade },
-                            { icon: Building2, label: 'School',         value: vacancy.assigned_school },
+                            { icon: Building2, label: 'Position Type',  value: vacancy.position_type === 'non_teaching' ? 'Non-Teaching' : 'Teaching' },
+                            { icon: Building2, label: vacancy.position_type === 'non_teaching' ? 'Office/Unit' : 'School', value: vacancy.assigned_school },
                             { icon: Users,     label: 'No. of Vacancies', value: vacancy.no_of_vacancies },
                             { icon: Calendar,  label: 'Posting Date',   value: new Date(vacancy.posting_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) },
                             { icon: Calendar,  label: 'Deadline',       value: new Date(vacancy.deadline_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) },
@@ -202,6 +205,7 @@ const RSPVacancyPosting = () => {
             salary_grade:             v.salary_grade || 'SG-1',
             assigned_school:          v.assigned_school || '',
             no_of_vacancies:          v.no_of_vacancies || 1,
+            position_type:            v.position_type || 'teaching',
             posting_date:             v.posting_date?.split('T')[0] || new Date().toISOString().split('T')[0],
             minimum_qualifications:   v.minimum_qualifications || '',
             publish_division_website: !!v.publish_division_website,
@@ -304,10 +308,32 @@ const RSPVacancyPosting = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Left Column */}
                         <div className="space-y-5">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Position Type *</label>
+                                <div className="flex gap-2">
+                                    {['teaching', 'non_teaching'].map(type => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setFormData({...formData, position_type: type})}
+                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${
+                                                formData.position_type === type
+                                                    ? type === 'teaching'
+                                                        ? 'bg-blue-50 border-[#1B3A6B] text-[#1B3A6B]'
+                                                        : 'bg-amber-50 border-amber-600 text-amber-700'
+                                                    : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                                            }`}
+                                        >
+                                            {type === 'teaching' ? 'Teaching' : 'Non-Teaching'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             {[
                                 { label: 'Position Title *', key: 'position_title', type: 'text', placeholder: 'e.g. Teacher III' },
                                 { label: 'Item Number *', key: 'item_number', type: 'text', placeholder: 'e.g. ITEM-001' },
-                                { label: 'Assigned School / Station *', key: 'assigned_school', type: 'text', placeholder: 'e.g. Dapitan City National High School' },
+                                { label: formData.position_type === 'teaching' ? 'Assigned School / Station *' : 'Office / Unit *', key: 'assigned_school', type: 'text', placeholder: formData.position_type === 'teaching' ? 'e.g. Dapitan City National High School' : 'e.g. Division Office - HR Section' },
                             ].map(field => (
                                 <div key={field.key}>
                                     <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">{field.label}</label>
@@ -481,7 +507,8 @@ const RSPVacancyPosting = () => {
                                         <tr>
                                             <th className="px-8 py-4">Ref No.</th>
                                             <th className="px-4 py-4">Position Title</th>
-                                            <th className="px-4 py-4">School</th>
+                                            <th className="px-4 py-4">Type</th>
+                                            <th className="px-4 py-4">School / Office</th>
                                             <th className="px-4 py-4">No. Vacan.</th>
                                             <th className="px-4 py-4">Deadline</th>
                                             <th className="px-4 py-4">Status</th>
@@ -493,6 +520,15 @@ const RSPVacancyPosting = () => {
                                             <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-8 py-5 font-black text-[#1B3A6B] text-sm">{v.ref_no}</td>
                                                 <td className="px-4 py-5 font-black text-[#1B3A6B] text-sm">{v.position_title}</td>
+                                                <td className="px-4 py-5">
+                                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${
+                                                        v.position_type === 'non_teaching'
+                                                            ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                                            : 'bg-blue-50 text-blue-600 border border-blue-200'
+                                                    }`}>
+                                                        {v.position_type === 'non_teaching' ? 'Non-Tch' : 'Teaching'}
+                                                    </span>
+                                                </td>
                                                 <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold">{v.assigned_school}</td>
                                                 <td className="px-4 py-5 font-bold text-slate-500 text-sm">{v.no_of_vacancies}</td>
                                                 <td className="px-4 py-5">

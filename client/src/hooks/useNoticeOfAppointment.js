@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../utils/api';
 
 export const useNoticeOfAppointment = (applicantId) => {
     const [data, setData] = useState(null);
@@ -7,7 +8,7 @@ export const useNoticeOfAppointment = (applicantId) => {
 
     const fetchData = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/rsp/notice-of-appointment/${applicantId}`, {
+        const res = await fetch(`${API_BASE}/api/rsp/notice-of-appointment/${applicantId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         setData(await res.json());
@@ -16,7 +17,7 @@ export const useNoticeOfAppointment = (applicantId) => {
 
     const handlePost = async () => {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:5000/api/rsp/notice-of-appointment/${data.notice.appointment_id}/post`, {
+        await fetch(`${API_BASE}/api/rsp/notice-of-appointment/${data.notice.appointment_id}/post`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ channels: selectedChannels })

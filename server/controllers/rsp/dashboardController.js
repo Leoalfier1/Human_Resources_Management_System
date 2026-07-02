@@ -68,7 +68,23 @@ exports.getDashboardData = async (req, res) => {
                 (SELECT COUNT(*) FROM applications
                  WHERE status = 'appointed'
                    AND YEAR(COALESCE(updated_at, submitted_at)) = ?)
-                    AS appointmentsIssuedFY
+                    AS appointmentsIssuedFY,
+
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'teaching')
+                    AS teachingPostings,
+
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'non_teaching')
+                    AS nonTeachingPostings,
+
+                (SELECT COUNT(*) FROM applications a
+                 JOIN vacancies v ON a.vacancy_id = v.id
+                 WHERE a.status != 'draft' AND v.position_type = 'teaching')
+                    AS teachingApplicants,
+
+                (SELECT COUNT(*) FROM applications a
+                 JOIN vacancies v ON a.vacancy_id = v.id
+                 WHERE a.status != 'draft' AND v.position_type = 'non_teaching')
+                    AS nonTeachingApplicants
             FROM DUAL
         `, [currentYear]);
 
@@ -87,7 +103,7 @@ exports.getDashboardData = async (req, res) => {
         const [vacancies] = await db.query(`
             SELECT
                 v.id, v.ref_no, v.position_title, v.assigned_school,
-                v.current_stage, v.posting_date, v.deadline_date,
+                v.current_stage, v.posting_date, v.deadline_date, v.position_type,
                 (SELECT COUNT(*) FROM applications
                  WHERE vacancy_id = v.id AND status != 'draft') AS total_applicants
             FROM vacancies v
@@ -106,6 +122,7 @@ exports.getDashboardData = async (req, res) => {
                 ref_no:               v.ref_no,
                 position_title:       v.position_title,
                 assigned_school:      v.assigned_school,
+                position_type:        v.position_type || 'teaching',
                 total_applicants:     Number(v.total_applicants) || 0,
                 days_left:            daysLeft,
                 working_days_elapsed: wdElapsed,
@@ -164,7 +181,11 @@ exports.getDashboardData = async (req, res) => {
                 pendingEvaluations:      Number(statRow.pendingEvaluations)     || 0,
                 pendingEvaluationsBatch: batchRow?.ref_no || 'N/A',
                 appointmentsIssuedFY:    Number(statRow.appointmentsIssuedFY)  || 0,
-                targetTAT:               TARGET_TAT
+                targetTAT:               TARGET_TAT,
+                teachingPostings:        Number(statRow.teachingPostings)      || 0,
+                nonTeachingPostings:     Number(statRow.nonTeachingPostings)   || 0,
+                teachingApplicants:      Number(statRow.teachingApplicants)    || 0,
+                nonTeachingApplicants:   Number(statRow.nonTeachingApplicants) || 0
             },
             activePostings,
             turnaroundTime,

@@ -77,7 +77,8 @@ exports.createVacancy = async (req, res) => {
         const {
             position_title, item_number, salary_grade, assigned_school,
             minimum_qualifications, no_of_vacancies, posting_date,
-            publish_division_website, publish_facebook, publish_bulletin
+            publish_division_website, publish_facebook, publish_bulletin,
+            position_type
         } = req.body;
 
         // A. Validate required fields
@@ -124,20 +125,22 @@ exports.createVacancy = async (req, res) => {
         }
 
         // G. Insert into DB
+        const posType = position_type || 'teaching';
+
         const [result] = await db.query(`
             INSERT INTO vacancies (
                 ref_no, position_title, item_number, salary_grade,
                 assigned_school, minimum_qualifications, no_of_vacancies,
                 posting_date, deadline_date, division_memo_file_path,
                 publish_division_website, publish_facebook, publish_bulletin,
-                created_by, current_stage, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'active')
+                created_by, current_stage, status, position_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'active', ?)
         `, [
             generatedRefNo, position_title, item_number, sgNumber,
             assigned_school, minimum_qualifications, no_of_vacancies || 1,
             posting_date, deadlineStr, finalFilePath,
             pubWeb, pubFB, pubBul,
-            req.user.id
+            req.user.id, posType
         ]);
 
         // H. Activity log

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { Award, Download, Briefcase, Tag, MapPin, DollarSign, Calendar, FileCheck, CheckCircle2 } from 'lucide-react';
-
-const API = 'http://localhost:5000';
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 const AppointmentNotice = () => {
     const [applicationId, setApplicationId] = useState(null);
@@ -16,7 +15,7 @@ const AppointmentNotice = () => {
     const fetchAppointment = async (id, isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const res = await fetch(`${API}/api/applications/${id}/appointment`, {
+            const res = await fetch(`${API_BASE}/api/applications/${id}/appointment`, {
                 headers: { 'Authorization': `Bearer ${token()}` }
             });
             const json = await res.json();
@@ -34,7 +33,7 @@ const AppointmentNotice = () => {
     setDownloading(true);
     try {
         const res = await fetch(
-            `${API}/api/applications/${applicationId}/appointment/pdf`,
+            `${API_BASE}/api/applications/${applicationId}/appointment/pdf`,
             { headers: { 'Authorization': `Bearer ${token()}` } }
         );
         if (!res.ok) throw new Error('Could not generate PDF.');
@@ -56,7 +55,7 @@ const AppointmentNotice = () => {
 
     useEffect(() => {
         const init = async () => {
-            const res = await fetch(`${API}/api/applications/my-latest`, {
+            const res = await fetch(`${API_BASE}/api/applications/my-latest`, {
                 headers: { 'Authorization': `Bearer ${token()}` }
             });
             if (!res.ok) { setLoading(false); setError('No active application found.'); return; }
@@ -70,7 +69,7 @@ const AppointmentNotice = () => {
     // Real-time: appointmentController.js's issueAppointment emits this exact event
     useEffect(() => {
         if (!applicationId) return;
-        const socket = io(API);
+        const socket = io(SERVER_BASE);
         socket.emit('join-application-room', `application-${applicationId}`);
         socket.on('application:stage-update', () => fetchAppointment(applicationId, true));
         return () => socket.disconnect();

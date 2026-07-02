@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Download, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Loader2, Wifi, WifiOff } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import io from 'socket.io-client';
+import { API_BASE, SERVER_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
+const API = API_BASE;
 
 // ── SMALL CELL HELPERS ────────────────────────────────────────────────────────
 const Cell = ({ children, muted }) => (
@@ -38,7 +39,7 @@ const RSPApplicantManagement = () => {
     const [connected, setConnected]   = useState(false);
     const socketRef                   = useRef(null);
 
-    const [filters, setFilters] = useState({ search: '', status: 'all', vacancy_id: 'all', page: 1 });
+    const [filters, setFilters] = useState({ search: '', status: 'all', vacancy_id: 'all', position_type: 'all', page: 1 });
 
     const token = () => localStorage.getItem('token');
     const authH = () => ({ 'Authorization': `Bearer ${token()}` });
@@ -67,7 +68,7 @@ const RSPApplicantManagement = () => {
 
     // ── REAL-TIME SOCKET ──────────────────────────────────────────
     useEffect(() => {
-        const socket = io(API);
+        const socket = io(SERVER_BASE);
         socketRef.current = socket;
 
         socket.on('connect',    () => setConnected(true));
@@ -183,6 +184,12 @@ const RSPApplicantManagement = () => {
                     <option value="all">All Positions</option>
                     {vacancies.map(v => <option key={v.id} value={v.id}>{v.ref_no} — {v.position_title}</option>)}
                 </select>
+                <select className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-600 outline-none"
+                    value={filters.position_type} onChange={e => setFilters({ ...filters, position_type: e.target.value, page: 1 })}>
+                    <option value="all">All Types</option>
+                    <option value="teaching">Teaching</option>
+                    <option value="non_teaching">Non-Teaching</option>
+                </select>
             </div>
 
             {/* TABLE */}
@@ -227,7 +234,16 @@ const RSPApplicantManagement = () => {
                                     <Cell>{app.applicant_code}</Cell>
                                     <td className="px-3 py-3 border-r border-slate-50">
                                         <p className="font-black text-[#1B3A6B] text-xs uppercase whitespace-nowrap">{app.full_name}</p>
-                                        <p className="text-[10px] font-bold text-slate-400">{app.position_title}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <p className="text-[10px] font-bold text-slate-400">{app.position_title}</p>
+                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-wider ${
+                                                app.position_type === 'non_teaching'
+                                                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                                    : 'bg-blue-50 text-blue-600 border border-blue-200'
+                                            }`}>
+                                                {app.position_type === 'non_teaching' ? 'NT' : 'T'}
+                                            </span>
+                                        </div>
                                     </td>
                                     <Cell>{app.address}</Cell>
                                     <Cell center>{app.age}</Cell>

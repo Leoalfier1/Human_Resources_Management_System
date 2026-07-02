@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import io from 'socket.io-client';
 
-const API = 'http://localhost:5000';
+import { API_BASE } from '../utils/api';
 
 export const useComparativeAssessment = () => {
     const [vacancies, setVacancies] = useState([]);
     const [vacancyId, setVacancyId] = useState(null);
+    const [vacancy, setVacancy] = useState(null);
     const [criteria, setCriteria] = useState([]);
     const [applicants, setApplicants] = useState([]);
     const [rankings, setRankings] = useState([]);
@@ -22,7 +23,7 @@ export const useComparativeAssessment = () => {
     useEffect(() => {
         const fetchVacancies = async () => {
             try {
-                const res = await fetch(`${API}/api/rsp/vacancies`, { headers: authHeader() });
+                const res = await fetch(`${API_BASE}/api/rsp/vacancies`, { headers: authHeader() });
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : [];
                 setVacancies(list);
@@ -36,18 +37,22 @@ export const useComparativeAssessment = () => {
         fetchVacancies();
     }, []);
 
-    // Fetch criteria + applicants + rankings when vacancyId changes
+    // Fetch vacancy details, criteria, applicants & rankings when vacancyId changes
     // isSilent=true skips the loading flag so socket-triggered refreshes don't blank the screen
     const fetchCriteriaAndApplicants = useCallback(async (isSilent = false) => {
         if (!vacancyId) return;
         if (!isSilent) setLoading(true);
         setError(null);
         try {
-            const [critRes, appRes, rankRes] = await Promise.all([
-                fetch(`${API}/api/rsp/comparative-assessment/criteria?vacancy_id=${vacancyId}`, { headers: authHeader() }),
-                fetch(`${API}/api/rsp/applicants?vacancy_id=${vacancyId}&status=qualified`, { headers: authHeader() }),
-                fetch(`${API}/api/rsp/comparative-assessment/rankings?vacancy_id=${vacancyId}`, { headers: authHeader() })
+            const [vacRes, critRes, appRes, rankRes] = await Promise.all([
+                fetch(`${API_BASE}/api/rsp/vacancies/${vacancyId}`, { headers: authHeader() }),
+                fetch(`${API_BASE}/api/rsp/comparative-assessment/criteria?vacancy_id=${vacancyId}`, { headers: authHeader() }),
+                fetch(`${API_BASE}/api/rsp/applicants?vacancy_id=${vacancyId}&status=qualified`, { headers: authHeader() }),
+                fetch(`${API_BASE}/api/rsp/comparative-assessment/rankings?vacancy_id=${vacancyId}`, { headers: authHeader() })
             ]);
+
+            const vacData = vacRes.ok ? await vacRes.json() : null;
+            setVacancy(vacData);
 
             const criteriaData = critRes.ok ? await critRes.json() : [];
             setCriteria(Array.isArray(criteriaData) ? criteriaData : []);
@@ -82,7 +87,7 @@ export const useComparativeAssessment = () => {
         if (!selectedAppId) { setScores({}); return; }
         const fetchScores = async () => {
             try {
-                const res = await fetch(`${API}/api/rsp/comparative-assessment/scores?applicant_id=${selectedAppId}`, { headers: authHeader() });
+                const res = await fetch(`${API_BASE}/api/rsp/comparative-assessment/scores?applicant_id=${selectedAppId}`, { headers: authHeader() });
                 const data = res.ok ? await res.json() : {};
                 setScores(typeof data === 'object' && !Array.isArray(data) ? data : {});
             } catch (e) {
@@ -97,7 +102,7 @@ export const useComparativeAssessment = () => {
     useEffect(() => {
         if (!vacancyId) return;
         if (socketRef.current) socketRef.current.disconnect();
-        const socket = io(API);
+        const socket = io(API_BASE);
         socketRef.current = socket;
         socket.on(`rsp:ca:scoreUpdate:${vacancyId}`, () => fetchCriteriaAndApplicants(true));
         return () => socket.disconnect();
@@ -106,7 +111,7 @@ export const useComparativeAssessment = () => {
     const refreshRankings = useCallback(async () => {
         if (!vacancyId) return;
         try {
-            const res = await fetch(`${API}/api/rsp/comparative-assessment/rankings?vacancy_id=${vacancyId}`, { headers: authHeader() });
+            const res = await fetch(`${API_BASE}/api/rsp/comparative-assessment/rankings?vacancy_id=${vacancyId}`, { headers: authHeader() });
             const data = res.ok ? await res.json() : [];
             setRankings(Array.isArray(data) ? data : []);
         } catch (e) { console.error(e); }
@@ -115,7 +120,7 @@ export const useComparativeAssessment = () => {
     const refreshScores = useCallback(async () => {
         if (!selectedAppId) return;
         try {
-            const res = await fetch(`${API}/api/rsp/comparative-assessment/scores?applicant_id=${selectedAppId}`, { headers: authHeader() });
+            const res = await fetch(`${API_BASE}/api/rsp/comparative-assessment/scores?applicant_id=${selectedAppId}`, { headers: authHeader() });
             const data = res.ok ? await res.json() : {};
             setScores(typeof data === 'object' && !Array.isArray(data) ? data : {});
         } catch (e) { console.error(e); }
@@ -125,7 +130,7 @@ export const useComparativeAssessment = () => {
     const submitAssessment = useCallback(async () => {
         if (!vacancyId) return { success: false, message: 'No vacancy selected.' };
         try {
-            const res = await fetch(`${API}/api/rsp/comparative-assessment/submit`, {
+            const res = await fetch(`${API_BASE}/api/rsp/comparative-assessment/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ vacancy_id: vacancyId })
@@ -144,7 +149,7 @@ export const useComparativeAssessment = () => {
     const resetScores = useCallback(async () => {
         if (!vacancyId) return { success: false, message: 'No vacancy selected.' };
         try {
-            const res = await fetch(`${API}/api/rsp/comparative-assessment/reset`, {
+            const res = await fetch(`${API_BASE}/api/rsp/comparative-assessment/reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ vacancy_id: vacancyId })
@@ -160,7 +165,7 @@ export const useComparativeAssessment = () => {
     }, [vacancyId, fetchCriteriaAndApplicants]);
 
     return {
-        vacancies, vacancyId, setVacancyId,
+        vacancies, vacancyId, setVacancyId, vacancy,
         criteria, applicants, rankings, scores,
         selectedAppId, setSelectedAppId,
         loading, error,

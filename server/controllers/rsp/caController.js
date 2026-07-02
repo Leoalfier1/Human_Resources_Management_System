@@ -2,37 +2,65 @@ const db = require('../../db');
 
 /**
  * SEEDING LOGIC: Ensures every vacancy has the standard DepEd Rubric
- * Category A: 60%, Category B: 20%, Category C: 20%
+ * Teaching: Category A 60%, Category B 20%, Category C 20%
+ * Non-Teaching: Category A 40%, Category B 30%, Category C 30%
  */
-const seedDefaultRubric = async (vacancyId) => {
+const seedDefaultRubric = async (vacancyId, positionType = 'teaching') => {
     const [existing] = await db.query('SELECT id FROM comparative_assessment_criteria WHERE vacancy_id = ?', [vacancyId]);
     if (existing.length > 0) return;
 
-    // sub_criterion_label, weight_percent (within category, must sum to 100 per category), max_score, category, vacancy_id
-    const defaults = [
-        // Category A: Classroom Observable Indicators (60% of total)
-        ['Content Knowledge and Pedagogy',         20.00, 5, 'classroom_observable', vacancyId],
-        ['Learning Environment and Management',    15.00, 5, 'classroom_observable', vacancyId],
-        ['Learner Diversity and Inclusion',         10.00, 5, 'classroom_observable', vacancyId],
-        ['Curriculum and Planning',                 15.00, 5, 'classroom_observable', vacancyId],
-        ['Assessment and Reporting',                15.00, 5, 'classroom_observable', vacancyId],
-        ['Community Linkages and Professional',     12.50, 5, 'classroom_observable', vacancyId],
-        ['Personal Growth and Professional Dev.',   12.50, 5, 'classroom_observable', vacancyId],
+    let defaults;
 
-        // Category B: Non-Classroom Observable Indicators (20% of total)
-        ['Behavioral Event Interview – Leadership',     25.00, 5, 'non_classroom_observable', vacancyId],
-        ['Behavioral Event Interview – Communication',  25.00, 5, 'non_classroom_observable', vacancyId],
-        ['Written Reflection – Self-Awareness',          15.00, 5, 'non_classroom_observable', vacancyId],
-        ['Written Reflection – Problem-Solving',         15.00, 5, 'non_classroom_observable', vacancyId],
-        ['Interpersonal Skills & Professionalism',      20.00, 5, 'non_classroom_observable', vacancyId],
+    if (positionType === 'non_teaching') {
+        // Category A: Technical / Skills Interview (40% of total)
+        defaults = [
+            ['Technical Knowledge & Expertise',         30.00, 5, 'classroom_observable', vacancyId],
+            ['Process & Systems Thinking',              20.00, 5, 'classroom_observable', vacancyId],
+            ['Data Management & Reporting',             20.00, 5, 'classroom_observable', vacancyId],
+            ['Tools & Technology Proficiency',          15.00, 5, 'classroom_observable', vacancyId],
+            ['Regulatory & Policy Compliance',          15.00, 5, 'classroom_observable', vacancyId],
 
-        // Category C: Document Evaluation (20% of total)
-        ['Education (Master\'s / Doctor\'s Degree)',       25.00, 10, 'document_evaluation', vacancyId],
-        ['Training / Seminars (hrs)',                      20.00, 50, 'document_evaluation', vacancyId],
-        ['Experience (years in service)',                  20.00, 30, 'document_evaluation', vacancyId],
-        ['Performance Rating (last 3 ratings)',             20.00, 10, 'document_evaluation', vacancyId],
-        ['Outstanding Accomplishments / Awards',            15.00, 5,  'document_evaluation', vacancyId],
-    ];
+            // Category B: Behavioral Event Interview (30% of total)
+            ['Behavioral Event Interview – Leadership',     25.00, 5, 'non_classroom_observable', vacancyId],
+            ['Behavioral Event Interview – Communication',  25.00, 5, 'non_classroom_observable', vacancyId],
+            ['Written Reflection – Self-Awareness',          15.00, 5, 'non_classroom_observable', vacancyId],
+            ['Written Reflection – Problem-Solving',         15.00, 5, 'non_classroom_observable', vacancyId],
+            ['Interpersonal Skills & Professionalism',      20.00, 5, 'non_classroom_observable', vacancyId],
+
+            // Category C: Document Evaluation (30% of total)
+            ['Education (Degree & Relevant Training)',       25.00, 10, 'document_evaluation', vacancyId],
+            ['Relevant Work Experience',                    25.00, 50, 'document_evaluation', vacancyId],
+            ['Performance Rating (last 3 ratings)',          20.00, 10, 'document_evaluation', vacancyId],
+            ['Outstanding Accomplishments / Awards',         15.00, 5,  'document_evaluation', vacancyId],
+            ['CSC Eligibility / Relevant Certifications',    15.00, 5,  'document_evaluation', vacancyId],
+        ];
+    } else {
+        // Teaching rubric (original)
+        defaults = [
+            // Category A: Classroom Observable Indicators (60% of total)
+            ['Content Knowledge and Pedagogy',         20.00, 5, 'classroom_observable', vacancyId],
+            ['Learning Environment and Management',    15.00, 5, 'classroom_observable', vacancyId],
+            ['Learner Diversity and Inclusion',         10.00, 5, 'classroom_observable', vacancyId],
+            ['Curriculum and Planning',                 15.00, 5, 'classroom_observable', vacancyId],
+            ['Assessment and Reporting',                15.00, 5, 'classroom_observable', vacancyId],
+            ['Community Linkages and Professional',     12.50, 5, 'classroom_observable', vacancyId],
+            ['Personal Growth and Professional Dev.',   12.50, 5, 'classroom_observable', vacancyId],
+
+            // Category B: Non-Classroom Observable Indicators (20% of total)
+            ['Behavioral Event Interview – Leadership',     25.00, 5, 'non_classroom_observable', vacancyId],
+            ['Behavioral Event Interview – Communication',  25.00, 5, 'non_classroom_observable', vacancyId],
+            ['Written Reflection – Self-Awareness',          15.00, 5, 'non_classroom_observable', vacancyId],
+            ['Written Reflection – Problem-Solving',         15.00, 5, 'non_classroom_observable', vacancyId],
+            ['Interpersonal Skills & Professionalism',      20.00, 5, 'non_classroom_observable', vacancyId],
+
+            // Category C: Document Evaluation (20% of total)
+            ['Education (Master\'s / Doctor\'s Degree)',       25.00, 10, 'document_evaluation', vacancyId],
+            ['Training / Seminars (hrs)',                      20.00, 50, 'document_evaluation', vacancyId],
+            ['Experience (years in service)',                  20.00, 30, 'document_evaluation', vacancyId],
+            ['Performance Rating (last 3 ratings)',             20.00, 10, 'document_evaluation', vacancyId],
+            ['Outstanding Accomplishments / Awards',            15.00, 5,  'document_evaluation', vacancyId],
+        ];
+    }
 
     try {
         await db.query(
@@ -53,7 +81,10 @@ const getCriteria = async (req, res) => {
         const { vacancy_id } = req.query;
         if (!vacancy_id) return res.status(400).json({ message: "Vacancy ID is required" });
 
-        await seedDefaultRubric(vacancy_id);
+        const [vac] = await db.query('SELECT position_type FROM vacancies WHERE id = ?', [vacancy_id]);
+        const positionType = vac.length > 0 ? (vac[0].position_type || 'teaching') : 'teaching';
+
+        await seedDefaultRubric(vacancy_id, positionType);
         const [rows] = await db.query('SELECT * FROM comparative_assessment_criteria WHERE vacancy_id = ?', [vacancy_id]);
         res.json(rows);
     } catch (error) {
@@ -83,23 +114,38 @@ const updateScore = async (req, res) => {
             JOIN comparative_assessment_criteria c ON s.criterion_id = c.id
             WHERE s.applicant_id = ?`, [applicant_id]);
 
-        // C. Scoring Math (Weighted Averages)
+        // C. Determine category weights based on vacancy position_type
+        const [appVac] = await db.query(
+            `SELECT v.position_type FROM applications a
+             JOIN vacancies v ON a.vacancy_id = v.id
+             WHERE a.id = ?`, [applicant_id]
+        );
+        const posType = appVac.length > 0 ? (appVac[0].position_type || 'teaching') : 'teaching';
+
+        let weightA, weightB, weightC;
+        if (posType === 'non_teaching') {
+            weightA = 0.4; weightB = 0.3; weightC = 0.3;
+        } else {
+            weightA = 0.6; weightB = 0.2; weightC = 0.2;
+        }
+
+        // D. Scoring Math (Weighted Averages)
         const calculateSubscore = (categoryName, totalCategoryWeight) => {
             const filtered = allScores.filter(s => s.category === categoryName);
             if (filtered.length === 0) return 0;
-            
+
             // Formula: Sum of (Score / Max * Weight%)
             const rawSum = filtered.reduce((acc, curr) => {
                 return acc + ((curr.score_given / curr.max_score) * curr.weight_percent);
             }, 0);
 
-            // Scale to the category's total share (e.g., 60 for A)
+            // Scale to the category's total share (e.g., 60 for teaching, 40 for non-teaching)
             return (rawSum / 100) * (totalCategoryWeight * 100); 
         };
 
-        const subA = calculateSubscore('classroom_observable', 0.6);
-        const subB = calculateSubscore('non_classroom_observable', 0.2);
-        const subC = calculateSubscore('document_evaluation', 0.2);
+        const subA = calculateSubscore('classroom_observable', weightA);
+        const subB = calculateSubscore('non_classroom_observable', weightB);
+        const subC = calculateSubscore('document_evaluation', weightC);
         const total = subA + subB + subC;
 
         // D. Update the results summary table

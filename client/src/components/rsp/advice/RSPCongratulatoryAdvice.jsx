@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Printer, Download, Send, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useCongratulatoryAdvice } from '../../../hooks/useCongratulatoryAdvice';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
+const API = API_BASE;
 
 const RSPCongratulatoryAdvice = () => {
     // TODO: replace with a vacancy selector if you have multiple active vacancies
@@ -34,7 +35,7 @@ const RSPCongratulatoryAdvice = () => {
         document_submission_deadline: detail.document_submission_deadline?.split('T')[0],
     };
 
-    await fetch(`http://localhost:5000/api/rsp/congratulatory-advice`, {
+    await fetch(`${API_BASE}/api/rsp/congratulatory-advice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)

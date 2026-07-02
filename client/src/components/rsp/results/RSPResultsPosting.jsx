@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Megaphone, Printer, Send, CheckCircle2, Clock, AlertTriangle, Loader2, FileText } from 'lucide-react';
 import { useResultsPosting } from '../../../hooks/useResultsPosting';
+import { API_BASE } from '../../../utils/api';
 
-const API = 'http://localhost:5000';
+const API = API_BASE;
 
 const RSPResultsPosting = () => {
     const [vacancies, setVacancies] = useState([]);

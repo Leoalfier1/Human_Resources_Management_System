@@ -6,9 +6,8 @@ import { motion } from 'framer-motion';
 import Step1PersonalInfo from '../../components/applicant/wizard/Step1PersonalInfo';
 import Step2Documents from '../../components/applicant/wizard/Step2Documents';
 import Step3Review from '../../components/applicant/wizard/Step3Review';
+import { API_BASE } from '../../utils/api';
 import Step4Confirmation from '../../components/applicant/wizard/Step4Confirmation';
-
-const API = 'http://localhost:5000/api';
 
 const ApplicationWizard = () => {
     const { id } = useParams(); // vacancy_id
@@ -25,7 +24,7 @@ const ApplicationWizard = () => {
     useEffect(() => {
         const fetchVacancy = async () => {
             try {
-                const res = await fetch(`${API}/vacancies/${id}`);
+                const res = await fetch(`${API_BASE}/api/vacancies/${id}`);
                 if (!res.ok) throw new Error('Vacancy not found');
                 const data = await res.json();
                 setVacancy(data);
@@ -47,7 +46,7 @@ const ApplicationWizard = () => {
         const checkExisting = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/vacancies/${id}/has-applied`, {
+                const res = await fetch(`${API_BASE}/api/vacancies/${id}/has-applied`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {

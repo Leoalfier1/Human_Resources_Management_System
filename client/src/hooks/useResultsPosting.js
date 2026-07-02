@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../utils/api';
 
 export const useResultsPosting = (vacancyId) => {
     const [data, setData] = useState(null);
@@ -8,7 +9,7 @@ export const useResultsPosting = (vacancyId) => {
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/rsp/results/preview?vacancy_id=${vacancyId}`, {
+            const res = await fetch(`${API_BASE}/api/rsp/results/preview?vacancy_id=${vacancyId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const json = await res.json();
@@ -21,7 +22,7 @@ export const useResultsPosting = (vacancyId) => {
         setIsPublishing(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/rsp/results/publish`, {
+            const res = await fetch(`${API_BASE}/api/rsp/results/publish`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ vacancy_id: vacancyId })

@@ -37,10 +37,14 @@ exports.createOrGetDraft = async (req, res) => {
             return res.json({ applicationId: existing[0].id, application: existing[0] });
         }
 
+        const [userRow] = await db.query('SELECT full_name, email FROM users WHERE id = ?', [applicant_id]);
+        const fullName = userRow.length > 0 ? userRow[0].full_name : req.user.name || 'Unknown';
+        const email = userRow.length > 0 ? userRow[0].email : req.user.email || '';
+
         const [result] = await db.query(
             `INSERT INTO applications (vacancy_id, applicant_id, full_name, email, status) 
              VALUES (?, ?, ?, ?, 'draft')`,
-            [vacancy_id, applicant_id, req.user.name, req.user.email]
+            [vacancy_id, applicant_id, fullName, email]
         );
 
         res.json({ applicationId: result.insertId });

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE } from '../../utils/api';
 
 const LoginForm = ({ onSwitchTab }) => {
   const { login } = useAuth(); // Get the login function from our context
@@ -27,7 +28,7 @@ const LoginForm = ({ onSwitchTab }) => {
     setGeneralError("");
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

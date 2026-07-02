@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle2, XCircle, FileText, AlertCircle, Loader2, ChevronDown, Eye, Circle } from 'lucide-react';
 import { useInitialEvaluation } from '../../../hooks/useInitialEvaluation';
+import { API_BASE, SERVER_BASE } from '../../../utils/api';
 
 // Files are served by the backend (Express static /uploads), not the Vite dev server —
 // so document links must point at the API origin, not the React app's origin.
-const SERVER_URL = 'http://localhost:5000';
 
 const RSPInitialEvaluation = () => {
     // 1. Manage Vacancy Selection
@@ -18,7 +18,7 @@ const RSPInitialEvaluation = () => {
         const fetchVacList = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch('http://localhost:5000/api/rsp/vacancies', {
+                const res = await fetch(`${API_BASE}/api/rsp/vacancies`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
@@ -51,7 +51,7 @@ const RSPInitialEvaluation = () => {
     // --- HANDLERS ---
     const handleCriteriaToggle = async (criterionId, passed) => {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:5000/api/rsp/evaluation/applicant/${selectedApplicant.id}/criterion/${criterionId}`, {
+        await fetch(`${API_BASE}/api/rsp/evaluation/applicant/${selectedApplicant.id}/criterion/${criterionId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ passed })
@@ -61,7 +61,7 @@ const RSPInitialEvaluation = () => {
 
     const handleVerifyDoc = async (docId) => {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:5000/api/rsp/evaluation/document/${docId}/verify`, {
+        await fetch(`${API_BASE}/api/rsp/evaluation/document/${docId}/verify`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -75,7 +75,7 @@ const RSPInitialEvaluation = () => {
         setServerError("");
         const token = localStorage.getItem('token');
 
-        const res = await fetch(`http://localhost:5000/api/rsp/evaluation/applicant/${selectedApplicant.id}/decision`, {
+        const res = await fetch(`${API_BASE}/api/rsp/evaluation/applicant/${selectedApplicant.id}/decision`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ decision })
@@ -96,7 +96,7 @@ const RSPInitialEvaluation = () => {
         setServerError("");
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:5000/api/rsp/evaluation/finalize`, {
+            const res = await fetch(`${API_BASE}/api/rsp/evaluation/finalize`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ vacancy_id: selectedVacId })
@@ -283,7 +283,7 @@ const RSPInitialEvaluation = () => {
                                         const hasFile = !!doc.file_path;
                                         const isVerified = hasFile && !!doc.is_verified;
                                         const isPending = hasFile && !isVerified;
-                                        const fileUrl = hasFile ? `${SERVER_URL}${doc.file_path}` : null;
+                                        const fileUrl = hasFile ? `${SERVER_BASE}${doc.file_path}` : null;
 
                                         const rowBg = isVerified
                                             ? 'bg-emerald-50/60 border-emerald-100'
