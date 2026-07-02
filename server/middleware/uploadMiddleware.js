@@ -1,6 +1,8 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+// Should look like this:
+const dir = './uploads/division-memos/';
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {

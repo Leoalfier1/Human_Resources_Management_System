@@ -1,29 +1,51 @@
 const express = require('express');
 const router = express.Router();
-const { getQueue, getApplicantDetails, finalizeDecision } = require('../../controllers/rsp/evaluationController');
+const { 
+    getVacancies, 
+    createVacancy, 
+    getVacancyById,
+    updateVacancy,
+    deleteVacancy,
+    advanceStage
+} = require('../../controllers/rsp/vacancyController');
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware');
+const { uploadMemo } = require('../../middleware/uploadMiddleware');
 
-// Ensure these match the frontend fetch calls
-router.get('/queue', verifyToken, requireRole('admin', 'hr_staff'), getQueue);
-router.get('/applicant/:applicantId', verifyToken, requireRole('admin', 'hr_staff'), getApplicantDetails);
-router.patch('/applicant/:applicantId/decision', verifyToken, requireRole('admin', 'hr_staff'), finalizeDecision);
+// PATH: /api/rsp/vacancies
 
-// Temporary fix for missing routes in previous step:
-const db = require('../../db');
-router.patch('/applicant/:applicantId/criterion/:criterionId', verifyToken, async (req, res) => {
-    const { applicantId, criterionId } = req.params;
-    const { passed } = req.body;
-    await db.query(
-        'INSERT INTO applicant_qualification_results (applicant_id, criterion_id, passed) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE passed = ?',
-        [applicantId, criterionId, passed, passed]
-    );
-    res.json({ message: "Updated" });
-});
+router.get('/',
+    verifyToken,
+    getVacancies
+);
 
-router.patch('/document/:documentId/verify', verifyToken, async (req, res) => {
-    const { documentId } = req.params;
-    await db.query('UPDATE applicant_documents SET verification_status = "verified" WHERE id = ?', [documentId]);
-    res.json({ message: "Verified" });
-});
+router.post('/',
+    verifyToken,
+    requireRole('admin', 'hr_staff'),
+    uploadMemo.single('division_memorandum'),
+    createVacancy
+);
+
+router.get('/:id',
+    verifyToken,
+    getVacancyById
+);
+
+router.patch('/:id',
+    verifyToken,
+    requireRole('admin', 'hr_staff'),
+    updateVacancy
+);
+
+router.patch('/:id/advance',
+    verifyToken,
+    requireRole('admin', 'hr_staff'),
+    advanceStage
+);
+
+router.delete('/:id',
+    verifyToken,
+    requireRole('admin', 'hr_staff'),
+    deleteVacancy
+);
 
 module.exports = router;

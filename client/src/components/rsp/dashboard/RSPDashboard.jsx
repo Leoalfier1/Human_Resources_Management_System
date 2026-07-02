@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Briefcase, Users, ClipboardCheck, Award } from 'lucide-react';
 import { useRSPDashboard } from '../../../hooks/useRSPDashboard';
 import { StatCard, TATCard, DeadlinesCard, ActivityCard, VacancyProgressTracker } from './DashboardComponents';
@@ -14,11 +15,37 @@ const SkeletonLoader = () => (
 );
 
 const RSPDashboard = () => {
-  const { data, loading } = useRSPDashboard();
+  const { data, loading, error, refresh } = useRSPDashboard();
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [justUpdated, setJustUpdated] = useState(false);
+
+  // Track when data refreshes so we can show the "just updated" flash
+  useEffect(() => {
+    if (data) {
+      setLastUpdated(new Date());
+      setJustUpdated(true);
+      const t = setTimeout(() => setJustUpdated(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [data]);
 
   if (loading) return <SkeletonLoader />;
 
-  // Dynamic School Year computation
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-3xl p-10 flex flex-col items-center text-center gap-4">
+        <AlertCircle className="text-red-500" size={32} />
+        <p className="font-black text-red-700 uppercase tracking-wide">{error}</p>
+        <button
+          onClick={refresh}
+          className="px-6 py-2 bg-[#1B3A6B] text-white rounded-xl text-xs font-black uppercase tracking-widest"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const curMonth = new Date().getMonth();
   const curYear = new Date().getFullYear();
   const schoolYear = curMonth >= 5 ? `${curYear}–${curYear + 1}` : `${curYear - 1}–${curYear}`;
@@ -26,7 +53,7 @@ const RSPDashboard = () => {
 
   return (
     <div className="space-y-8 select-none">
-      
+
       {/* HEADER ROW */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
@@ -35,29 +62,58 @@ const RSPDashboard = () => {
             SY {schoolYear} · As of {formattedDate}
           </p>
         </div>
-        <div className="bg-[#1B3A6B] text-white px-6 py-3 rounded-2xl shadow-md flex items-center gap-3">
-          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Target TAT:</span>
-          <span className="text-lg font-black text-yellow-400">{data?.summary?.targetTAT} Working Days</span>
+
+        {/* RIGHT: TAT + Live Indicator + Refresh */}
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+
+          {/* LIVE INDICATOR */}
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all duration-500
+            ${justUpdated
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
+              : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+          >
+            <div className={`w-2 h-2 rounded-full transition-all duration-500
+              ${justUpdated ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}
+            />
+            {justUpdated ? 'Just Updated' : lastUpdated
+              ? `Updated ${lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Live'
+            }
+          </div>
+
+          {/* MANUAL REFRESH BUTTON */}
+          <button
+            onClick={refresh}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-black uppercase text-slate-500 hover:bg-slate-100 transition-all"
+          >
+            <RefreshCw size={13} /> Refresh
+          </button>
+
+          {/* TAT BADGE */}
+          <div className="bg-[#1B3A6B] text-white px-6 py-3 rounded-2xl shadow-md flex items-center gap-3">
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Target TAT:</span>
+            <span className="text-lg font-black text-yellow-400">{data?.summary?.targetTAT} Working Days</span>
+          </div>
         </div>
       </div>
 
       {/* STAT CARDS ROW */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard 
-          icon={Briefcase} value={data?.summary?.activePostings} label="Active Postings" 
-          context={`${data?.summary?.nearDeadlinePostings || 0} near deadline`} colorClass="bg-blue-50 text-blue-600" 
+        <StatCard
+          icon={Briefcase} value={data?.summary?.activePostings} label="Active Postings"
+          context={`${data?.summary?.nearDeadlinePostings || 0} near deadline`} colorClass="bg-blue-50 text-blue-600"
         />
-        <StatCard 
-          icon={Users} value={data?.summary?.totalApplicants} label="Total Applicants" 
-          context={`+${data?.summary?.newApplicantsThisWeek || 0} this week`} colorClass="bg-emerald-50 text-emerald-600" 
+        <StatCard
+          icon={Users} value={data?.summary?.totalApplicants} label="Total Applicants"
+          context={`+${data?.summary?.newApplicantsThisWeek || 0} this week`} colorClass="bg-emerald-50 text-emerald-600"
         />
-        <StatCard 
-          icon={ClipboardCheck} value={data?.summary?.pendingEvaluations} label="Pending Evaluations" 
-          context={`${data?.summary?.pendingEvaluationsBatch} batch`} colorClass="bg-amber-50 text-amber-600" 
+        <StatCard
+          icon={ClipboardCheck} value={data?.summary?.pendingEvaluations} label="Pending Evaluations"
+          context={`${data?.summary?.pendingEvaluationsBatch} batch`} colorClass="bg-amber-50 text-amber-600"
         />
-        <StatCard 
-          icon={Award} value={data?.summary?.appointmentsIssuedFY} label="Appointments Issued" 
-          context={`FY ${curYear} to date`} colorClass="bg-purple-50 text-purple-600" 
+        <StatCard
+          icon={Award} value={data?.summary?.appointmentsIssuedFY} label="Appointments Issued"
+          context={`FY ${curYear} to date`} colorClass="bg-purple-50 text-purple-600"
         />
       </div>
 

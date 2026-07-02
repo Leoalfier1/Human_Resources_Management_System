@@ -7,41 +7,44 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true, // Use SSL
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+}
 });
 
 const sendVerificationEmail = async (email, token) => {
-    // We create two different links by adding a "role" parameter at the end
-    const applicantUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&role=applicant`;
-    const adminUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&role=admin`;
+    // Sign-up is applicant-only (see SignUpForm.jsx) — admin/staff accounts are
+    // created by the System Administrator, never through self-registration.
+    // So instead of asking "which role are you", we ask which kind of position
+    // the applicant intends to apply for.
+    const teachingUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&type=teaching`;
+    const nonTeachingUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&type=non_teaching`;
 
     const mailOptions = {
         from: `"DepEd HRMIS" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: 'Verify your HRMIS Account & Select Role',
+        subject: 'Verify your HRMIS Account & Select Applicant Type',
         html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
                 <h2 style="color: #1B3A6B; text-align: center;">HRMIS Account Verification</h2>
-                <p>To complete your registration for the DepEd SDO Dapitan City HRMIS, please verify your email by selecting your intended role below:</p>
+                <p>To complete your registration for the DepEd SDO Dapitan City HRMIS, please verify your email by selecting the type of position you intend to apply for:</p>
                 
                 <div style="display: flex; flex-direction: column; gap: 15px; margin: 30px 0; text-align: center;">
-                    <!-- Button for Applicant -->
+                    <!-- Button for Teaching -->
                     <div style="margin-bottom: 20px;">
-                        <a href="${applicantUrl}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as APPLICANT</a>
-                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for a teaching position.</p>
+                        <a href="${teachingUrl}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as TEACHING Applicant</a>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for a teaching position (e.g. Teacher I-III, Master Teacher).</p>
                     </div>
 
-                    <!-- Button for Admin/HR -->
+                    <!-- Button for Non-Teaching -->
                     <div>
-                        <a href="${adminUrl}" style="background-color: #1B3A6B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as ADMIN / HR</a>
-                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this for HR Office, HRMPSB, or Appointing Authority access.</p>
+                        <a href="${nonTeachingUrl}" style="background-color: #1B3A6B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as NON-TEACHING Applicant</a>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for an administrative or support staff position.</p>
                     </div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                <p style="font-size: 11px; color: #94a3b8; text-align: center;">By clicking a link above, you verify your email and set your system permissions.</p>
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">By clicking a link above, you verify your email and set your applicant type.</p>
             </div>
         `
     };

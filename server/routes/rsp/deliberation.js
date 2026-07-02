@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware');
+const deliberationController = require('../../controllers/rsp/deliberationController');
 
-// Base route: /api/rsp/[module-name]
-router.get('/', verifyToken, requireRole('admin', 'hr_staff', 'hrmpsb', 'appointing_authority'), (req, res) => {
-    res.json({ 
-        module: req.baseUrl.split('/').pop(), 
-        status: 'Ready',
-        authorizedUser: req.user.name 
-    });
-});
+router.get('/ranked-list', verifyToken, requireRole('admin', 'hr_staff'), deliberationController.getRankedList);
+router.put('/notes', verifyToken, requireRole('admin', 'hr_staff'), deliberationController.updateNotes);
+router.put('/recommend', verifyToken, requireRole('admin', 'hr_staff'), deliberationController.toggleRecommend);
+router.post('/endorse', verifyToken, requireRole('admin', 'hr_staff'), deliberationController.endorseShortlist);
 
-module.exports = router;
+module.exports = router; // <--- MUST BE THE ROUTER

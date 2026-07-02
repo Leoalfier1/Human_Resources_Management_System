@@ -7,14 +7,19 @@ const { sendVerificationEmail } = require('../utils/mailer'); // Needed to send 
 const { sendResetPasswordEmail } = require('../utils/mailer');
 
 // REGISTER ROUTE
-// REGISTER ROUTE
 router.post('/register', async (req, res) => {
     try {
         const { fullName, email, mobile, password } = req.body;
 
         // 1. Check if user already exists
         const [existingUser] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (existingUser.length > 0) {
+
+        // Only block if a VERIFIED account already owns this email.
+        // An unverified row (e.g. from a previous attempt where the
+        // verification email failed to send) doesn't count as "taken" —
+        // we let the applicant try again instead of locking them out
+        // of their own email address with no way forward.
+        if (existingUser.length > 0 && existingUser[0].is_verified) {
             return res.status(400).json({ message: "Email already registered" });
         }
 
@@ -22,15 +27,27 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 3. CREATE THE TOKEN (This was missing!)
+        // 3. CREATE THE TOKEN
         // This creates a temporary "ID card" for the email link
         const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
         // 4. Save to Database FIRST
-        const [result] = await db.query(
-            'INSERT INTO users (full_name, email, mobile, password) VALUES (?, ?, ?, ?)',
-            [fullName, email, mobile, hashedPassword]
-        );
+        let userId;
+        if (existingUser.length > 0) {
+            // Re-registering over a stale, never-verified row: refresh their
+            // details/password and try sending the verification email again.
+            userId = existingUser[0].id;
+            await db.query(
+                'UPDATE users SET full_name = ?, mobile = ?, password = ? WHERE id = ?',
+                [fullName, mobile, hashedPassword, userId]
+            );
+        } else {
+            const [result] = await db.query(
+                'INSERT INTO users (full_name, email, mobile, password) VALUES (?, ?, ?, ?)',
+                [fullName, email, mobile, hashedPassword]
+            );
+            userId = result.insertId;
+        }
 
         // 5. ATTEMPT TO SEND THE EMAIL
         console.log("Attempting to send email to:", email); 
@@ -41,7 +58,7 @@ router.post('/register', async (req, res) => {
             // Only send ONE response back to React
             return res.status(201).json({ 
                 message: "User registered! Please check your email to verify.",
-                userId: result.insertId 
+                userId 
             });
 
         } catch (emailError) {
@@ -49,7 +66,7 @@ router.post('/register', async (req, res) => {
             // If email fails, we still tell the user they are registered but the email failed
             return res.status(201).json({ 
                 message: "User registered, but verification email failed to send.",
-                userId: result.insertId 
+                userId 
             });
         }
 
@@ -104,11 +121,11 @@ router.post('/login', async (req, res) => {
 // VERIFY EMAIL ROUTE
 // VERIFY EMAIL ROUTE
 router.get('/verify-email', async (req, res) => {
-    // 1. Get BOTH the token and the role from the URL link
-    const { token, role } = req.query;
+    // 1. Get BOTH the token and the applicant type from the URL link
+    const { token, type } = req.query;
 
-    if (!token || !role) {
-        return res.status(400).send("Invalid request. Missing token or role.");
+    if (!token || !type || !['teaching', 'non_teaching'].includes(type)) {
+        return res.status(400).send("Invalid request. Missing or invalid token/type.");
     }
 
     try {
@@ -116,21 +133,27 @@ router.get('/verify-email', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
         // 3. Update the user in Laragon
-        // We set is_verified to 1 AND change the role to what they clicked
+        // We set is_verified to 1 and record the applicant_type they selected.
+        // NOTE: we deliberately do NOT touch `role` here — sign-up is applicant-only
+        // (see SignUpForm.jsx), and role must stay 'applicant' regardless of what's
+        // in the query string, otherwise anyone could edit the link to self-promote
+        // to admin. Staff/admin accounts are created by the System Administrator only.
         const [result] = await db.query(
-            'UPDATE users SET is_verified = TRUE, role = ? WHERE email = ?', 
-            [role, decoded.email]
+            'UPDATE users SET is_verified = TRUE, applicant_type = ? WHERE email = ? AND role = "applicant"', 
+            [type, decoded.email]
         );
 
         if (result.affectedRows === 0) {
             return res.status(404).send("User not found.");
         }
 
+        const typeLabel = type === 'teaching' ? 'TEACHING APPLICANT' : 'NON-TEACHING APPLICANT';
+
         // 4. Success Page
         res.send(`
             <div style="font-family: sans-serif; text-align: center; padding: 50px;">
                 <h1 style="color: #1B3A6B;">Verification Successful!</h1>
-                <p>Your account has been verified as: <strong>${role.toUpperCase()}</strong></p>
+                <p>Your account has been verified as: <strong>${typeLabel}</strong></p>
                 <p>You may now close this window and log in to the HRMIS system.</p>
                 <br/>
                 <a href="http://localhost:5173" style="background: #1B3A6B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Login Page</a>

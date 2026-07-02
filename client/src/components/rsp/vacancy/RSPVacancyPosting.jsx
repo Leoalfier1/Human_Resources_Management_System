@@ -1,125 +1,446 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clock, Eye, Pencil, Info, Loader2, AlertCircle } from 'lucide-react';
+import { 
+    Plus, Clock, Eye, Pencil, Info, Loader2, AlertCircle,
+    X, Download, CheckCircle2, Globe, Share2, ClipboardList,
+    Trash2, FileText, Building2, Hash, Calendar, Users
+} from 'lucide-react';
 import { FileDropzone, PublishToggles } from './FormExtras';
 
+const API = 'http://localhost:5000/api/rsp/vacancies';
+const SERVER = 'http://localhost:5000';
+
+const EMPTY_FORM = {
+    position_title: '', item_number: '', salary_grade: 'SG-1',
+    assigned_school: '', no_of_vacancies: 1,
+    posting_date: new Date().toISOString().split('T')[0],
+    minimum_qualifications: '',
+    publish_division_website: false,
+    publish_facebook: false, publish_bulletin: false
+};
+
+// ─── VIEW MODAL ────────────────────────────────────────────────────────────────
+const VacancyViewModal = ({ vacancy, onClose, onEdit }) => {
+    if (!vacancy) return null;
+
+    const channels = [
+        { key: 'publish_division_website', label: 'Division Website', icon: Globe },
+        { key: 'publish_facebook',         label: 'Facebook Page',    icon: Share2 },
+        { key: 'publish_bulletin',         label: 'Bulletin Board',   icon: ClipboardList },
+    ];
+
+    const publishedChannels = channels.filter(c => vacancy[c.key]);
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={onClose}
+            />
+
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+                {/* Modal Header */}
+                <div className="sticky top-0 bg-white border-b border-slate-100 px-8 py-5 flex items-center justify-between rounded-t-[2.5rem] z-10">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{vacancy.ref_no}</p>
+                        <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic leading-tight">{vacancy.position_title}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => { onClose(); onEdit(vacancy); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#1B3A6B] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#162E55] transition-all"
+                        >
+                            <Pencil size={14} /> Edit
+                        </button>
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all">
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-8 space-y-6">
+                    {/* Status badge */}
+                    <div className="flex items-center gap-3">
+                        <span className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-full tracking-widest ${
+                            vacancy.computed_status === 'active' 
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                                : 'bg-slate-100 text-slate-400'
+                        }`}>
+                            {vacancy.computed_status}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                            Stage {vacancy.current_stage || 1} of 11
+                        </span>
+                        {vacancy.days_left >= 0 ? (
+                            <span className={`text-[10px] font-black ${vacancy.days_left <= 4 ? 'text-red-500' : 'text-slate-400'}`}>
+                                <Clock size={10} className="inline mr-1" />{vacancy.days_left}d left
+                            </span>
+                        ) : (
+                            <span className="text-[10px] font-black text-slate-400">Closed</span>
+                        )}
+                    </div>
+
+                    {/* Details grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { icon: Hash,      label: 'Item Number',    value: vacancy.item_number },
+                            { icon: Building2, label: 'Salary Grade',   value: vacancy.salary_grade },
+                            { icon: Building2, label: 'School',         value: vacancy.assigned_school },
+                            { icon: Users,     label: 'No. of Vacancies', value: vacancy.no_of_vacancies },
+                            { icon: Calendar,  label: 'Posting Date',   value: new Date(vacancy.posting_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) },
+                            { icon: Calendar,  label: 'Deadline',       value: new Date(vacancy.deadline_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) },
+                        ].map(row => (
+                            <div key={row.label} className="bg-slate-50 rounded-2xl p-4">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{row.label}</p>
+                                <p className="text-sm font-black text-[#1B3A6B]">{row.value || '—'}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Minimum Qualifications */}
+                    {vacancy.minimum_qualifications && (
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Minimum Qualifications</p>
+                            <p className="text-sm font-semibold text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl whitespace-pre-line">
+                                {vacancy.minimum_qualifications}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Published Channels */}
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Published On</p>
+                        <div className="flex flex-wrap gap-2">
+                            {publishedChannels.length > 0 ? publishedChannels.map(ch => (
+                                <span key={ch.key} className="flex items-center gap-1.5 bg-blue-50 text-[#1B3A6B] border border-blue-100 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                                    <CheckCircle2 size={12} className="text-emerald-500" /> {ch.label}
+                                </span>
+                            )) : (
+                                <span className="text-[10px] font-bold text-slate-400">No channels selected</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Division Memo Download */}
+                    {vacancy.division_memo_file_path && (
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Division Memorandum</p>
+                            <a
+                                href={`${SERVER}/${vacancy.division_memo_file_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                            >
+                                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                                    <FileText size={20} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-black text-[#1B3A6B] truncate">
+                                        {vacancy.division_memo_file_path.split('/').pop()}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-400">Click to view PDF</p>
+                                </div>
+                                <Download size={16} className="text-slate-400 group-hover:text-[#1B3A6B] transition-colors" />
+                            </a>
+                        </div>
+                    )}
+
+                    {/* Applicant count */}
+                    <div className="bg-[#1B3A6B] rounded-2xl p-5 flex items-center justify-between">
+                        <div>
+                            <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">Total Applicants</p>
+                            <p className="text-2xl font-black text-white">{vacancy.applicant_count || 0}</p>
+                        </div>
+                        <Users size={28} className="text-white opacity-20" />
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
 const RSPVacancyPosting = () => {
-    const [view, setView] = useState('list'); // 'list' or 'form'
+    const [view, setView] = useState('list');         // 'list' | 'form' | 'edit'
     const [vacancies, setVacancies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    
-    // 1. Form State
-    const [formData, setFormData] = useState({
-        position_title: '', 
-        item_number: '', 
-        salary_grade: 'SG-1',
-        assigned_school: '', 
-        no_of_vacancies: 1, 
-        posting_date: new Date().toISOString().split('T')[0],
-        minimum_qualifications: '', 
-        publish_division_website: false,
-        publish_facebook: false, 
-        publish_bulletin: false
-    });
-    
+    const [viewingVacancy, setViewingVacancy] = useState(null); // modal
+    const [editingVacancy, setEditingVacancy] = useState(null); // which vacancy to edit
+
+    const [formData, setFormData] = useState(EMPTY_FORM);
     const [memoFile, setMemoFile] = useState(null);
     const [errors, setErrors] = useState({});
 
-    // 2. Fetch Vacancies from Backend
+    // ── Fetch list ──────────────────────────────────────────────────────────────
     const fetchVacancies = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/rsp/vacancies', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch(API, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
-            setVacancies(data);
-        } catch (e) { 
-            console.error("Fetch Error:", e); 
-        } finally { 
-            setLoading(false); 
-        }
+            if (res.ok && Array.isArray(data)) setVacancies(data);
+            else { console.error("Server error:", data.message); setVacancies([]); }
+        } catch (e) { console.error("Fetch Error:", e); setVacancies([]); }
+        finally { setLoading(false); }
     };
 
     useEffect(() => { fetchVacancies(); }, []);
 
-    // 3. Handle Submit (Publish)
-    const handlePublish = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setErrors({});
-
-    // 1. VALIDATION: Read directly from current state
-    // We check for 'true' as a boolean here because React state holds booleans
-    const hasChannel = formData.publish_division_website || 
-                       formData.publish_facebook || 
-                       formData.publish_bulletin;
-
-    if (!hasChannel) {
-        setErrors({ server: "Select at least one publishing channel." });
-        setSubmitting(false);
-        // Scroll to error if needed
-        return;
-    }
-
-    // 2. PAYLOAD CONSTRUCTION
-    const data = new FormData();
-    
-    // Append text fields
-    data.append('position_title', formData.position_title);
-    data.append('item_number', formData.item_number);
-    data.append('salary_grade', formData.salary_grade);
-    data.append('assigned_school', formData.assigned_school);
-    data.append('no_of_vacancies', formData.no_of_vacancies);
-    data.append('posting_date', formData.posting_date);
-    data.append('minimum_qualifications', formData.minimum_qualifications);
-    
-    // 3. FIX: Explicitly send booleans as strings for Multer/Backend
-    data.append('publish_division_website', formData.publish_division_website ? 'true' : 'false');
-    data.append('publish_facebook', formData.publish_facebook ? 'true' : 'false');
-    data.append('publish_bulletin', formData.publish_bulletin ? 'true' : 'false');
-
-    if (memoFile) {
-        data.append('division_memorandum', memoFile);
-    }
-
-    // --- LOG CHECK (Step 4 of your plan) ---
-    // console.log("Final Payload Check:", Object.fromEntries(data.entries()));
-
-    try {
-        const res = await fetch('http://localhost:5000/api/rsp/vacancies', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: data
+    // ── Open Edit ────────────────────────────────────────────────────────────────
+    const openEdit = (v) => {
+        setEditingVacancy(v);
+        setFormData({
+            position_title:           v.position_title || '',
+            item_number:              v.item_number || '',
+            salary_grade:             v.salary_grade || 'SG-1',
+            assigned_school:          v.assigned_school || '',
+            no_of_vacancies:          v.no_of_vacancies || 1,
+            posting_date:             v.posting_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+            minimum_qualifications:   v.minimum_qualifications || '',
+            publish_division_website: !!v.publish_division_website,
+            publish_facebook:         !!v.publish_facebook,
+            publish_bulletin:         !!v.publish_bulletin,
         });
-        
-        const result = await res.json();
-        if (res.ok) {
-            alert("Vacancy posted successfully!");
-            setView('list');
-            fetchVacancies();
-        } else {
-            setErrors({ server: result.message });
-        }
-    } catch (e) {
-        setErrors({ server: "Connection error" });
-    } finally {
-        setSubmitting(false);
-    }
-};
+        setMemoFile(null);
+        setErrors({});
+        setView('edit');
+    };
+
+    // ── Open New Form ────────────────────────────────────────────────────────────
+    const openNew = () => {
+        setEditingVacancy(null);
+        setFormData(EMPTY_FORM);
+        setMemoFile(null);
+        setErrors({});
+        setView('form');
+    };
+
+    // ── Publish (POST) ───────────────────────────────────────────────────────────
+    const handlePublish = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        setErrors({});
+
+        const hasChannel = formData.publish_division_website || formData.publish_facebook || formData.publish_bulletin;
+        if (!hasChannel) { setErrors({ server: "Select at least one publishing channel." }); setSubmitting(false); return; }
+
+        const data = new FormData();
+        Object.entries(formData).forEach(([k, v]) => {
+            if (typeof v === 'boolean') data.append(k, v ? 'true' : 'false');
+            else data.append(k, v);
+        });
+        if (memoFile) data.append('division_memorandum', memoFile);
+
+        try {
+            const res = await fetch(API, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: data
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert(`Vacancy posted successfully! Ref: ${result.ref_no}`);
+                setView('list');
+                fetchVacancies();
+            } else {
+                setErrors({ server: result.message });
+            }
+        } catch (e) { setErrors({ server: "Connection error" }); }
+        finally { setSubmitting(false); }
+    };
+
+    // ── Save Edit (PATCH) ────────────────────────────────────────────────────────
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        setErrors({});
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API}/${editingVacancy.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert("Vacancy updated successfully.");
+                setView('list');
+                setEditingVacancy(null);
+                fetchVacancies();
+            } else {
+                setErrors({ server: result.message });
+            }
+        } catch (e) { setErrors({ server: "Connection error" }); }
+        finally { setSubmitting(false); }
+    };
+
+    // ── Shared form fields ───────────────────────────────────────────────────────
+    const renderForm = (onSubmit, isEdit = false) => (
+        <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 className="text-xl font-black text-[#1B3A6B] uppercase italic">
+                            {isEdit ? `Edit Vacancy — ${editingVacancy?.ref_no}` : 'Post New Vacancy'}
+                        </h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            {isEdit ? 'Update vacancy details below' : 'Stage 1 of RSP — 10 calendar day application window'}
+                        </p>
+                    </div>
+                </div>
+
+                <form onSubmit={onSubmit}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Left Column */}
+                        <div className="space-y-5">
+                            {[
+                                { label: 'Position Title *', key: 'position_title', type: 'text', placeholder: 'e.g. Teacher III' },
+                                { label: 'Item Number *', key: 'item_number', type: 'text', placeholder: 'e.g. ITEM-001' },
+                                { label: 'Assigned School / Station *', key: 'assigned_school', type: 'text', placeholder: 'e.g. Dapitan City National High School' },
+                            ].map(field => (
+                                <div key={field.key}>
+                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">{field.label}</label>
+                                    <input
+                                        type={field.type} required
+                                        placeholder={field.placeholder}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] transition-all"
+                                        value={formData[field.key]}
+                                        onChange={e => setFormData({...formData, [field.key]: e.target.value})}
+                                    />
+                                </div>
+                            ))}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Salary Grade *</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none"
+                                        value={formData.salary_grade}
+                                        onChange={e => setFormData({...formData, salary_grade: e.target.value})}
+                                    >
+                                        {Array.from({length: 33}, (_, i) => i + 1).map(n => (
+                                            <option key={n} value={`SG-${n}`}>SG-{n}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">No. of Vacancies</label>
+                                    <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none" value={formData.no_of_vacancies} onChange={e => setFormData({...formData, no_of_vacancies: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Posting Date *</label>
+                                <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none" value={formData.posting_date} onChange={e => setFormData({...formData, posting_date: e.target.value})} />
+                            </div>
+                        </div>
+
+                        {/* Right Column */}
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Minimum Qualifications *</label>
+                                <textarea required rows="5" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B]" placeholder="List qualification standards..." value={formData.minimum_qualifications} onChange={e => setFormData({...formData, minimum_qualifications: e.target.value})} />
+                            </div>
+
+                            {/* Only show memo upload on new vacancy — editing doesn't replace the file */}
+                            {!isEdit && <FileDropzone file={memoFile} setFile={setMemoFile} />}
+                            {isEdit && editingVacancy?.division_memo_file_path && (
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Attached Memo</p>
+                                    <a
+                                        href={`${SERVER}/${editingVacancy.division_memo_file_path}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-xs font-bold text-[#1B3A6B] underline truncate block"
+                                    >
+                                        {editingVacancy.division_memo_file_path.split('/').pop()}
+                                    </a>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-2">Publish To *</label>
+                                <PublishToggles
+                                    values={formData}
+                                    onChange={(id, val) => setFormData(prev => ({ ...prev, [id]: val }))}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="lg:col-span-2 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-2 text-slate-400">
+                                <Info size={16} />
+                                <p className="text-[10px] font-bold uppercase tracking-widest">Application window: 10 calendar days from posting date</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setView('list'); setEditingVacancy(null); }}
+                                    className="px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#1B3A6B] text-white shadow-lg flex items-center gap-2 hover:bg-[#162E55] transition-all disabled:opacity-50"
+                                >
+                                    {submitting
+                                        ? <Loader2 className="animate-spin" size={18} />
+                                        : isEdit
+                                            ? <><CheckCircle2 size={18} /> Save Changes</>
+                                            : <><Eye size={18} /> Preview & Publish</>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+
+                        {errors.server && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 bg-red-50 p-3 rounded-xl border border-red-200">
+                                <p className="text-center text-red-600 text-xs font-bold flex items-center justify-center gap-2">
+                                    <AlertCircle size={16}/> {errors.server}
+                                </p>
+                            </motion.div>
+                        )}
+                    </div>
+                </form>
+            </div>
+        </motion.div>
+    );
 
     return (
         <div className="space-y-6 select-none">
-            {/* PAGE HEADER */}
+            {/* View Modal */}
+            <AnimatePresence>
+                {viewingVacancy && (
+                    <VacancyViewModal
+                        vacancy={viewingVacancy}
+                        onClose={() => setViewingVacancy(null)}
+                        onEdit={(v) => { setViewingVacancy(null); openEdit(v); }}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Page Header */}
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Vacancy Posting</h2>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Stage 1 of RSP — 10 calendar day application window</p>
                 </div>
                 {view === 'list' && (
-                    <button 
-                        onClick={() => setView('form')}
+                    <button
+                        onClick={openNew}
                         className="bg-[#1B3A6B] text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-[#D6402F] transition-all"
                     >
                         <Plus size={18} /> Post New Vacancy
@@ -128,122 +449,26 @@ const RSPVacancyPosting = () => {
             </div>
 
             <AnimatePresence mode="wait">
-                {view === 'form' ? (
-                    <motion.div 
-                        key="form"
-                        initial={{ opacity: 0, y: 20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        exit={{ opacity: 0, y: -20 }} 
-                        className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden"
-                    >
-                        <div className="bg-[#1B3A6B] p-8 text-white">
-                            <h3 className="text-xl font-black uppercase tracking-tight italic">Create New Vacant Position Notice</h3>
-                            <p className="text-blue-200 text-xs font-bold uppercase tracking-widest opacity-80">Division Memorandum will be auto-generated upon publication</p>
-                        </div>
-                        
-                        <form onSubmit={handlePublish} className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
-                            {/* Left Column */}
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Position Title *</label>
-                                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#1B3A6B] outline-none" placeholder="e.g. Teacher III (Mathematics)" value={formData.position_title} onChange={e => setFormData({...formData, position_title: e.target.value})} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Item Number *</label>
-                                        <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="e.g. 12345" value={formData.item_number} onChange={e => setFormData({...formData, item_number: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Salary Grade</label>
-                                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" value={formData.salary_grade} onChange={e => setFormData({...formData, salary_grade: e.target.value})}>
-                                            {[...Array(33)].map((_, i) => <option key={i} value={`SG-${i+1}`}>SG-{i+1}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Assigned School / Station *</label>
-                                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="e.g. Dapitan City National High School" value={formData.assigned_school} onChange={e => setFormData({...formData, assigned_school: e.target.value})} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">No. of Vacancies</label>
-                                        <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" value={formData.no_of_vacancies} onChange={e => setFormData({...formData, no_of_vacancies: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Posting Date *</label>
-                                        <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" value={formData.posting_date} onChange={e => setFormData({...formData, posting_date: e.target.value})} />
-                                    </div>
-                                </div>
-                            </div>
+                {view === 'form' && renderForm(handlePublish, false)}
+                {view === 'edit' && renderForm(handleSaveEdit, true)}
 
-                            {/* Right Column */}
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Minimum Qualifications *</label>
-                                    <textarea required rows="4" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none" placeholder="List qualification standards..." value={formData.minimum_qualifications} onChange={e => setFormData({...formData, minimum_qualifications: e.target.value})} />
-                                </div>
-                                <FileDropzone file={memoFile} setFile={setMemoFile} />
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-2">Publish To *</label>
-                                    <PublishToggles 
-    values={formData} 
-    // FIX: Functional state update to prevent mutation
-    onChange={(id, val) => setFormData(prev => ({ ...prev, [id]: val }))} 
-/>
-                                </div>
-                            </div>
-
-                            {/* Form Footer Actions */}
-                            <div className="lg:col-span-2 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex items-center gap-2 text-slate-400">
-                                    <Info size={16} />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest leading-none">Application window: 10 calendar days from posting date</p>
-                                </div>
-                                <div className="flex gap-3">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setView('list')} 
-                                        className="px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button 
-                                        type="submit" 
-                                        disabled={submitting} 
-                                        className="px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#1B3A6B] text-white shadow-lg flex items-center gap-2 hover:bg-[#162E55] transition-all disabled:opacity-50"
-                                    >
-                                        {submitting ? <Loader2 className="animate-spin" size={18} /> : <><Eye size={18} /> Preview & Publish</>}
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {/* Error Message Display */}
-                            {errors.server && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 bg-red-50 p-3 rounded-xl border border-red-200">
-                                    <p className="text-center text-red-600 text-xs font-bold flex items-center justify-center gap-2">
-                                        <AlertCircle size={16}/> {errors.server}
-                                    </p>
-                                </motion.div>
-                            )}
-                        </form>
-                    </motion.div>
-                ) : (
-                    <motion.div 
-                        key="list"
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
+                {view === 'list' && (
+                    <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden"
                     >
-                        {/* Table Header */}
                         <div className="p-8 border-b border-slate-100 flex justify-between items-center">
                             <h3 className="text-xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Posted Vacancies</h3>
                             <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em]">
                                 {vacancies.length} total
                             </span>
                         </div>
-                        
+
                         <div className="overflow-x-auto">
-                            {vacancies.length === 0 ? (
+                            {loading ? (
+                                <div className="p-20 text-center">
+                                    <Loader2 className="animate-spin text-slate-300 mx-auto" size={32} />
+                                </div>
+                            ) : vacancies.length === 0 ? (
                                 <div className="p-20 text-center flex flex-col items-center">
                                     <div className="w-16 h-16 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center mb-4">
                                         <Clock size={32} />
@@ -265,10 +490,10 @@ const RSPVacancyPosting = () => {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {vacancies.map((v) => (
-                                            <tr key={v.id} className="hover:bg-slate-50/50 transition-colors group">
+                                            <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-8 py-5 font-black text-[#1B3A6B] text-sm">{v.ref_no}</td>
                                                 <td className="px-4 py-5 font-black text-[#1B3A6B] text-sm">{v.position_title}</td>
-                                                <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold underline opacity-70 cursor-pointer">{v.assigned_school}</td>
+                                                <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold">{v.assigned_school}</td>
                                                 <td className="px-4 py-5 font-bold text-slate-500 text-sm">{v.no_of_vacancies}</td>
                                                 <td className="px-4 py-5">
                                                     <div className="flex flex-col">
@@ -285,8 +510,20 @@ const RSPVacancyPosting = () => {
                                                 </td>
                                                 <td className="px-8 py-5 text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <button className="p-2 text-slate-300 hover:bg-[#1B3A6B] hover:text-white rounded-lg transition-all shadow-sm"><Eye size={16} /></button>
-                                                        <button className="p-2 text-slate-300 hover:bg-[#1B3A6B] hover:text-white rounded-lg transition-all shadow-sm"><Pencil size={16} /></button>
+                                                        <button
+                                                            onClick={() => setViewingVacancy(v)}
+                                                            title="View details"
+                                                            className="p-2 text-slate-300 hover:bg-[#1B3A6B] hover:text-white rounded-lg transition-all shadow-sm"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openEdit(v)}
+                                                            title="Edit vacancy"
+                                                            className="p-2 text-slate-300 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

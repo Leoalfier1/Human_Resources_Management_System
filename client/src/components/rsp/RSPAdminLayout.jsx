@@ -27,6 +27,15 @@ const RSPAdminLayout = () => {
   // Get the title based on the path, or default to "RSP Module"
   const currentTitle = pageTitles[location.pathname] || 'RSP Module';
 
+  // ROLE LABEL MAPPING
+  // Drives the name/role pairing shown in the sidebar footer (e.g. "HR Administrator" / "HRMPSB Secretariat")
+  const ROLE_LABELS = {
+    admin: 'HR Administrator',
+    hr_staff: 'HR Staff',
+    hrmpsb: 'HRMPSB Secretariat',
+    appointing_authority: 'Appointing Authority',
+  };
+
   // 2. DEFENSIVE CHECK: Redirect unauthorized users
   if (!isAuthenticated || !isAdmin) {
     return <Navigate to="/" replace />;
@@ -43,7 +52,7 @@ const RSPAdminLayout = () => {
       {/* LEFT SIDEBAR */}
       <RSPSidebar 
         userName={user?.fullName} 
-        userRole={user?.role === 'admin' ? 'HR Administrator' : 'HR Staff'} 
+        userRole={ROLE_LABELS[user?.role] || 'HR Staff'} 
         onBack={handleBackToPillars} // <-- Passing the function consistently here
       />
 

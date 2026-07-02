@@ -3,6 +3,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // Create the Context
 const AuthContext = createContext();
 
+// Decode a JWT without any library — the payload is just base64url encoded JSON.
+// Returns null if the token is malformed or expired.
+const decodeToken = (token) => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // exp is in seconds, Date.now() is in milliseconds
+        if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+        return payload;
+    } catch {
+        return null;
+    }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -15,11 +28,16 @@ export const AuthProvider = ({ children }) => {
 
     if (storedToken && storedUser) {
       try {
-        // In a real-world app, you might want to verify the token with the backend here
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        // Verify the token is still valid and not expired before trusting it
+        const decoded = decodeToken(storedToken);
+        if (!decoded) {
+            // Token expired or malformed — clear everything and force re-login
+            logout();
+        } else {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+        }
       } catch (error) {
-        // If data is corrupted, clear everything
         logout();
       }
     }
