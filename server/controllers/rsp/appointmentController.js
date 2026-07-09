@@ -1,5 +1,9 @@
 const db = require('../../db');
 
+/**
+ * TODO(product-owner): Confirm required appointment docs for teaching_related.
+ * Currently reuses the non_teaching doc list as a starting point.
+ */
 const getRequiredApptDocs = (positionType = 'teaching') => {
     const common = [
         "Official Transcript of Records",
@@ -13,7 +17,7 @@ const getRequiredApptDocs = (positionType = 'teaching') => {
         "Certificate of No Pending Administrative Case"
     ];
 
-    if (positionType === 'non_teaching') {
+    if (positionType === 'non_teaching' || positionType === 'teaching_related') {
         return [
             ...common.slice(0, 1),
             "Original Diploma (relevant degree)",
@@ -227,10 +231,15 @@ const issueAppointment = async (req, res) => {
         );
 
         // --- STEP 4: SOCKET.IO BROADCAST ---
+        const [[appFullName]] = await db.query('SELECT full_name FROM applications WHERE id = ?', [applicant_id]);
         const io = req.app.get('socketio');
         if (io) {
             console.log("📢 Broadcasting: Final Appointment Issued");
-            io.emit('rsp:dashboard:update'); // Refresh Dashboard counts
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Appointment issued to ${appFullName?.full_name || ''} for ${vac[0]?.position_title || ''}`,
+                type: 'rsp'
+            });
             io.to(`application-${applicant_id}`).emit('application:stage-update', {
                 applicationId: applicant_id, status: 'appointed'
             });

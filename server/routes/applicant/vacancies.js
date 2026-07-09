@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const ctrl = require('../../controllers/applicant/vacancyController');
 const { verifyToken } = require('../../middleware/authMiddleware');
 
@@ -24,7 +25,6 @@ const { verifyToken } = require('../../middleware/authMiddleware');
 const optionalAuth = (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return next(); // No token — proceed without user context
-    const jwt = require('jsonwebtoken');
     try {
         req.user = jwt.verify(token, process.env.JWT_SECRET);
     } catch {

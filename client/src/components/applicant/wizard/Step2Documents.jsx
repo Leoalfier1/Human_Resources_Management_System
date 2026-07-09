@@ -18,6 +18,22 @@ const DEFAULT_REQUIRED_DOCS_TEACHING = [
     { document_type: 'Certificates of Training / Seminars (relevant)', is_mandatory: false },
 ];
 
+// ── Teaching-Related fallback document list ──────────────────────
+// TODO(product-owner): confirm document list for teaching_related.
+// Currently reuses non-teaching list as a starting point.
+const DEFAULT_REQUIRED_DOCS_TEACHING_RELATED = [
+    { document_type: 'Personal Data Sheet (CS Form 212, latest revision)', is_mandatory: true },
+    { document_type: 'Service Record (duly signed by authorized official)', is_mandatory: true },
+    { document_type: 'Performance Evaluation Reports (last 3 rating periods)', is_mandatory: true },
+    { document_type: 'Transcript of Records (certified true copy)', is_mandatory: true },
+    { document_type: 'Diploma (certified true copy)', is_mandatory: true },
+    { document_type: 'CSC Eligibility Certificate (Career Service Professional/Sub-Professional)', is_mandatory: true },
+    { document_type: 'NBI Clearance (issued within the last 6 months)', is_mandatory: true },
+    { document_type: 'CSC MC 10 s. 2013 Omnibus Sworn Statement', is_mandatory: true },
+    { document_type: 'Medical Certificate (from government hospital)', is_mandatory: false },
+    { document_type: 'Certificates of Training / Seminars (relevant)', is_mandatory: false },
+];
+
 // ── Non-Teaching fallback document list ──────────────────────────
 // Used when vacancy position_type is 'non_teaching' and no custom
 // checklist has been configured in vacancy_required_documents.
@@ -61,7 +77,9 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
                     setRequiredDocs(
                         posType === 'non_teaching'
                             ? DEFAULT_REQUIRED_DOCS_NON_TEACHING
-                            : DEFAULT_REQUIRED_DOCS_TEACHING
+                            : posType === 'teaching_related'
+                                ? DEFAULT_REQUIRED_DOCS_TEACHING_RELATED
+                                : DEFAULT_REQUIRED_DOCS_TEACHING
                     );
                 }
 
@@ -80,7 +98,9 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
                 setRequiredDocs(
                     vacancyPositionType === 'non_teaching'
                         ? DEFAULT_REQUIRED_DOCS_NON_TEACHING
-                        : DEFAULT_REQUIRED_DOCS_TEACHING
+                        : vacancyPositionType === 'teaching_related'
+                            ? DEFAULT_REQUIRED_DOCS_TEACHING_RELATED
+                            : DEFAULT_REQUIRED_DOCS_TEACHING
                 );
             } finally {
                 setLoading(false);
@@ -167,7 +187,7 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
     const totalCount = requiredDocs.length;
 
     // Derive the label shown in the header
-    const posTypeLabel = vacancyPositionType === 'non_teaching' ? 'Non-Teaching' : 'Teaching';
+    const posTypeLabel = vacancyPositionType === 'non_teaching' ? 'Non-Teaching' : vacancyPositionType === 'teaching_related' ? 'Teaching-Related' : 'Teaching';
 
     return (
         <motion.div
@@ -211,12 +231,16 @@ const Step2Documents = ({ applicationId, vacancyId, vacancyPositionType, onNext,
                 <div className={`px-6 py-2 flex items-center gap-2 text-[10px] font-bold border-b ${
                     vacancyPositionType === 'non_teaching'
                         ? 'bg-sky-50 text-sky-700 border-sky-100'
-                        : 'bg-amber-50 text-amber-700 border-amber-100'
+                        : vacancyPositionType === 'teaching_related'
+                            ? 'bg-violet-50 text-violet-700 border-violet-100'
+                            : 'bg-amber-50 text-amber-700 border-amber-100'
                 }`}>
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                         vacancyPositionType === 'non_teaching'
                             ? 'bg-sky-100 text-sky-700'
-                            : 'bg-amber-100 text-amber-700'
+                            : vacancyPositionType === 'teaching_related'
+                                ? 'bg-violet-100 text-violet-700'
+                                : 'bg-amber-100 text-amber-700'
                     }`}>
                         {posTypeLabel}
                     </span>

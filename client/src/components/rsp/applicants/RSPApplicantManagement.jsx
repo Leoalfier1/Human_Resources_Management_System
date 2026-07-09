@@ -3,21 +3,37 @@ import { Search, Download, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Loa
 import StatusBadge from './StatusBadge';
 import io from 'socket.io-client';
 import { API_BASE, SERVER_BASE } from '../../../utils/api';
+import ResizableTable from '../../shared/ResizableTable';
 
 const API = API_BASE;
 
-// ── SMALL CELL HELPERS ────────────────────────────────────────────────────────
-const Cell = ({ children, muted }) => (
-    <td className="px-3 py-3 text-[11px] font-bold text-slate-600 whitespace-nowrap border-r border-slate-50 last:border-r-0">
-        {muted ? <span className="text-slate-300">{children}</span> : children}
-    </td>
-);
+const DEFAULT_WIDTHS = [
+  50, 120, 200, 220, 50, 65, 120, 120, 120, 120,
+  220, 150, 200, 200, 70, 220, 70, 200, 150,
+];
+const COL_WIDTHS_KEY = 'rspApplicantMgmtColWidths';
 
-const Th = ({ children, center }) => (
-    <th className={`px-3 py-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] whitespace-nowrap border-r border-slate-100 last:border-r-0 ${center ? 'text-center' : ''}`}>
-        {children}
-    </th>
-);
+const COLUMNS = [
+  { key: 'no', label: 'No.', width: 50, align: 'center' },
+  { key: 'code', label: 'App. Code', width: 120 },
+  { key: 'name', label: 'Name of Applicant', width: 200 },
+  { key: 'address', label: 'Address', width: 220 },
+  { key: 'age', label: 'Age', width: 50, align: 'center' },
+  { key: 'sex', label: 'Sex', width: 65, align: 'center' },
+  { key: 'civil_status', label: 'Civil Status', width: 120 },
+  { key: 'religion', label: 'Religion', width: 120 },
+  { key: 'disability', label: 'Disability', width: 120 },
+  { key: 'ethnic_group', label: 'Ethnic Group', width: 120 },
+  { key: 'email', label: 'Email Address', width: 220 },
+  { key: 'contact_no', label: 'Contact No.', width: 150 },
+  { key: 'education', label: 'Education', width: 200 },
+  { key: 'training_title', label: 'Training Title', width: 200 },
+  { key: 'hours', label: 'Hours', width: 70, align: 'center' },
+  { key: 'experience_details', label: 'Experience Details', width: 220 },
+  { key: 'years', label: 'Years', width: 70, align: 'center' },
+  { key: 'eligibility', label: 'Eligibility', width: 200 },
+  { key: 'remarks', label: 'Remarks', width: 150, align: 'center' },
+];
 
 // ── LIVE INDICATOR ────────────────────────────────────────────────────────────
 const LiveDot = ({ connected }) => (
@@ -189,109 +205,89 @@ const RSPApplicantManagement = () => {
                     <option value="all">All Types</option>
                     <option value="teaching">Teaching</option>
                     <option value="non_teaching">Non-Teaching</option>
+                    <option value="teaching_related">Teaching-Related</option>
                 </select>
             </div>
 
             {/* TABLE */}
             <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
-                        <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr>
-                                <Th>No.</Th>
-                                <Th>App. Code</Th>
-                                <Th>Name of Applicant</Th>
-                                <Th>Address</Th>
-                                <Th center>Age</Th>
-                                <Th center>Sex</Th>
-                                <Th>Civil Status</Th>
-                                <Th>Religion</Th>
-                                <Th>Disability</Th>
-                                <Th>Ethnic Group</Th>
-                                <Th>Email Address</Th>
-                                <Th>Contact No.</Th>
-                                <Th>Education</Th>
-                                <Th>Training Title</Th>
-                                <Th center>Hours</Th>
-                                <Th>Experience Details</Th>
-                                <Th center>Years</Th>
-                                <Th>Eligibility</Th>
-                                <Th center>Remarks</Th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {loading ? (
-                                <tr><td colSpan={19} className="text-center py-16 text-slate-400 text-xs font-black uppercase tracking-widest">
-                                    <Loader2 className="animate-spin inline mr-2" size={16} />Loading…
-                                </td></tr>
-                            ) : list.length === 0 ? (
-                                <tr><td colSpan={19} className="text-center py-16 text-slate-300 text-xs font-black uppercase tracking-widest">
-                                    No applicants found
-                                </td></tr>
-                            ) : list.map((app, idx) => (
-                                <tr key={app.id} className="hover:bg-blue-50/30 transition-colors text-xs">
-                                    <Cell>{(filters.page - 1) * 50 + idx + 1}</Cell>
-                                    <Cell>{app.applicant_code}</Cell>
-                                    <td className="px-3 py-3 border-r border-slate-50">
-                                        <p className="font-black text-[#1B3A6B] text-xs uppercase whitespace-nowrap">{app.full_name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <p className="text-[10px] font-bold text-slate-400">{app.position_title}</p>
-                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-wider ${
-                                                app.position_type === 'non_teaching'
-                                                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                <ResizableTable
+                    columns={COLUMNS}
+                    colWidthsKey={COL_WIDTHS_KEY}
+                    defaultWidths={DEFAULT_WIDTHS}
+                    data={list}
+                    rowKey="id"
+                    loading={loading}
+                    emptyMessage="No applicants found"
+                    loadingMessage="Loading\u2026"
+                    stickyCols={3}
+                    renderCell={(app, ci, ri) => {
+                        switch (ci) {
+                            case 0: return (filters.page - 1) * 50 + ri + 1;
+                            case 1: return app.applicant_code;
+                            case 2: return (
+                                <>
+                                    <p className="font-black text-[#1B3A6B] text-xs uppercase">{app.full_name}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-[10px] font-bold text-slate-400">{app.position_title}</p>
+                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-wider ${
+                                            app.position_type === 'non_teaching'
+                                                ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                                : app.position_type === 'teaching_related'
+                                                    ? 'bg-violet-50 text-violet-600 border border-violet-200'
                                                     : 'bg-blue-50 text-blue-600 border border-blue-200'
-                                            }`}>
-                                                {app.position_type === 'non_teaching' ? 'NT' : 'T'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <Cell>{app.address}</Cell>
-                                    <Cell center>{app.age}</Cell>
-                                    <Cell center>{app.sex ? app.sex.charAt(0).toUpperCase() : '—'}</Cell>
-                                    <Cell>{app.civil_status || '—'}</Cell>
-                                    <Cell muted>N/A</Cell>
-                                    <Cell muted>N/A</Cell>
-                                    <Cell muted>N/A</Cell>
-                                    <Cell>{app.pds_email || app.email}</Cell>
-                                    <Cell>{app.contact_no}</Cell>
-                                    <Cell>{app.education}</Cell>
-                                    <Cell>{app.training_title}</Cell>
-                                    <Cell center>{app.training_hours}</Cell>
-                                    <Cell>{app.experience_details}</Cell>
-                                    <Cell center>{app.experience_years}</Cell>
-                                    <Cell>{app.eligibility_name}</Cell>
-                                    <td className="px-3 py-3 text-center border-r border-slate-50 last:border-r-0">
-                                        <div className="flex items-center justify-center gap-1.5">
-                                            <button
-                                                onClick={() => handleUpdateStatus(app.id, 'qualified')}
-                                                title="Mark Qualified"
-                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                                    app.status === 'qualified' || app.status === 'shortlisted'
-                                                        ? 'bg-emerald-100 text-emerald-700'
-                                                        : 'text-slate-300 hover:bg-emerald-100 hover:text-emerald-600'
-                                                }`}
-                                            >
-                                                <CheckCircle2 size={13} className="inline mr-0.5" />Q
-                                            </button>
-                                            <button
-                                                onClick={() => handleUpdateStatus(app.id, 'disqualified')}
-                                                title="Mark Disqualified"
-                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                                    app.status === 'disqualified'
-                                                        ? 'bg-red-100 text-red-700'
-                                                        : 'text-slate-300 hover:bg-red-100 hover:text-red-500'
-                                                }`}
-                                            >
-                                                <XCircle size={13} className="inline mr-0.5" />D
-                                            </button>
-                                        </div>
-                                        <StatusBadge status={app.status} />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                        }`}>
+                                            {app.position_type === 'non_teaching' ? 'NT' : app.position_type === 'teaching_related' ? 'Tch-Rel' : 'T'}
+                                        </span>
+                                    </div>
+                                </>
+                            );
+                            case 3: return app.address;
+                            case 4: return app.age;
+                            case 5: return app.sex ? app.sex.charAt(0).toUpperCase() : '\u2014';
+                            case 6: return app.civil_status || '\u2014';
+                            case 7: return <span className="text-slate-300">N/A</span>;
+                            case 8: return <span className="text-slate-300">N/A</span>;
+                            case 9: return <span className="text-slate-300">N/A</span>;
+                            case 10: return app.pds_email || app.email;
+                            case 11: return app.contact_no;
+                            case 12: return app.education;
+                            case 13: return app.training_title;
+                            case 14: return app.training_hours;
+                            case 15: return app.experience_details;
+                            case 16: return app.experience_years;
+                            case 17: return app.eligibility_name;
+                            case 18: return (
+                                <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                        onClick={() => handleUpdateStatus(app.id, 'qualified')}
+                                        title="Mark Qualified"
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                            app.status === 'qualified' || app.status === 'shortlisted'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'text-slate-300 hover:bg-emerald-100 hover:text-emerald-600'
+                                        }`}
+                                    >
+                                        <CheckCircle2 size={13} className="inline mr-0.5" />Q
+                                    </button>
+                                    <button
+                                        onClick={() => handleUpdateStatus(app.id, 'disqualified')}
+                                        title="Mark Disqualified"
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                            app.status === 'disqualified'
+                                                ? 'bg-red-100 text-red-700'
+                                                : 'text-slate-300 hover:bg-red-100 hover:text-red-500'
+                                        }`}
+                                    >
+                                        <XCircle size={13} className="inline mr-0.5" />D
+                                    </button>
+                                    <StatusBadge status={app.status} />
+                                </div>
+                            );
+                            default: return null;
+                        }
+                    }}
+                />
 
                 {/* PAGINATION */}
                 <div className="p-5 border-t border-slate-50 flex justify-between items-center bg-slate-50/30">

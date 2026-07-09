@@ -15,6 +15,7 @@ const { uploadMemo } = require('../../middleware/uploadMiddleware');
 
 router.get('/',
     verifyToken,
+    requireRole('admin', 'hr_staff', 'hrmpsb', 'appointing_authority'),
     getVacancies
 );
 
@@ -27,6 +28,7 @@ router.post('/',
 
 router.get('/:id',
     verifyToken,
+    requireRole('admin', 'hr_staff', 'hrmpsb', 'appointing_authority'),
     getVacancyById
 );
 

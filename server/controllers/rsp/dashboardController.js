@@ -76,6 +76,9 @@ exports.getDashboardData = async (req, res) => {
                 (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'non_teaching')
                     AS nonTeachingPostings,
 
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'teaching_related')
+                    AS teachingRelatedPostings,
+
                 (SELECT COUNT(*) FROM applications a
                  JOIN vacancies v ON a.vacancy_id = v.id
                  WHERE a.status != 'draft' AND v.position_type = 'teaching')
@@ -84,7 +87,12 @@ exports.getDashboardData = async (req, res) => {
                 (SELECT COUNT(*) FROM applications a
                  JOIN vacancies v ON a.vacancy_id = v.id
                  WHERE a.status != 'draft' AND v.position_type = 'non_teaching')
-                    AS nonTeachingApplicants
+                    AS nonTeachingApplicants,
+
+                (SELECT COUNT(*) FROM applications a
+                 JOIN vacancies v ON a.vacancy_id = v.id
+                 WHERE a.status != 'draft' AND v.position_type = 'teaching_related')
+                    AS teachingRelatedApplicants
             FROM DUAL
         `, [currentYear]);
 
@@ -182,10 +190,12 @@ exports.getDashboardData = async (req, res) => {
                 pendingEvaluationsBatch: batchRow?.ref_no || 'N/A',
                 appointmentsIssuedFY:    Number(statRow.appointmentsIssuedFY)  || 0,
                 targetTAT:               TARGET_TAT,
-                teachingPostings:        Number(statRow.teachingPostings)      || 0,
-                nonTeachingPostings:     Number(statRow.nonTeachingPostings)   || 0,
-                teachingApplicants:      Number(statRow.teachingApplicants)    || 0,
-                nonTeachingApplicants:   Number(statRow.nonTeachingApplicants) || 0
+                teachingPostings:          Number(statRow.teachingPostings)          || 0,
+                nonTeachingPostings:       Number(statRow.nonTeachingPostings)       || 0,
+                teachingRelatedPostings:   Number(statRow.teachingRelatedPostings)   || 0,
+                teachingApplicants:        Number(statRow.teachingApplicants)        || 0,
+                nonTeachingApplicants:     Number(statRow.nonTeachingApplicants)     || 0,
+                teachingRelatedApplicants: Number(statRow.teachingRelatedApplicants) || 0
             },
             activePostings,
             turnaroundTime,

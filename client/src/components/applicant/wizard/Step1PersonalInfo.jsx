@@ -9,6 +9,7 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
     const [loading, setLoading] = useState(false);
 
     const isNonTeaching = vacancy?.position_type === 'non_teaching';
+    const isTeachingRelated = vacancy?.position_type === 'teaching_related';
 
     const [formData, setFormData] = useState({
         full_name: user?.fullName || '',
@@ -76,9 +77,11 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
                         isNonTeaching
                             ? 'bg-sky-100 text-sky-700'
-                            : 'bg-amber-100 text-amber-700'
+                            : isTeachingRelated
+                                ? 'bg-violet-100 text-violet-700'
+                                : 'bg-amber-100 text-amber-700'
                     }`}>
-                        {isNonTeaching ? 'Non-Teaching' : 'Teaching'} Position
+                        {isNonTeaching ? 'Non-Teaching' : isTeachingRelated ? 'Teaching-Related' : 'Teaching'} Position
                     </span>
                 </div>
 
@@ -149,7 +152,7 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                     {/* Years of Experience */}
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                            {isNonTeaching
+                            {isNonTeaching || isTeachingRelated
                                 ? 'Years of Relevant Experience'
                                 : 'Years of Teaching Experience'}
                         </label>
@@ -159,7 +162,9 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-600 outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B]"
                             placeholder={isNonTeaching
                                 ? 'Years in administrative/support role'
-                                : 'Years as a classroom teacher'}
+                                : isTeachingRelated
+                                    ? 'Years in a teaching-related role'
+                                    : 'Years as a classroom teacher'}
                             value={formData.years_experience}
                             onChange={e => setFormData({...formData, years_experience: e.target.value})}
                             required
@@ -173,6 +178,12 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                     <div className="mt-6 bg-sky-50 border border-sky-100 rounded-xl px-5 py-3 text-[11px] font-bold text-sky-700">
                         You are applying for a <span className="font-black">Non-Teaching</span> position.
                         Please provide your office/administrative experience details above.
+                    </div>
+                )}
+                {isTeachingRelated && (
+                    <div className="mt-6 bg-violet-50 border border-violet-100 rounded-xl px-5 py-3 text-[11px] font-bold text-violet-700">
+                        You are applying for a <span className="font-black">Teaching-Related</span> position.
+                        Please provide your relevant experience details above.
                     </div>
                 )}
 

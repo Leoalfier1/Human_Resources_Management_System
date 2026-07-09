@@ -5,13 +5,21 @@ const db = require('../../db');
  * Teaching: Category A 60%, Category B 20%, Category C 20%
  * Non-Teaching: Category A 40%, Category B 30%, Category C 30%
  */
+/**
+ * TODO(product-owner): Confirm rubric for teaching_related.
+ * Currently reuses non_teaching rubric (Technical/Skills Interview 40%,
+ * BEI 30%, Document Eval 30%) as a sensible starting point for
+ * school-based non-classroom roles (registrar, librarian, guidance,
+ * ADAS).  A separate distinct rubric can be defined once the exact
+ * job scope is confirmed.
+ */
 const seedDefaultRubric = async (vacancyId, positionType = 'teaching') => {
     const [existing] = await db.query('SELECT id FROM comparative_assessment_criteria WHERE vacancy_id = ?', [vacancyId]);
     if (existing.length > 0) return;
 
     let defaults;
 
-    if (positionType === 'non_teaching') {
+    if (positionType === 'non_teaching' || positionType === 'teaching_related') {
         // Category A: Technical / Skills Interview (40% of total)
         defaults = [
             ['Technical Knowledge & Expertise',         30.00, 5, 'classroom_observable', vacancyId],
@@ -123,7 +131,8 @@ const updateScore = async (req, res) => {
         const posType = appVac.length > 0 ? (appVac[0].position_type || 'teaching') : 'teaching';
 
         let weightA, weightB, weightC;
-        if (posType === 'non_teaching') {
+        // TODO(product-owner): confirm teaching_related weights
+        if (posType === 'non_teaching' || posType === 'teaching_related') {
             weightA = 0.4; weightB = 0.3; weightC = 0.3;
         } else {
             weightA = 0.6; weightB = 0.2; weightC = 0.2;
@@ -228,9 +237,16 @@ const submitAssessment = async (req, res) => {
             await db.query(`UPDATE applications SET current_stage = 6 WHERE id = ?`, [app.id]);
         }
 
-        // Notify Dashboard
+        // Notify Dashboard and Admin
+        const [[vacRef]] = await db.query('SELECT ref_no FROM vacancies WHERE id = ?', [vacancy_id]);
         const io = req.app.get('socketio');
-        if (io) io.emit('rsp:dashboard:update');
+        if (io) {
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Comparative Assessment submitted for ${vacRef?.ref_no || vacancy_id}`,
+                type: 'rsp'
+            });
+        }
 
         res.json({ message: "Assessment submitted successfully. Moving to Stage 7." });
     } catch (error) {

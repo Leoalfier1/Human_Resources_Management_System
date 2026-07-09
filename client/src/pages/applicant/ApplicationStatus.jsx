@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import io from 'socket.io-client';
-import { Check, Clock, Bell, Trophy, ChevronRight } from 'lucide-react';
+import { Check, Clock, Bell, Trophy, ChevronRight, XCircle, AlertTriangle, Send, MessageSquare } from 'lucide-react';
 import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 // 11-Stage RSP Process labels, matching the PRIME-HRM workflow used elsewhere in the system
@@ -25,6 +25,12 @@ const ApplicationStatus = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [applicationId, setApplicationId] = useState(null);
+    const [withdrawing, setWithdrawing] = useState(false);
+    const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+    const [appealReason, setAppealReason] = useState('');
+    const [submittingAppeal, setSubmittingAppeal] = useState(false);
+    const [appealSubmitted, setAppealSubmitted] = useState(false);
+    const [actionMessage, setActionMessage] = useState(null);
 
     const token = () => localStorage.getItem('token');
 
@@ -72,6 +78,51 @@ const ApplicationStatus = () => {
 
         return () => socket.disconnect();
     }, [applicationId]);
+
+    const handleWithdraw = async () => {
+        setWithdrawing(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/withdraw`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token()}` },
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setActionMessage({ type: 'success', text: 'Application withdrawn.' });
+                setShowWithdrawConfirm(false);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                setActionMessage({ type: 'error', text: json.message });
+            }
+        } catch {
+            setActionMessage({ type: 'error', text: 'Server error.' });
+        } finally {
+            setWithdrawing(false);
+        }
+    };
+
+    const handleSubmitAppeal = async () => {
+        if (!appealReason.trim()) return;
+        setSubmittingAppeal(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/appeal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+                body: JSON.stringify({ reason: appealReason }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setAppealSubmitted(true);
+                setActionMessage({ type: 'success', text: json.message });
+            } else {
+                setActionMessage({ type: 'error', text: json.message });
+            }
+        } catch {
+            setActionMessage({ type: 'error', text: 'Server error.' });
+        } finally {
+            setSubmittingAppeal(false);
+        }
+    };
 
     if (loading) {
         return <div className="min-h-screen flex justify-center pt-32"><div className="w-8 h-8 border-4 border-[#1B3A6B] border-t-transparent rounded-full animate-spin"/></div>;
@@ -283,6 +334,86 @@ const ApplicationStatus = () => {
                             </div>
                             <ChevronRight size={18} />
                         </button>
+                    )}
+
+                    {/* ACTION MESSAGE */}
+                    {actionMessage && (
+                        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-bold ${
+                            actionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                            {actionMessage.type === 'success' ? <Check size={14} /> : <XCircle size={14} />}
+                            {actionMessage.text}
+                        </div>
+                    )}
+
+                    {/* WITHDRAW BUTTON — only for withdrawable statuses */}
+                    {['draft', 'submitted', 'for_evaluation'].includes(application.status) && !showWithdrawConfirm && (
+                        <button
+                            onClick={() => setShowWithdrawConfirm(true)}
+                            className="w-full bg-white border-2 border-red-200 hover:border-red-400 text-red-600 p-4 rounded-2xl flex items-center justify-between transition-all group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <XCircle size={18} />
+                                <div className="text-left">
+                                    <p className="text-[10px] font-bold opacity-70">Cancel Application</p>
+                                    <p className="text-xs font-black uppercase">Withdraw</p>
+                                </div>
+                            </div>
+                            <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    )}
+
+                    {/* WITHDRAW CONFIRMATION */}
+                    <AnimatePresence>
+                    {showWithdrawConfirm && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="bg-red-50 border border-red-200 rounded-2xl p-5"
+                        >
+                            <p className="text-xs font-black text-red-700 mb-2">Are you sure?</p>
+                            <p className="text-[11px] font-bold text-red-600 mb-4">This action cannot be undone. Your application will be permanently withdrawn.</p>
+                            <div className="flex gap-2">
+                                <button onClick={handleWithdraw} disabled={withdrawing} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50">
+                                    {withdrawing ? 'Withdrawing...' : 'Yes, Withdraw'}
+                                </button>
+                                <button onClick={() => setShowWithdrawConfirm(false)} className="text-red-500 hover:text-red-700 px-4 py-2 text-xs font-bold">
+                                    Cancel
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
+
+                    {/* APPEAL FORM — only for disqualified applicants */}
+                    {application.status === 'disqualified' && !appealSubmitted && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <AlertTriangle size={16} className="text-amber-600" />
+                                <p className="text-xs font-black text-amber-700 uppercase">File an Appeal</p>
+                            </div>
+                            <p className="text-[11px] font-bold text-amber-600 mb-3">If you believe there has been an error, you may submit an appeal for review.</p>
+                            <textarea
+                                value={appealReason}
+                                onChange={(e) => setAppealReason(e.target.value)}
+                                placeholder="Explain why you are appealing..."
+                                className="w-full px-4 py-3 rounded-xl border border-amber-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-300 mb-3"
+                                rows={3}
+                            />
+                            <button onClick={handleSubmitAppeal} disabled={submittingAppeal || !appealReason.trim()} className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-3 rounded-xl text-xs font-black transition-all disabled:opacity-50">
+                                <Send size={14} />
+                                {submittingAppeal ? 'Submitting...' : 'Submit Appeal'}
+                            </button>
+                        </div>
+                    )}
+
+                    {appealSubmitted && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+                            <Check size={24} className="mx-auto text-emerald-500 mb-2" />
+                            <p className="text-xs font-black text-emerald-700">Appeal Submitted</p>
+                            <p className="text-[11px] font-bold text-emerald-600 mt-1">An administrator will review your case.</p>
+                        </div>
                     )}
                 </div>
             </div>

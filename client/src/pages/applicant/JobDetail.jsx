@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-    ArrowLeft, MapPin, Users, Calendar, Clock, 
-    CheckCircle2, Dot, FileText, AlertCircle, Loader2,
+    ArrowLeft, MapPin, Users, Calendar, Clock,
+    CheckCircle2, Dot, FileText, AlertCircle,
     BookOpen, Briefcase
 } from 'lucide-react';
+import { PDSGateBanner } from '../../components/applicant/PDSGate';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -164,7 +165,7 @@ const JobDetail = () => {
                                     {vacancy.no_of_vacancies || 1} {vacancy.no_of_vacancies === 1 ? 'vacancy' : 'vacancies'}
                                 </span>
                                 <span className="bg-white/10 px-3 py-1 rounded-lg text-white text-xs font-black">
-                                    {vacancy.salary_grade}
+                                    {vacancy.salary_grade || 'SG N/A'}
                                 </span>
                                 {vacancy.monthly_salary && (
                                     <span className="font-black text-white">
@@ -217,6 +218,13 @@ const JobDetail = () => {
                     ))}
                 </div>
             </div>
+
+            {/* PDS Pre-flight Banner */}
+            {isAuthenticated && isApplicant && (
+                <div className="max-w-6xl mx-auto px-6">
+                    <PDSGateBanner />
+                </div>
+            )}
 
             {/* ── CONTENT COLUMNS ───────────────────────────────────────── */}
             <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">

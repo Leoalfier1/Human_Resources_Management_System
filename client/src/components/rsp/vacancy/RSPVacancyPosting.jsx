@@ -94,7 +94,7 @@ const VacancyViewModal = ({ vacancy, onClose, onEdit }) => {
                         {[
                             { icon: Hash,      label: 'Item Number',    value: vacancy.item_number },
                             { icon: Building2, label: 'Salary Grade',   value: vacancy.salary_grade },
-                            { icon: Building2, label: 'Position Type',  value: vacancy.position_type === 'non_teaching' ? 'Non-Teaching' : 'Teaching' },
+                            { icon: Building2, label: 'Position Type',  value: vacancy.position_type === 'non_teaching' ? 'Non-Teaching' : vacancy.position_type === 'teaching_related' ? 'Teaching-Related' : 'Teaching' },
                             { icon: Building2, label: vacancy.position_type === 'non_teaching' ? 'Office/Unit' : 'School', value: vacancy.assigned_school },
                             { icon: Users,     label: 'No. of Vacancies', value: vacancy.no_of_vacancies },
                             { icon: Calendar,  label: 'Posting Date',   value: new Date(vacancy.posting_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) },
@@ -311,7 +311,7 @@ const RSPVacancyPosting = () => {
                             <div>
                                 <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Position Type *</label>
                                 <div className="flex gap-2">
-                                    {['teaching', 'non_teaching'].map(type => (
+                                    {['teaching', 'non_teaching', 'teaching_related'].map(type => (
                                         <button
                                             key={type}
                                             type="button"
@@ -320,11 +320,13 @@ const RSPVacancyPosting = () => {
                                                 formData.position_type === type
                                                     ? type === 'teaching'
                                                         ? 'bg-blue-50 border-[#1B3A6B] text-[#1B3A6B]'
-                                                        : 'bg-amber-50 border-amber-600 text-amber-700'
+                                                        : type === 'non_teaching'
+                                                            ? 'bg-amber-50 border-amber-600 text-amber-700'
+                                                            : 'bg-violet-50 border-violet-600 text-violet-700'
                                                     : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
                                             }`}
                                         >
-                                            {type === 'teaching' ? 'Teaching' : 'Non-Teaching'}
+                                            {type === 'teaching' ? 'Teaching' : type === 'non_teaching' ? 'Non-Teaching' : 'Tch-Related'}
                                         </button>
                                     ))}
                                 </div>
@@ -333,7 +335,7 @@ const RSPVacancyPosting = () => {
                             {[
                                 { label: 'Position Title *', key: 'position_title', type: 'text', placeholder: 'e.g. Teacher III' },
                                 { label: 'Item Number *', key: 'item_number', type: 'text', placeholder: 'e.g. ITEM-001' },
-                                { label: formData.position_type === 'teaching' ? 'Assigned School / Station *' : 'Office / Unit *', key: 'assigned_school', type: 'text', placeholder: formData.position_type === 'teaching' ? 'e.g. Dapitan City National High School' : 'e.g. Division Office - HR Section' },
+                                { label: formData.position_type === 'non_teaching' ? 'Office / Unit *' : 'Assigned School / Station *', key: 'assigned_school', type: 'text', placeholder: formData.position_type === 'non_teaching' ? 'e.g. Division Office - HR Section' : 'e.g. Dapitan City National High School' },
                             ].map(field => (
                                 <div key={field.key}>
                                     <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">{field.label}</label>
@@ -524,9 +526,11 @@ const RSPVacancyPosting = () => {
                                                     <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${
                                                         v.position_type === 'non_teaching'
                                                             ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                                                            : 'bg-blue-50 text-blue-600 border border-blue-200'
+                                                            : v.position_type === 'teaching_related'
+                                                                ? 'bg-violet-50 text-violet-600 border border-violet-200'
+                                                                : 'bg-blue-50 text-blue-600 border border-blue-200'
                                                     }`}>
-                                                        {v.position_type === 'non_teaching' ? 'Non-Tch' : 'Teaching'}
+                                                        {v.position_type === 'non_teaching' ? 'Non-Tch' : v.position_type === 'teaching_related' ? 'Tch-Rel' : 'Teaching'}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold">{v.assigned_school}</td>

@@ -1,5 +1,12 @@
 const db = require('../../db');
 
+/**
+ * TODO(product-owner): Confirm required docs for teaching_related.
+ * Currently reuses the non_teaching doc list as a starting point.
+ * Teaching-related roles (registrar, librarian, guidance, ADAS) typically
+ * require a relevant degree diploma + CSC eligibility rather than a
+ * BSEd/BEEd diploma.
+ */
 const getRequiredDocs = (positionType = 'teaching') => {
     const common = [
         "Original/Authenticated Transcript of Records",
@@ -13,7 +20,7 @@ const getRequiredDocs = (positionType = 'teaching') => {
         "Certificate of No Pending Administrative Case"
     ];
 
-    if (positionType === 'non_teaching') {
+    if (positionType === 'non_teaching' || positionType === 'teaching_related') {
         return [
             common[0],
             "Original/Authenticated Diploma (relevant degree)",
@@ -199,6 +206,10 @@ const saveAndGenerate = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Congratulatory Advice issued to ${full_name} for ${position_title}`,
+                type: 'rsp'
+            });
             io.to(`application-${applicant_id}`).emit('application:stage-update', {
                 applicationId: applicant_id, status: 'selected'
             });

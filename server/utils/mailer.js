@@ -19,6 +19,7 @@ const sendVerificationEmail = async (email, token) => {
     // the applicant intends to apply for.
     const teachingUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&type=teaching`;
     const nonTeachingUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&type=non_teaching`;
+    const teachingRelatedUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}&type=teaching_related`;
 
     const mailOptions = {
         from: `"DepEd HRMIS" <${process.env.EMAIL_USER}>`,
@@ -37,9 +38,15 @@ const sendVerificationEmail = async (email, token) => {
                     </div>
 
                     <!-- Button for Non-Teaching -->
-                    <div>
+                    <div style="margin-bottom: 20px;">
                         <a href="${nonTeachingUrl}" style="background-color: #1B3A6B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as NON-TEACHING Applicant</a>
                         <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for an administrative or support staff position.</p>
+                    </div>
+
+                    <!-- Button for Teaching-Related -->
+                    <div>
+                        <a href="${teachingRelatedUrl}" style="background-color: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; width: 250px;">Confirm as TEACHING-RELATED Applicant</a>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 5px;">Select this if you are applying for a teaching-related position (e.g. School Registrar, Guidance Counselor, Librarian, ADAS).</p>
                     </div>
                 </div>
 
@@ -55,8 +62,9 @@ const sendVerificationEmail = async (email, token) => {
 module.exports = { sendVerificationEmail };
 
 const sendResetPasswordEmail = async (email, token) => {
-    // This link will take the user to a special page to enter a new password
-    const url = `${process.env.BASE_URL}/api/auth/reset-password-page?token=${token}`;
+    // Link directs to the React reset-password page
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const url = `${clientUrl}/reset-password/${token}`;
 
     const mailOptions = {
         from: `"DepEd HRMIS" <${process.env.EMAIL_USER}>`,

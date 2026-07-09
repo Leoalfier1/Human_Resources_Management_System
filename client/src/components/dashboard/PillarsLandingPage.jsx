@@ -67,11 +67,30 @@ const PillarsLandingPage = () => {
       else {
         navigate('/jobs'); 
       }
+    } else if (moduleId === 'L&D') {
+      if (isAdmin) {
+        navigate('/ld/dashboard');
+      } else {
+        navigate('/jobs/my-learning');
+      }
+    } else if (moduleId === 'PM') {
+      if (isAdmin) {
+        navigate('/pm/dashboard');
+      } else {
+        navigate('/jobs/my-performance');
+      }
+    } else if (moduleId === 'R&R') {
+      if (isAdmin) {
+        navigate('/rr/dashboard');
+      } else {
+        navigate('/jobs/my-awards');
+      }
     } else if (moduleId === 'PERS') {
-      navigate('/personnel/pds');
-    } else {
-      // Temporary handler for other modules
-      alert(`${moduleId} Module is coming soon in the next phase.`);
+      if (isAdmin) {
+        navigate('/personnel-admin/dashboard');
+      } else {
+        navigate('/personnel/pds');
+      }
     }
   };
 

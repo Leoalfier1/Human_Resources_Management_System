@@ -29,4 +29,8 @@ router.post('/:id/appointment-documents', adviceCtrl.uploadAppointmentDocument);
 router.get('/:id/appointment', adviceCtrl.getMyAppointment);
 router.get('/:id/appointment/pdf', adviceCtrl.getAppointmentPDF);
 
+// ── Withdrawal & Appeal ────────────────────────────────────────────
+router.patch('/:id/withdraw',           ctrl.withdrawApplication);
+router.post('/:id/appeal',              ctrl.submitAppeal);
+
 module.exports = router;

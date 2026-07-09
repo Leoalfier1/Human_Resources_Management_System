@@ -26,7 +26,12 @@ export const useCongratulatoryAdvice = (vacancyId) => {
         setDetails(await res.json());
     };
 
-    useEffect(() => { if (vacancyId) fetchEligible(); }, [vacancyId, fetchEligible]);
+    useEffect(() => { 
+        if (vacancyId) {
+            setLoading(true);
+            fetchEligible(); 
+        } 
+    }, [vacancyId, fetchEligible]);
     useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId]);
 
     return { eligible, selectedId, setSelectedId, detail, setDetails, loading, refresh: fetchEligible };

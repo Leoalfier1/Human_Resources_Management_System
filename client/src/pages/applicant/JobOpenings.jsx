@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Briefcase, Clock, Search, SlidersHorizontal, X,
-    ChevronDown, BookOpen, GraduationCap, Building2
+    BookOpen, GraduationCap, Building2
 } from 'lucide-react';
 import { API_BASE } from '../../utils/api';
 import JobCard from '../../components/applicant/JobCard';
@@ -191,13 +191,16 @@ const JobOpenings = () => {
     }, [fetchJobs]);
 
     // ── Derive hero content from applicantType ─────────────────────────────
-    const isTeaching    = stats.applicantType === 'teaching';
-    const isNonTeaching = stats.applicantType === 'non_teaching';
+    const isTeaching         = stats.applicantType === 'teaching';
+    const isNonTeaching      = stats.applicantType === 'non_teaching';
+    const isTeachingRelated  = stats.applicantType === 'teaching_related';
 
     const heroTitle = isNonTeaching
         ? 'Non-Teaching\nPosition Vacancies'
         : isTeaching
         ? 'Teaching Position\nVacancies'
+        : isTeachingRelated
+        ? 'Teaching-Related\nPosition Vacancies'
         : 'Position\nVacancies';
 
     const heroIcon = isNonTeaching
@@ -338,9 +341,11 @@ const JobOpenings = () => {
                                 ? 'No non-teaching vacancies posted yet'
                                 : isTeaching
                                 ? 'No teaching vacancies posted yet'
+                                : isTeachingRelated
+                                ? 'No teaching-related vacancies posted yet'
                                 : 'No vacancies posted yet'}
                         </p>
-                        {(isTeaching || isNonTeaching) && !search && !activeFilterCount && (
+                        {(isTeaching || isNonTeaching || isTeachingRelated) && !search && !activeFilterCount && (
                             <p className="text-[11px] font-bold text-slate-300 mt-2">
                                 Check back later or contact the HR Office directly.
                             </p>

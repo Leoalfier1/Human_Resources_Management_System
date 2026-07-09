@@ -8,7 +8,7 @@ const LoginForm = ({ onSwitchTab }) => {
   const { login } = useAuth(); // Get the login function from our context
 
   // 1. Local States
-  const [loginType, setLoginType] = useState('staff'); // 'staff' or 'applicant'
+  const [loginType, setLoginType] = useState('applicant'); // 'staff' or 'applicant' — applicant is the more common case
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -88,18 +88,39 @@ const LoginForm = ({ onSwitchTab }) => {
 
       <form onSubmit={handleLogin} className="space-y-4">
         
-        {/* ROLE MISMATCH ERROR BANNER (PART 2 REQUIREMENT) */}
+        {/* ROLE MISMATCH ERROR BANNER */}
         <AnimatePresence>
           {roleError && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 bg-red-50 border border-red-200 p-3 rounded-xl"
+              className="bg-red-50 border border-red-200 p-3 rounded-xl space-y-2"
             >
-              <AlertCircle className="text-red-600 shrink-0" size={18} />
-              <p className="text-[11px] font-bold text-red-600 leading-tight">
-                {roleError}
-              </p>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-[11px] font-bold text-red-600 leading-tight">
+                  {roleError}
+                </p>
+              </div>
+              {/* One-click recovery: switch to the correct portal */}
+              {roleError.includes('Staff/Admin') && (
+                <button
+                  type="button"
+                  onClick={() => { setLoginType('staff'); setRoleError(''); }}
+                  className="w-full py-2 text-[10px] font-black uppercase tracking-widest bg-[#1B3A6B] text-white rounded-lg hover:bg-[#162E55] transition-all"
+                >
+                  Switch to Staff / Admin Login
+                </button>
+              )}
+              {roleError.includes('Applicant') && (
+                <button
+                  type="button"
+                  onClick={() => { setLoginType('applicant'); setRoleError(''); }}
+                  className="w-full py-2 text-[10px] font-black uppercase tracking-widest bg-[#1B3A6B] text-white rounded-lg hover:bg-[#162E55] transition-all"
+                >
+                  Switch to Applicant Login
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

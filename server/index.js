@@ -12,7 +12,7 @@ const server = http.createServer(app);
 // 1. SOCKET.IO SETUP
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:5174"],
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
         credentials: true
     }
@@ -22,7 +22,7 @@ app.set('socketio', io);
 
 // 2. MIDDLEWARE
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true
 }));
 app.use(express.json());
@@ -39,42 +39,118 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// 4. ROUTE REGISTRATION
-try {
-    // Auth
-    app.use('/api/auth',    require('./routes/auth'));
-    app.use('/api/branding', require('./routes/branding'));
-
-    // Applicant-facing routes
-    app.use('/api/vacancies',    require('./routes/applicant/vacancies'));
-    app.use('/api/applications', require('./routes/applicant/applications'));
-    app.use('/api/applicant/pds', require('./routes/applicant/pds'));
-
-    // Admin RSP routes
-    app.use('/api/rsp/dashboard',              require('./routes/rsp/dashboard'));
-    app.use('/api/rsp/vacancies',              require('./routes/rsp/vacancies'));
-    app.use('/api/rsp/applicants',             require('./routes/rsp/applicants'));
-    app.use('/api/rsp/evaluation',             require('./routes/rsp/evaluation'));
-    app.use('/api/rsp/comparative-assessment', require('./routes/rsp/comparative-assessment'));
-    app.use('/api/rsp/results',                require('./routes/rsp/results'));
-    app.use('/api/rsp/deliberation',           require('./routes/rsp/deliberation'));
-    app.use('/api/rsp/congratulatory-advice',  require('./routes/rsp/advice'));
-    app.use('/api/rsp/appointment',            require('./routes/rsp/appointment'));
-    app.use('/api/rsp/notice-of-appointment',  require('./routes/rsp/notice'));
-
-    console.log("✅ All routes registered successfully");
-} catch (err) {
-    console.error("❌ ROUTE LOADING ERROR:", err.message);
-    console.error(err.stack); // full stack so you can pinpoint the exact file
+// 4. ROUTE REGISTRATION — each route is loaded independently so failures are clearly logged
+function registerRoute(path, routePath) {
+    try {
+        app.use(path, require(routePath));
+        console.log(`  ✅ ${path}`);
+    } catch (err) {
+        console.error(`  ❌ FAILED to load route ${path} from ${routePath}: ${err.message}`);
+        process.exit(1);
+    }
 }
+
+console.log('📦 Registering routes...');
+
+// Auth
+registerRoute('/api/auth',    './routes/auth');
+registerRoute('/api/branding', './routes/branding');
+
+// Admin user management & profile
+registerRoute('/api/admin',    './routes/admin');
+registerRoute('/api/profile',  './routes/profile');
+
+// Applicant-facing routes
+registerRoute('/api/vacancies',    './routes/applicant/vacancies');
+registerRoute('/api/applications', './routes/applicant/applications');
+registerRoute('/api/applicant/pds', './routes/applicant/pds');
+
+// Admin RSP routes
+registerRoute('/api/rsp/dashboard',              './routes/rsp/dashboard');
+registerRoute('/api/rsp/vacancies',              './routes/rsp/vacancies');
+registerRoute('/api/rsp/applicants',             './routes/rsp/applicants');
+registerRoute('/api/rsp/evaluation',             './routes/rsp/evaluation');
+registerRoute('/api/rsp/comparative-assessment', './routes/rsp/comparative-assessment');
+registerRoute('/api/rsp/results',                './routes/rsp/results');
+registerRoute('/api/rsp/deliberation',           './routes/rsp/deliberation');
+registerRoute('/api/rsp/congratulatory-advice',  './routes/rsp/advice');
+registerRoute('/api/rsp/appointment',            './routes/rsp/appointment');
+registerRoute('/api/rsp/notice-of-appointment',  './routes/rsp/notice');
+registerRoute('/api/rsp/eligibility',            './routes/rsp/eligibility');
+registerRoute('/api/rsp/appeals',                './routes/rsp/appeals');
+
+// L&D routes
+registerRoute('/api/ld/tna',         './routes/ld/tna');
+registerRoute('/api/ld/objectives',  './routes/ld/objectives');
+registerRoute('/api/ld/plans',       './routes/ld/plans');
+registerRoute('/api/ld/programs',    './routes/ld/programs');
+registerRoute('/api/ld/evaluation',  './routes/ld/evaluation');
+
+// PM routes
+registerRoute('/api/pm/periods',      './routes/pm/periods');
+registerRoute('/api/pm/commitments',  './routes/pm/commitments');
+registerRoute('/api/pm/coaching',     './routes/pm/coaching');
+registerRoute('/api/pm/ratings',      './routes/pm/ratings');
+registerRoute('/api/pm/rewards',      './routes/pm/rewards');
+
+// R&R routes
+registerRoute('/api/rr/searches',     './routes/rr/searches');
+registerRoute('/api/rr/nominations',  './routes/rr/nominations');
+registerRoute('/api/rr/evaluation',   './routes/rr/evaluation');
+registerRoute('/api/rr/deliberation', './routes/rr/deliberation');
+registerRoute('/api/rr/awards',       './routes/rr/awards');
+registerRoute('/api/rr/ceremony',     './routes/rr/ceremony');
+registerRoute('/api/rr/reports',      './routes/rr/reports');
+
+// Personnel Module routes
+registerRoute('/api/personnel/employees',     './routes/personnel/employee');
+registerRoute('/api/personnel/documents',     './routes/personnel/documents');
+registerRoute('/api/personnel/leave',         './routes/personnel/leave');
+registerRoute('/api/personnel/travel',        './routes/personnel/travel');
+registerRoute('/api/personnel/certificates',  './routes/personnel/certificates');
+registerRoute('/api/personnel/notifications', './routes/personnel/notifications');
+registerRoute('/api/personnel/reports',       './routes/personnel/reports');
+
+console.log("✅ All routes registered successfully");
 
 // 5. SOCKET.IO
 io.on('connection', (socket) => {
     console.log(`📡 A user connected: ${socket.id}`);
 
+    // Join a room — used by frontend to subscribe to application-specific updates
     socket.on('join-application-room', (roomName) => {
         socket.join(roomName);
         console.log(`📡 ${socket.id} joined room: ${roomName}`);
+    });
+
+    // Leave an application room when navigating away
+    socket.on('leave-application-room', (roomName) => {
+        socket.leave(roomName);
+        console.log(`📡 ${socket.id} left room: ${roomName}`);
+    });
+
+    // L&D module room
+    socket.on('join-ld-room', (roomName) => {
+        socket.join(roomName);
+        console.log(`📡 ${socket.id} joined L&D room: ${roomName}`);
+    });
+
+    // R&R module room
+    socket.on('join-rr-room', (roomName) => {
+        socket.join(roomName);
+        console.log(`📡 ${socket.id} joined R&R room: ${roomName}`);
+    });
+
+    // User-specific room (e.g. rr-user-{userId}) for targeted notifications
+    socket.on('join-user-room', (roomName) => {
+        socket.join(roomName);
+        console.log(`📡 ${socket.id} joined user room: ${roomName}`);
+    });
+
+    // Leave a user room
+    socket.on('leave-user-room', (roomName) => {
+        socket.leave(roomName);
+        console.log(`📡 ${socket.id} left user room: ${roomName}`);
     });
 
     socket.on('disconnect', () => {

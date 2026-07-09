@@ -107,7 +107,13 @@ const publishResults = async (req, res) => {
             [vacancy_id, userId, `Comparative assessment results posted for ${vac[0].ref_no}`]);
 
         const io = req.app.get('socketio');
-        if (io) io.emit('rsp:dashboard:update');
+        if (io) {
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `CA Results published for ${vac[0]?.ref_no || vacancy_id}`,
+                type: 'rsp'
+            });
+        }
 
         // 6. APPLICANT-FACING NOTIFICATIONS
         // Push a personalized result+rank notification to every qualified applicant's own socket room.

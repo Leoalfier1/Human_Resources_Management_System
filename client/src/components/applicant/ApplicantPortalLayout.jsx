@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Briefcase, FileText, Bell, Star, UserCheck, Shield, LogOut } from 'lucide-react';
+import { Briefcase, FileText, Bell, Star, UserCheck, Shield, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const ApplicantPortalLayout = () => {
@@ -13,6 +13,7 @@ const ApplicantPortalLayout = () => {
         { label: 'RESULTS / NOTICES', path: '/jobs/results', icon: Bell },
         { label: 'ADVICE & NEXT STEPS', path: '/jobs/advice', icon: Star },
         { label: 'APPOINTMENT', path: '/jobs/appointment', icon: UserCheck },
+        { label: 'PROFILE', path: '/jobs/profile', icon: Settings },
     ];
 
     return (

@@ -3,8 +3,10 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutGrid, Briefcase, Users, ClipboardCheck, BarChart3, 
-  FileText, ListChecks, Star, Award, FileEdit, ChevronLeft, Shield, LogOut 
+  FileText, ListChecks, Star, Award, FileEdit, ChevronLeft, Shield, LogOut,
+  Settings, MessageSquare
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const NAV_ITEMS = [
   { section: 'OVERVIEW', items: [
@@ -22,11 +24,35 @@ const NAV_ITEMS = [
     { key: 'advice', label: 'Congratulatory Advice', icon: Star, path: '/rsp/congratulatory-advice' },
     { key: 'processing', label: 'Appointment Processing', icon: Award, path: '/rsp/appointment-processing' },
     { key: 'notice', label: 'Notice of Appointment', icon: FileEdit, path: '/rsp/notice-of-appointment' },
-  ]}
+  ]},
+  { section: 'ADMIN', items: [
+    { key: 'users', label: 'User Management', icon: Settings, path: '/rsp/user-management' },
+    { key: 'appeals', label: 'Appeals', icon: MessageSquare, path: '/rsp/appeals' },
+  ]},
 ];
 
 const RSPSidebar = ({ userName, userRole, onBack }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user } = useAuth();
+  const role = user?.role || 'staff';
+
+  const hasPermission = (key, role) => {
+    if (key === 'users') return role === 'admin';
+    if (key === 'appeals') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
+    if (key === 'assessment') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
+    if (['results', 'shortlist', 'advice', 'notice'].includes(key)) {
+      return ['admin', 'hr_staff'].includes(role);
+    }
+    if (['dashboard', 'vacancy', 'applicants', 'evaluation', 'processing'].includes(key)) {
+      return ['admin', 'hr_staff', 'hrmpsb', 'appointing_authority'].includes(role);
+    }
+    return false;
+  };
+
+  const filteredSections = NAV_ITEMS.map(section => {
+    const items = section.items.filter(item => hasPermission(item.key, role));
+    return { ...section, items };
+  }).filter(section => section.items.length > 0);
 
   return (
     <motion.div 
@@ -57,7 +83,7 @@ const RSPSidebar = ({ userName, userRole, onBack }) => {
 
       {/* 2. SCROLLABLE NAVIGATION */}
       <div className="flex-1 overflow-y-auto sidebar-scroll px-3 py-6">
-        {NAV_ITEMS.map((section) => (
+        {filteredSections.map((section) => (
           <div key={section.section} className="mb-8">
             {!isCollapsed && (
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] px-3 mb-3 opacity-60">

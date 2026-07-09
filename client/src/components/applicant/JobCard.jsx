@@ -34,36 +34,116 @@ const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
     );
 };
 
-// ─── QUAL TAG CHIPS ───────────────────────────────────────────────────────────
-const QualChips = ({ qualString }) => {
-    if (!qualString) return null;
-    
-    // Parse qualifications from a text string — split on common delimiters
-    const raw = qualString.split(/[,;|\n]/).map(s => s.trim()).filter(Boolean);
-    
-    // Detect common short tags
-    const chips = raw.map(q => {
-        if (/bachelor|bsed|beed|degree/i.test(q)) return { label: extractDegree(q), key: q };
-        if (/let|licensure/i.test(q)) return { label: 'LET passer', key: q };
-        if (/(\d+)\s*(hour|hr)/i.test(q)) {
-            const m = q.match(/(\d+)\s*(hour|hr)/i);
-            return { label: `Relevant training: ${m[1]} hrs`, key: q };
-        }
-        if (/experience/i.test(q)) return { label: '1 yr experience', key: q };
-        return { label: q.length > 30 ? q.slice(0, 27) + '…' : q, key: q };
-    });
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-    const visible = chips.slice(0, 3);
+/**
+ * Attempts to extract a human-readable degree label from a free-text string.
+ * Falls back to a truncated version of the original string.
+ */
+function extractDegreeLabel(q) {
+    if (/mathematics/i.test(q))          return 'BSEd/BSE — Math';
+    if (/science/i.test(q))              return 'BSEd/BSE — Science';
+    if (/english/i.test(q))              return 'BSEd/BSE — English';
+    if (/filipino/i.test(q))             return 'BSEd/BSE — Filipino';
+    if (/bsed|bse\b/i.test(q))          return 'BSEd/BSE degree';
+    if (/beed/i.test(q))                 return 'BEEd degree';
+    if (/bachelor/i.test(q))             return 'Bachelor\'s degree';
+    return truncate(q, 40);
+}
+
+/** Truncate a string to maxLen chars, appending '…' if trimmed. */
+function truncate(str, maxLen = 40) {
+    const s = str.trim();
+    return s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s;
+}
+
+// ─── QUAL TAG CHIPS ───────────────────────────────────────────────────────────
+/**
+ * QualChips — renders qualification summary chips on a JobCard.
+ *
+ * Strategy (in priority order):
+ *   1. If the job object carries structured qualification fields
+ *      (education, training_hours, experience_years, eligibility),
+ *      those are used directly — no regex needed.
+ *   2. Otherwise, fall back to parsing the free-text `minimum_qualifications`
+ *      string with improved regex and graceful truncation.
+ *
+ * This ensures that when the DB is migrated to store structured fields the
+ * chips will display accurate, official data without any code change.
+ */
+const QualChips = ({ job }) => {
+    let chips = [];
+
+    // ── Strategy 1: structured fields ────────────────────────────────────────
+    const hasStructured =
+        job.education || job.training_hours != null ||
+        job.experience_years != null || job.eligibility;
+
+    if (hasStructured) {
+        if (job.education) {
+            chips.push(truncate(job.education, 40));
+        }
+        if (job.eligibility) {
+            chips.push(truncate(job.eligibility, 40));
+        }
+        if (job.training_hours != null) {
+            chips.push(`${job.training_hours} hrs relevant training`);
+        }
+        if (job.experience_years != null) {
+            const yrs = Number(job.experience_years);
+            chips.push(yrs === 0 ? 'No experience required' : `${yrs} yr${yrs !== 1 ? 's' : ''} experience`);
+        }
+    } else {
+        // ── Strategy 2: free-text parser ─────────────────────────────────────
+        const raw = (job.minimum_qualifications || '')
+            .split(/[,;|\n]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+        if (raw.length === 0) return null;
+
+        chips = raw.map(q => {
+            // Degree / education
+            if (/bachelor|bsed|bse\b|beed|degree/i.test(q)) {
+                return extractDegreeLabel(q);
+            }
+            // Licensure / eligibility
+            if (/let|licensure|eligib/i.test(q)) {
+                return 'LET / Licensure passer';
+            }
+            // Training hours — extract actual number
+            const trainingMatch = q.match(/(\d+[\d,]*)\s*(?:hour|hr)/i);
+            if (trainingMatch) {
+                const hrs = trainingMatch[1].replace(',', '');
+                return `${hrs} hrs relevant training`;
+            }
+            // Experience — extract actual number if present, else generic label
+            if (/experience/i.test(q)) {
+                const expMatch = q.match(/(\d+)\s*(?:year|yr)/i);
+                if (expMatch) {
+                    const yrs = parseInt(expMatch[1], 10);
+                    return `${yrs} yr${yrs !== 1 ? 's' : ''} experience`;
+                }
+                return 'Relevant experience required';
+            }
+            return truncate(q, 40);
+        });
+    }
+
+    if (chips.length === 0) return null;
+
+    const visible  = chips.slice(0, 3);
     const overflow = chips.length - 3;
 
     return (
         <div className="flex flex-wrap gap-2 mt-3">
-            {visible.map((c, i) => (
+            {visible.map((label, i) => (
                 <span
                     key={i}
+                    title={label}
                     className="bg-slate-50 text-slate-500 border border-slate-100 text-[10px] font-bold px-3 py-1 rounded-full"
                 >
-                    {c.label}
+                    {label}
                 </span>
             ))}
             {overflow > 0 && (
@@ -75,21 +155,11 @@ const QualChips = ({ qualString }) => {
     );
 };
 
-function extractDegree(q) {
-    if (/mathematics/i.test(q)) return 'BSEd/BSE major in Math';
-    if (/science/i.test(q)) return 'BSEd/BSE major in Science';
-    if (/english/i.test(q)) return 'BSEd/BSE major in English';
-    if (/filipino/i.test(q)) return 'BSEd/BSE major in Filipino';
-    if (/bsed|bse/i.test(q)) return 'BSEd/BSE degree';
-    if (/beed|beed/i.test(q)) return 'BEEd degree';
-    return q.length > 28 ? q.slice(0, 25) + '…' : q;
-}
-
 // ─── JOB CARD ─────────────────────────────────────────────────────────────────
 const JobCard = ({ job, index = 0 }) => {
-    const daysLeft = job.days_left ?? 0;
+    const daysLeft    = job.days_left    ?? 0;
     const daysElapsed = job.days_elapsed ?? 0;
-    const isClosed = job.computed_status === 'closed';
+    const isClosed    = job.computed_status === 'closed';
 
     return (
         <motion.div
@@ -123,7 +193,7 @@ const JobCard = ({ job, index = 0 }) => {
                         </div>
                     </div>
                     <span className="bg-blue-50 text-[#1B3A6B] text-[10px] font-black px-3 py-1.5 rounded-xl border border-blue-100 whitespace-nowrap">
-                        {job.salary_grade || `SG-${job.salary_grade}`}
+                        {job.salary_grade || 'SG N/A'}
                     </span>
                 </div>
 
@@ -144,8 +214,8 @@ const JobCard = ({ job, index = 0 }) => {
                     </span>
                 </div>
 
-                {/* Qualification chips */}
-                <QualChips qualString={job.minimum_qualifications} />
+                {/* Qualification chips — pass the full job object */}
+                <QualChips job={job} />
 
                 {/* Divider */}
                 <div className="border-t border-slate-50 mt-4 mb-4" />

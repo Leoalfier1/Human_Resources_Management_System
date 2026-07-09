@@ -132,10 +132,19 @@ exports.updateApplicantStatus = async (req, res) => {
             [status, id]
         );
 
-        // Also emit socket event to refresh applicant's dashboard
+        // Also emit socket event to refresh applicant's dashboard and notify admin
+        const [appRow] = await db.query(
+            'SELECT a.full_name, v.position_title FROM applications a JOIN vacancies v ON a.vacancy_id = v.id WHERE a.id = ?',
+            [id]
+        );
         const io = req.app.get('socketio');
         if (io) {
             io.to(`application-${id}`).emit('application:stage-update', { applicationId: id });
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Applicant ${appRow[0]?.full_name || ''} status changed to ${status} for ${appRow[0]?.position_title || ''}`,
+                type: 'rsp'
+            });
         }
 
         res.json({ message: `Applicant status updated to ${status}` });

@@ -5,10 +5,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); // Needed to create the token
 const { sendVerificationEmail } = require('../utils/mailer'); // Needed to send the mail
 const { sendResetPasswordEmail } = require('../utils/mailer');
+const { rateLimit } = require('../middleware/rateLimiter');
 
 // REGISTER ROUTE
-router.post('/register', async (req, res) => {
+router.post('/register', rateLimit(), async (req, res) => {
     try {
+        // Only fullName, email, mobile, password are accepted — any role
+        // field from the client is intentionally discarded. Public registration
+        // creates ONLY applicant accounts (see INSERT below).
         const { fullName, email, mobile, password } = req.body;
 
         // 1. Check if user already exists
@@ -78,7 +82,7 @@ router.post('/register', async (req, res) => {
 
 // LOGIN ROUTE
 // UPDATED LOGIN ROUTE WITH RBAC
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit({ max: 10 }), async (req, res) => {
     try {
         const { identifier, password, loginType } = req.body; // loginType is 'staff' or 'applicant'
 
@@ -89,14 +93,16 @@ router.post('/login', async (req, res) => {
 
         const user = users[0];
 
-        // --- STRICT PORTAL CHECK ---
-        if (loginType === 'staff' && user.role === 'applicant') {
+        // --- STRICT PORTAL CHECK (allow-list) ---
+        const staffRoles = ['admin', 'staff', 'hr_staff', 'hrmpsb', 'appointing_authority'];
+
+        if (loginType === 'staff' && !staffRoles.includes(user.role)) {
             return res.status(403).json({ 
                 message: "Sorry, this account is only authorized for the Applicant Portal." 
             });
         }
 
-        if (loginType === 'applicant' && (user.role === 'staff' || user.role === 'admin')) {
+        if (loginType === 'applicant' && user.role !== 'applicant') {
             return res.status(403).json({ 
                 message: "Sorry, this account is only authorized for the Staff/Admin Portal." 
             });
@@ -128,7 +134,7 @@ router.get('/verify-email', async (req, res) => {
     // 1. Get BOTH the token and the applicant type from the URL link
     const { token, type } = req.query;
 
-    if (!token || !type || !['teaching', 'non_teaching'].includes(type)) {
+    if (!token || !type || !['teaching', 'non_teaching', 'teaching_related'].includes(type)) {
         return res.status(400).send("Invalid request. Missing or invalid token/type.");
     }
 
@@ -151,7 +157,7 @@ router.get('/verify-email', async (req, res) => {
             return res.status(404).send("User not found.");
         }
 
-        const typeLabel = type === 'teaching' ? 'TEACHING APPLICANT' : 'NON-TEACHING APPLICANT';
+        const typeLabel = type === 'teaching' ? 'TEACHING APPLICANT' : type === 'teaching_related' ? 'TEACHING-RELATED APPLICANT' : 'NON-TEACHING APPLICANT';
 
         // 4. Success Page
         res.send(`
@@ -168,6 +174,15 @@ router.get('/verify-email', async (req, res) => {
         console.error("Verification Error:", error);
         res.status(400).send("Link expired or invalid. Please try signing up again.");
     }
+});
+
+// Redirect users who follow old email links to the React reset page
+router.get('/reset-password-page', (req, res) => {
+    const { token } = req.query;
+    if (token) {
+        return res.redirect(`http://localhost:5173/reset-password/${token}`);
+    }
+    res.redirect('http://localhost:5173');
 });
 
 router.post('/forgot-password', async (req, res) => {
@@ -190,26 +205,13 @@ router.post('/forgot-password', async (req, res) => {
     }
 });
 
-// 2. ROUTE: The page where they type their new password
-// For simplicity, we will send a simple HTML form back
-router.get('/reset-password-page', (req, res) => {
-    const { token } = req.query;
-    res.send(`
-        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h2 style="color: #1B3A6B;">Set New Password</h2>
-            <form action="/api/auth/update-password" method="POST" style="display: inline-block; text-align: left; background: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                <input type="hidden" name="token" value="${token}" />
-                <label>New Password:</label><br/>
-                <input type="password" name="newPassword" required style="padding: 8px; width: 250px; margin-top: 5px; margin-bottom: 15px;" /><br/>
-                <button type="submit" style="background: #1B3A6B; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Update Password</button>
-            </form>
-        </div>
-    `);
-});
-
-// 3. ROUTE: Actually update the database
+// 2. ROUTE: Actually update the database (called from React ResetPasswordPage)
 router.post('/update-password', async (req, res) => {
     const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required." });
+    }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -219,9 +221,9 @@ router.post('/update-password', async (req, res) => {
 
         await db.query('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, decoded.email]);
 
-        res.send("<h1>Password Updated!</h1><p>You can now log in with your new password.</p><a href='http://localhost:5173'>Go to Login</a>");
+        res.json({ message: "Password updated successfully! You can now log in with your new password." });
     } catch (error) {
-        res.status(400).send("Link expired or invalid.");
+        res.status(400).json({ message: "Link expired or invalid. Please request a new password reset." });
     }
 });
 

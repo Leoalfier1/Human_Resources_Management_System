@@ -118,7 +118,7 @@ const RSPDashboard = () => {
       </div>
 
       {/* POSITION TYPE BREAKDOWN */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Teaching Positions</h4>
           <div className="flex items-end justify-between">
@@ -141,6 +141,19 @@ const RSPDashboard = () => {
             </div>
             <div className="text-right">
               <p className="text-lg font-black text-amber-600">{data?.summary?.nonTeachingApplicants || 0}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Applicants</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Tch-Related Positions</h4>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-black text-violet-600">{data?.summary?.teachingRelatedPostings || 0}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active Postings</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-black text-violet-600">{data?.summary?.teachingRelatedApplicants || 0}</p>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Applicants</p>
             </div>
           </div>

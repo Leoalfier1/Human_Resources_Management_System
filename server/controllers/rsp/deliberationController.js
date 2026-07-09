@@ -97,8 +97,15 @@ const endorseShortlist = async (req, res) => {
         await db.query(`INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
             [vacancy_id, req.user.id, `Shortlist finalized - top ${check[0].count} endorsed to SDS`]);
 
+        const [[vacRef]] = await db.query('SELECT ref_no FROM vacancies WHERE id = ?', [vacancy_id]);
         const io = req.app.get('socketio');
-        if (io) io.emit('rsp:dashboard:update');
+        if (io) {
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Shortlist endorsed to SDS for ${vacRef?.ref_no || vacancy_id}`,
+                type: 'rsp'
+            });
+        }
 
         // APPLICANT-FACING NOTIFICATIONS: tell each recommended candidate their rank
         const [vacRow] = await db.query('SELECT position_title FROM vacancies WHERE id = ?', [vacancy_id]);

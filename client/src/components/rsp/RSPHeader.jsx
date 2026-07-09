@@ -14,7 +14,6 @@ const RSPHeader = ({ title }) => {
       <div className="flex items-center gap-6">
         <div className="relative cursor-pointer text-slate-400 hover:text-[#1B3A6B] transition-colors">
           <Bell size={20} />
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
         </div>
         
         <div className="flex items-center gap-3 group cursor-pointer">

@@ -55,6 +55,8 @@ exports.getVacancies = async (req, res) => {
             conditions.push(`v.position_type = 'teaching'`);
         } else if (applicantType === 'non_teaching') {
             conditions.push(`v.position_type = 'non_teaching'`);
+        } else if (applicantType === 'teaching_related') {
+            conditions.push(`v.position_type = 'teaching_related'`);
         }
         // else: NULL → no position_type filter → show all
 

@@ -192,7 +192,7 @@ exports.submitDecision = async (req, res) => {
             [id, notifMessage]
         );
 
-        // 4. Notify Applicant via Socket
+        // 4. Notify Applicant and Admin via Socket
         const io = req.app.get('socketio');
         if (io) {
             io.to(`application-${id}`).emit('application:stage-update', { status: decision });
@@ -201,7 +201,11 @@ exports.submitDecision = async (req, res) => {
                 message: notifMessage,
                 created_at: new Date()
             });
-            io.emit('rsp:dashboard:update'); // Refresh Admin stats
+            io.emit('rsp:dashboard:update');
+            io.emit('notification:admin', {
+                message: `Applicant marked as ${decision} for ${posTitle}`,
+                type: 'rsp'
+            });
         }
 
         res.json({ message: `Applicant marked as ${decision}` });

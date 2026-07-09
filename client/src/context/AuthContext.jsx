@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
+import { SERVER_BASE } from '../utils/api';
 
 // Create the Context
 const AuthContext = createContext();
@@ -20,6 +22,32 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const socketRef = useRef(null);
+
+  // Connect Socket.IO and join user-specific rooms for real-time notifications
+  const connectSocket = (currentUser, currentToken) => {
+    if (socketRef.current) socketRef.current.disconnect();
+
+    const socket = io(SERVER_BASE, {
+      auth: { token: currentToken }
+    });
+
+    socket.on('connect', () => {
+      // Join user-specific room for targeted notifications (e.g. R&R awards)
+      if (currentUser?.id) {
+        socket.emit('join-user-room', `rr-user-${currentUser.id}`);
+      }
+    });
+
+    socketRef.current = socket;
+  };
+
+  const disconnectSocket = () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  };
 
   // 1. PERSISTENCE: Check localStorage when the app first loads
   useEffect(() => {
@@ -35,13 +63,17 @@ export const AuthProvider = ({ children }) => {
             logout();
         } else {
             setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            connectSocket(parsedUser, storedToken);
         }
       } catch (error) {
         logout();
       }
     }
     setLoading(false);
+
+    return () => disconnectSocket();
   }, []);
 
   // 2. LOGIN: Save user data to state and storage
@@ -50,24 +82,28 @@ export const AuthProvider = ({ children }) => {
     setToken(userToken);
     localStorage.setItem('token', userToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    connectSocket(userData, userToken);
   };
 
   // 3. LOGOUT: Clear all state and storage (Defensive Check)
   const logout = () => {
+    disconnectSocket();
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Force redirect to login page (optional, handled by App.jsx or ProtectedRoute)
+    // Force redirect to login page
     window.location.href = '/'; 
   };
 
   // 4. CONVENIENCE HELPERS: Quick role checks
-  // Define which roles count as "Staff/Admin"
-  const staffRoles = ['admin', 'staff', 'hr_staff', 'hrmpsb'];
+  // Define which roles count as "Staff/Admin" — must match server-side allow-list
+  const staffRoles = ['admin', 'staff', 'hr_staff', 'hrmpsb', 'appointing_authority'];
   
   const isAdmin = user && staffRoles.includes(user.role);
   const isApplicant = user && user.role === 'applicant';
+  const isEmployee = user && ['applicant', 'admin', 'hr_staff', 'hrmpsb', 'appointing_authority'].includes(user.role);
+  const isHRAdmin = user && ['admin', 'hr_staff'].includes(user.role);
   const isAuthenticated = !!token;
 
   // Values exposed to the rest of the app
@@ -77,6 +113,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isAdmin,
     isApplicant,
+    isEmployee,
+    isHRAdmin,
     login,
     logout,
     loading

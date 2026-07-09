@@ -6,8 +6,10 @@ import { API_BASE } from '../../../utils/api';
 
 const API = API_BASE;
 
+// TODO(product-owner): confirm category tabs for teaching_related.
+// Currently reuses non_teaching tabs as a starting point.
 const getCategoryTabs = (positionType) => {
-    if (positionType === 'non_teaching') {
+    if (positionType === 'non_teaching' || positionType === 'teaching_related') {
         return [
             { key: 'classroom_observable', letter: 'A', label: 'Technical / Skills Interview', sub: 'Technical Questions', weight: 40 },
             { key: 'non_classroom_observable', letter: 'B', label: 'Non-Classroom Observable Indicators', sub: 'Interview / BEI', weight: 30 },

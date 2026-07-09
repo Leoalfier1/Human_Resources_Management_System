@@ -2,6 +2,7 @@ const db = require('../../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { syncEligibilityScreeningRow } = require('./syncEligibilityScreening');
 
 // --- 1. MULTER CONFIGURATION FOR WIZARD UPLOADS ---
 const storage = multer.diskStorage({
@@ -38,8 +39,8 @@ exports.createOrGetDraft = async (req, res) => {
         }
 
         const [userRow] = await db.query('SELECT full_name, email FROM users WHERE id = ?', [applicant_id]);
-        const fullName = userRow.length > 0 ? userRow[0].full_name : req.user.name || 'Unknown';
-        const email = userRow.length > 0 ? userRow[0].email : req.user.email || '';
+        const fullName = userRow.length > 0 ? userRow[0].full_name : 'Unknown';
+        const email = userRow.length > 0 ? userRow[0].email : '';
 
         const [result] = await db.query(
             `INSERT INTO applications (vacancy_id, applicant_id, full_name, email, status) 
@@ -139,7 +140,8 @@ if (status === 'submitted') {
             if (io) {
                 io.emit('rsp:dashboard:update');
                 io.emit('notification:admin', {
-                    message: `New application: ${full_name} applied for ${posTitle}`
+                    message: `New application: ${full_name} applied for ${posTitle}`,
+                    type: 'rsp'
                 });
                 io.to(`application-${id}`).emit('application:notification', {
                     id: notifResult.insertId,
@@ -148,6 +150,8 @@ if (status === 'submitted') {
                 });
                 io.to(`application-${id}`).emit('application:stage-update', { status: 'submitted' });
             }
+
+            await syncEligibilityScreeningRow(id);
 
             return res.json({ message: 'Application submitted!', ref_no });
         }
@@ -310,5 +314,76 @@ exports.getApplicationStatus = async (req, res) => {
     } catch (error) {
         console.error('getApplicationStatus Error:', error);
         res.status(500).json({ message: error.message });
+    }
+};
+
+// --- 9. WITHDRAW APPLICATION ---
+exports.withdrawApplication = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const applicant_id = req.user.id;
+
+        const [app] = await db.query(
+            'SELECT status FROM applications WHERE id = ? AND applicant_id = ?',
+            [id, applicant_id]
+        );
+        if (app.length === 0) return res.status(404).json({ message: 'Application not found.' });
+
+        if (!['draft', 'submitted', 'for_evaluation'].includes(app[0].status) && app[0].status !== 'for_evaluation') {
+            const allowed = ['draft', 'submitted', 'for_evaluation'];
+            if (!allowed.includes(app[0].status)) {
+                return res.status(400).json({ message: 'Cannot withdraw at current stage.' });
+            }
+        }
+
+        await db.query(
+            "UPDATE applications SET status = 'withdrawn' WHERE id = ?",
+            [id]
+        );
+
+        const io = req.app.get('socketio');
+        if (io) {
+            io.emit('rsp:dashboard:update');
+            io.to(`application-${id}`).emit('application:stage-update', { status: 'withdrawn' });
+        }
+
+        res.json({ message: 'Application withdrawn successfully.' });
+    } catch (error) {
+        console.error('withdrawApplication Error:', error);
+        res.status(500).json({ message: 'Could not withdraw application.' });
+    }
+};
+
+// --- 10. SUBMIT APPEAL ---
+exports.submitAppeal = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const applicant_id = req.user.id;
+
+        const [app] = await db.query(
+            'SELECT status FROM applications WHERE id = ? AND applicant_id = ?',
+            [id, applicant_id]
+        );
+        if (app.length === 0) return res.status(404).json({ message: 'Application not found.' });
+
+        if (app[0].status !== 'disqualified') {
+            return res.status(400).json({ message: 'Appeals are only accepted for disqualified applications.' });
+        }
+
+        await db.query(
+            'INSERT INTO appeals (application_id, applicant_id, reason, status) VALUES (?, ?, ?, ?)',
+            [id, applicant_id, reason, 'pending']
+        );
+
+        const io = req.app.get('socketio');
+        if (io) {
+            io.emit('rsp:dashboard:update');
+        }
+
+        res.status(201).json({ message: 'Appeal submitted. An administrator will review your case.' });
+    } catch (error) {
+        console.error('submitAppeal Error:', error);
+        res.status(500).json({ message: 'Could not submit appeal.' });
     }
 };

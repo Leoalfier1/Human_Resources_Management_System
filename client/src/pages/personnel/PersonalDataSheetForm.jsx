@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     User, Users, GraduationCap, Award, Briefcase, Heart, BookOpen, Star,
     ShieldAlert, Loader2, CheckCircle2, AlertCircle, Plus, Trash2, Save, Lock, ArrowLeft, ChevronRight, ChevronLeft
@@ -131,6 +131,7 @@ const STEP1_REQUIRED = [
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 const PersonalDataSheetForm = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { pds, loading, saving, submitting, error, isComplete, save, submit } = usePersonalDataSheet();
 
     const [form, setForm]               = useState(null);
@@ -216,7 +217,14 @@ const PersonalDataSheetForm = () => {
         await saveAll();
         const result = await submit();
         setSubmitMsg(result);
-        if (result.success) window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (result.success) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (location.state?.returnTo) {
+                setTimeout(() => {
+                    navigate(location.state.returnTo, { replace: true });
+                }, 1500);
+            }
+        }
     };
 
     if (loading || !form) return (
@@ -267,6 +275,21 @@ const PersonalDataSheetForm = () => {
             </div>
 
             <div className="max-w-5xl mx-auto px-6 mt-8 space-y-6">
+
+                {/* PDS completeness requirement redirect warning */}
+                {location.state?.pdsRequired && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+                        <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">
+                                Complete PDS Required
+                            </p>
+                            <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                                {location.state.message || 'You must complete and submit your Personal Data Sheet (PDS) before you can apply for a position.'}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Missing fields banner */}
                 {missingFields.length > 0 && (

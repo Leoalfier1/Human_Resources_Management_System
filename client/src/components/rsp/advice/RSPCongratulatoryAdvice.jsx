@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Printer, Download, Send, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useCongratulatoryAdvice } from '../../../hooks/useCongratulatoryAdvice';
@@ -7,9 +7,30 @@ import { API_BASE } from '../../../utils/api';
 const API = API_BASE;
 
 const RSPCongratulatoryAdvice = () => {
-    // TODO: replace with a vacancy selector if you have multiple active vacancies
-    const vacancyId = 1;
+    const [vacancies, setVacancies] = useState([]);
+    const [vacancyId, setVacancyId] = useState(null);
+    const [vacLoading, setVacLoading] = useState(true);
     const letterRef = useRef(null);
+
+    useEffect(() => {
+        const fetchVacancies = async () => {
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_BASE}/api/rsp/vacancies`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : [];
+                setVacancies(list);
+                if (list.length > 0) setVacancyId(list[0].id);
+            } catch (e) {
+                console.error('Failed to load vacancies:', e);
+            } finally {
+                setVacLoading(false);
+            }
+        };
+        fetchVacancies();
+    }, []);
 
     const { eligible, selectedId, setSelectedId, detail, setDetails, loading, refresh } =
         useCongratulatoryAdvice(vacancyId);
@@ -96,18 +117,61 @@ const RSPCongratulatoryAdvice = () => {
     };
 
     // ── Render ────────────────────────────────────────────────────
-    if (loading || !detail) {
+    if (vacLoading) {
         return (
-            <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">
-                Preparing Advice Generator...
+            <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest bg-white rounded-[2.5rem] shadow-sm border border-slate-100">
+                Loading Postings...
             </div>
         );
     }
 
-    if (eligible.length === 0) {
+    if (vacancies.length === 0) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-10">
-                <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-slate-100 max-w-lg">
+            <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest bg-white rounded-[2.5rem] shadow-sm border border-slate-100">
+                No vacancies found. Post a vacancy first.
+            </div>
+        );
+    }
+
+    const reportDateDisplay = detail?.report_date
+        ? new Date(detail.report_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : '[Date not set]';
+
+    const deadlineDateDisplay = detail?.document_submission_deadline
+        ? new Date(detail.document_submission_deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : '[Date not set]';
+
+    return (
+        <div className="space-y-6 select-none pb-20 relative">
+            {/* HEADER + VACANCY SELECTOR */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Selection &amp; Congratulatory Advice</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        Stage 9 · Appointing Authority selection and dynamic document requirement check
+                    </p>
+                </div>
+                <select
+                    className="bg-white border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-[#1B3A6B] outline-none shadow-sm max-w-sm"
+                    value={vacancyId || ''}
+                    onChange={e => {
+                        setVacancyId(Number(e.target.value));
+                        setSelectedId(null);
+                        setDetails(null);
+                    }}
+                >
+                    {vacancies.map(v => (
+                        <option key={v.id} value={v.id}>{v.ref_no} — {v.position_title}</option>
+                    ))}
+                </select>
+            </div>
+
+            {loading || !detail ? (
+                <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest bg-white rounded-[2.5rem] shadow-sm border border-slate-100">
+                    Preparing Advice Generator...
+                </div>
+            ) : eligible.length === 0 ? (
+                <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-slate-100 max-w-lg mx-auto text-center">
                     <AlertCircle size={48} className="text-slate-300 mx-auto mb-4" />
                     <h2 className="text-xl font-black text-[#1B3A6B] uppercase italic mb-2">No Eligible Appointees</h2>
                     <p className="text-slate-500 text-sm">
@@ -115,20 +179,8 @@ const RSPCongratulatoryAdvice = () => {
                         Complete the Deliberation stage first.
                     </p>
                 </div>
-            </div>
-        );
-    }
-
-    const reportDateDisplay = detail.report_date
-        ? new Date(detail.report_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : '[Date not set]';
-
-    const deadlineDateDisplay = detail.document_submission_deadline
-        ? new Date(detail.document_submission_deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : '[Date not set]';
-
-    return (
-        <div className="flex flex-col xl:flex-row gap-8 select-none pb-20 relative">
+            ) : (
+                <div className="flex flex-col xl:flex-row gap-8">
 
             {/* ── TOAST ─────────────────────────────────────────── */}
             {toast && (
@@ -334,7 +386,9 @@ const RSPCongratulatoryAdvice = () => {
                 </div>
             </div>
         </div>
-    );
+        )}
+    </div>
+  );
 };
 
 export default RSPCongratulatoryAdvice;

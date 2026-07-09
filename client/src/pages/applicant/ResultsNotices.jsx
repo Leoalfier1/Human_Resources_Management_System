@@ -56,7 +56,7 @@ const NEXT_STEPS = {
     draft: "Finish and submit your application to begin the RSP evaluation process.",
     submitted: "Your application is under review by the HR Office. You'll be notified here once Initial Evaluation is complete.",
     under_review: "The HRMPSB Secretariat is validating your submitted documents and performance ratings.",
-    qualified: "You've passed Initial Evaluation. Your Comparative Assessment (demo teaching, interview, and document evaluation) will be scheduled soon.",
+    qualified: "You've passed Initial Evaluation. Your Comparative Assessment (skills interview / demo teaching, BEI, and document evaluation) will be scheduled soon.",
     disqualified: "Unfortunately, your application did not proceed past Initial Evaluation. Thank you for your interest in DepEd SDO Dapitan City.",
     shortlisted: "The HRMPSB has endorsed the shortlist to the appointing authority. A Congratulatory Advice will be issued within 1–2 working days.",
     selected: "Congratulations! A Congratulatory Advice has been issued. Check Advice & Next Steps for required documents and deadlines.",

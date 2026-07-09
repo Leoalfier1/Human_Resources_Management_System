@@ -69,7 +69,7 @@ const handleSignUp = async (e) => {
       {/* Warning/Info Box */}
       <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl mb-6 text-[11px] text-amber-800 leading-relaxed">
         <p>
-          Sign-up is available for <strong>job applicants</strong> applying to posted teaching positions. 
+          Sign-up is available for <strong>job applicants</strong> applying to posted teaching, teaching-related, or non-teaching positions. 
           Staff, HRMPSB, and Appointing Authority accounts are created by the System Administrator.
         </p>
       </div>

@@ -1,8 +1,11 @@
 import React from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X, Bell, GraduationCap, UserCheck } from 'lucide-react';
 import RSPSidebar from './RSPSidebar';
 import RSPHeader from './RSPHeader';
 import { useAuth } from '../../context/AuthContext';
+import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 
 const RSPAdminLayout = () => {
   const { isAuthenticated, isAdmin, user } = useAuth();
@@ -36,12 +39,27 @@ const RSPAdminLayout = () => {
     appointing_authority: 'Appointing Authority',
   };
 
-  // 2. DEFENSIVE CHECK: Redirect unauthorized users
+  // 2. REAL-TIME ADMIN NOTIFICATIONS
+  const { toasts, dismissToast } = useAdminNotifications();
+
+  const notificationIcons = {
+    rsp: <UserCheck size={16} />,
+    ld: <GraduationCap size={16} />,
+    ld_applicant: <GraduationCap size={16} />,
+  };
+
+  const notificationColors = {
+    rsp: 'bg-blue-600',
+    ld: 'bg-emerald-600',
+    ld_applicant: 'bg-amber-600',
+  };
+
+  // 3. DEFENSIVE CHECK: Redirect unauthorized users
   if (!isAuthenticated || !isAdmin) {
     return <Navigate to="/" replace />;
   }
 
-  // 3. HANDLERS
+  // 4. HANDLERS
   const handleBackToPillars = () => {
     navigate('/pillars');
   };
@@ -63,7 +81,29 @@ const RSPAdminLayout = () => {
         <RSPHeader title={currentTitle} />
 
         {/* DYNAMIC PAGE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 relative">
+          {/* REAL-TIME NOTIFICATION TOASTS */}
+          <div className="fixed top-4 right-4 z-[999] flex flex-col gap-2 max-w-sm">
+            <AnimatePresence>
+              {toasts.map(toast => (
+                <motion.div
+                  key={toast.id}
+                  initial={{ opacity: 0, x: 300, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 300, scale: 0.9 }}
+                  className={`${notificationColors[toast.type] || 'bg-gray-700'} text-white px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3 cursor-pointer`}
+                  onClick={() => dismissToast(toast.id)}
+                >
+                  <span className="mt-0.5 shrink-0">
+                    {notificationIcons[toast.type] || <Bell size={16} />}
+                  </span>
+                  <p className="text-sm font-medium leading-snug flex-1">{toast.message}</p>
+                  <X size={14} className="shrink-0 mt-0.5 opacity-70 hover:opacity-100" />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
           <div className="max-w-[1600px] mx-auto">
             {/* This <Outlet /> is where the individual RSP screens will render */}
             <Outlet />

@@ -6,8 +6,8 @@ import { motion } from 'framer-motion';
 import Step1PersonalInfo from '../../components/applicant/wizard/Step1PersonalInfo';
 import Step2Documents from '../../components/applicant/wizard/Step2Documents';
 import Step3Review from '../../components/applicant/wizard/Step3Review';
-import { API_BASE } from '../../utils/api';
 import Step4Confirmation from '../../components/applicant/wizard/Step4Confirmation';
+import { API_BASE } from '../../utils/api';
 
 const ApplicationWizard = () => {
     const { id } = useParams(); // vacancy_id
@@ -17,49 +17,100 @@ const ApplicationWizard = () => {
     const [vacancy, setVacancy] = useState(null);
     const [applicationId, setApplicationId] = useState(null);
     const [refNo, setRefNo] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    // 'ready' is true only after ALL prerequisite checks have settled.
+    // Step 1 must never render until this is true.
+    const [ready, setReady] = useState(false);
     const [error, setError] = useState(null);
 
-    // Fetch vacancy info for the persistent header
+    // ── SINGLE COORDINATED INITIALISATION ───────────────────────────────────
+    // Runs three checks in parallel via Promise.all:
+    //   1. PDS completeness   — route-level guard; cannot be bypassed by URL
+    //   2. Vacancy validity   — must exist and be open
+    //   3. Duplicate check    — redirect if already applied
+    //
+    // Step 1 will not render until every promise has resolved (or one rejects).
     useEffect(() => {
-        const fetchVacancy = async () => {
-            try {
-                const res = await fetch(`${API_BASE}/api/vacancies/${id}`);
-                if (!res.ok) throw new Error('Vacancy not found');
-                const data = await res.json();
-                setVacancy(data);
+        let cancelled = false;
 
-                if (data.computed_status === 'closed') {
-                    navigate(`/jobs/${id}`);
+        const initialise = async () => {
+            const token = localStorage.getItem('token');
+            const authHeaders = { 'Authorization': `Bearer ${token}` };
+
+            try {
+                const [pdsRes, vacancyRes, hasAppliedRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/applicant/pds/status`, { headers: authHeaders }),
+                    fetch(`${API_BASE}/api/vacancies/${id}`),
+                    fetch(`${API_BASE}/api/vacancies/${id}/has-applied`, { headers: authHeaders }),
+                ]);
+
+                if (cancelled) return;
+
+                // ── 1. PDS gate ──────────────────────────────────────────────
+                // A non-OK response (e.g. 500) is treated as incomplete to be safe.
+                let pdsComplete = false;
+                if (pdsRes.ok) {
+                    const pdsData = await pdsRes.json();
+                    pdsComplete = !!pdsData.isComplete;
                 }
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchVacancy();
-    }, [id, navigate]);
 
-    // Check if user already submitted an application
-    useEffect(() => {
-        const checkExisting = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const res = await fetch(`${API_BASE}/api/vacancies/${id}/has-applied`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.hasApplied) {
-                        navigate(`/jobs/${id}`);
+                if (!pdsComplete) {
+                    // Redirect to PDS form with a state message so the page
+                    // can display a contextual explanation to the applicant.
+                    navigate('/personnel/pds', {
+                        replace: true,
+                        state: {
+                            pdsRequired: true,
+                            returnTo: `/jobs/${id}/apply`,
+                            message:
+                                'You must complete and submit your Personal Data Sheet (PDS) ' +
+                                'before you can apply for a position. ' +
+                                'Please fill in all required sections and click "Submit PDS" to continue.'
+                        }
+                    });
+                    return;
+                }
+
+                // ── 2. Vacancy validity ──────────────────────────────────────
+                if (!vacancyRes.ok) {
+                    setError('Vacancy not found.');
+                    setReady(true);
+                    return;
+                }
+
+                const vacancyData = await vacancyRes.json();
+
+                if (vacancyData.computed_status === 'closed') {
+                    navigate(`/jobs/${id}`, { replace: true });
+                    return;
+                }
+
+                setVacancy(vacancyData);
+
+                // ── 3. Duplicate application check ───────────────────────────
+                if (hasAppliedRes.ok) {
+                    const appliedData = await hasAppliedRes.json();
+                    if (appliedData.hasApplied) {
+                        navigate(`/jobs/${id}`, { replace: true });
+                        return;
                     }
                 }
+
+                // All checks passed — allow Step 1 to render
+                setReady(true);
+
             } catch (err) {
-                console.error('Error checking existing app status');
+                if (!cancelled) {
+                    setError('Could not load the application form. Please check your connection and try again.');
+                    setReady(true);
+                }
             }
         };
-        checkExisting();
+
+        initialise();
+
+        // Cleanup: if the component unmounts mid-flight, ignore stale results
+        return () => { cancelled = true; };
     }, [id, navigate]);
 
     const steps = [
@@ -69,22 +120,39 @@ const ApplicationWizard = () => {
         { num: 4, label: 'Confirmation' }
     ];
 
-    if (loading) return (
-        <div className="min-h-screen bg-[#F1F3F6] flex justify-center pt-32">
-            <div className="w-8 h-8 border-4 border-[#1B3A6B] border-t-transparent rounded-full animate-spin"/>
+    // ── LOADING STATE — shown until all prerequisite checks resolve ──────────
+    if (!ready) return (
+        <div className="min-h-screen bg-[#F1F3F6] flex flex-col items-center justify-center gap-4">
+            <div className="w-10 h-10 border-4 border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                Verifying your eligibility…
+            </p>
         </div>
     );
+
+    // ── ERROR STATE ──────────────────────────────────────────────────────────
     if (error || !vacancy) return (
-        <div className="min-h-screen bg-[#F1F3F6] flex justify-center pt-32 font-black text-slate-400 uppercase tracking-widest">
-            {error || 'Vacancy not found'}
+        <div className="min-h-screen bg-[#F1F3F6] flex flex-col items-center justify-center gap-3 px-6">
+            <AlertCircle size={36} className="text-slate-300" />
+            <p className="font-black text-slate-400 uppercase tracking-widest text-sm text-center">
+                {error || 'Vacancy not found'}
+            </p>
+            <Link
+                to="/jobs"
+                className="mt-4 px-6 py-3 bg-[#1B3A6B] text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-[#162E55] transition-all"
+            >
+                Back to Job Openings
+            </Link>
         </div>
     );
 
     // Position type label for the header badge
-    const posTypeLabel = vacancy.position_type === 'non_teaching' ? 'Non-Teaching' : 'Teaching';
+    const posTypeLabel = vacancy.position_type === 'non_teaching' ? 'Non-Teaching' : vacancy.position_type === 'teaching_related' ? 'Teaching-Related' : 'Teaching';
     const posTypeBadgeClass = vacancy.position_type === 'non_teaching'
         ? 'bg-sky-100 text-sky-700'
-        : 'bg-amber-100 text-amber-700';
+        : vacancy.position_type === 'teaching_related'
+            ? 'bg-violet-100 text-violet-700'
+            : 'bg-amber-100 text-amber-700';
 
     return (
         <div className="min-h-screen bg-[#F1F3F6] pb-24 font-sans selection:bg-blue-100">
@@ -171,7 +239,7 @@ const ApplicationWizard = () => {
                     <Step2Documents
                         applicationId={applicationId}
                         vacancyId={vacancy.id}
-                        vacancyPositionType={vacancy.position_type}   // ← NEW PROP
+                        vacancyPositionType={vacancy.position_type}
                         onPrev={() => setCurrentStep(1)}
                         onNext={() => setCurrentStep(3)}
                     />

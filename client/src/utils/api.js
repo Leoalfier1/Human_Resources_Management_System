@@ -1,7 +1,7 @@
 const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export const API_BASE = rawBase.replace(/\/+$/, '');
-export const SERVER_BASE = API_BASE.replace(/\/api$/, 'http://localhost:5000');
+export const SERVER_BASE = API_BASE.replace(/\/api$/, '');
 
 export const apiFetch = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
