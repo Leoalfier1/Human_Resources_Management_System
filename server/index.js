@@ -3,11 +3,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-app.use(cors({
-  origin: process.env.CLIENT_URL, // e.g. https://prime-hrm.vercel.app
-  credentials: true
-}));
 const path = require('path');
+const mysql = require('mysql2/promise'); // ← was missing entirely
+
+const app = express();          // ← must be declared before any app.use()
+app.set('trust proxy', 1);
+const server = http.createServer(app);
+
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -20,10 +22,6 @@ const db = mysql.createPool({
   }
 });
 
-const app = express();
-app.set('trust proxy', 1);
-const server = http.createServer(app);
-
 // 1. SOCKET.IO SETUP
 const io = new Server(server, {
   cors: {
@@ -32,12 +30,11 @@ const io = new Server(server, {
   }
 });
 
-
 app.set('socketio', io);
 
 // 2. MIDDLEWARE
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5174"],
     credentials: true
 }));
 app.use(express.json());
