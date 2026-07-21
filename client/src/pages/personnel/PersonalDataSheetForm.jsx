@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     User, Users, GraduationCap, Award, Briefcase, Heart, BookOpen, Star,
-    ShieldAlert, Loader2, CheckCircle2, AlertCircle, Plus, Trash2, Save, Lock, ArrowLeft, ChevronRight, ChevronLeft
+    ShieldAlert, Loader2, CheckCircle2, AlertCircle, Plus, Trash2, Save, Lock, ArrowLeft, ChevronRight, ChevronLeft,
+    ImagePlus, Camera, PenTool, Fingerprint
 } from 'lucide-react';
 import { usePersonalDataSheet } from '../../hooks/usePersonalDataSheet';
+import { apiFetch, SERVER_BASE } from '../../utils/api';
 
 // ── SHARED FIELD COMPONENTS ─────────────────────────────────────────────────
 const Field = ({ label, required, children }) => (
@@ -69,6 +71,57 @@ const EducationRow = ({ entry, onChange, onRemove, disabled, showRemove }) => (
         </div>
     </div>
 );
+
+// ── IMAGE UPLOAD FIELD ────────────────────────────────────────────────────────
+const ImageUploadField = ({ label, sublabel, icon: Icon, value, onUpload, onRemove, disabled, aspectRatio = 'aspect-[2/2.5]' }) => {
+    const inputRef = React.useRef(null);
+    const [uploading, setUploading] = React.useState(false);
+
+    const handleFile = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try { await onUpload(file); } catch (err) { console.error(err); }
+        setUploading(false);
+        if (inputRef.current) inputRef.current.value = '';
+    };
+
+    const imgUrl = value ? (value.startsWith('http') ? value : `${SERVER_BASE}/uploads/${value}`) : null;
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{label}</label>
+            {sublabel && <p className="text-[9px] font-bold text-slate-400 -mt-0.5">{sublabel}</p>}
+            <div className={`${aspectRatio} w-full max-w-[200px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group transition-all`}>
+                {imgUrl ? (
+                    <>
+                        <img src={imgUrl} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+                        {!disabled && (
+                            <button type="button" onClick={onRemove}
+                                className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-[#D6402F] opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                                <Trash2 size={12} />
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <button type="button" onClick={() => !disabled && inputRef.current?.click()}
+                        disabled={disabled || uploading}
+                        className="flex flex-col items-center gap-2 p-4 w-full h-full justify-center hover:bg-slate-100 transition-colors disabled:opacity-50">
+                        {uploading ? (
+                            <Loader2 size={22} className="animate-spin text-[#1B3A6B]" />
+                        ) : (
+                            <>
+                                <Icon size={22} className="text-slate-300" />
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">Click to upload</span>
+                            </>
+                        )}
+                    </button>
+                )}
+            </div>
+            <input ref={inputRef} type="file" accept="image/jpeg,image/png" onChange={handleFile} className="hidden" />
+        </div>
+    );
+};
 
 // ── EMPTY ROW FACTORIES ───────────────────────────────────────────────────────
 const emptyEduEntry       = () => ({ school_name: '', degree_course: '', period_from: '', period_to: '', highest_level_units: '', year_graduated: '', scholarship_honors: '' });
@@ -149,6 +202,7 @@ const PersonalDataSheetForm = () => {
             graduate_studies:           pds.graduate_studies || [],
             elementary:                 pds.elementary || emptyEduEntry(),
             secondary:                  pds.secondary  || emptyEduEntry(),
+            vocational:                 pds.vocational?.length ? pds.vocational : [],
             civil_service_eligibility:  pds.civil_service_eligibility?.length ? pds.civil_service_eligibility : [emptyEligibility(), emptyEligibility()],
             work_experience:            pds.work_experience?.length ? pds.work_experience : Array.from({ length: 7 }, emptyWorkExp),
             voluntary_work:             pds.voluntary_work?.length ? pds.voluntary_work : Array.from({ length: 3 }, emptyVoluntaryWork),
@@ -225,6 +279,31 @@ const PersonalDataSheetForm = () => {
                 }, 1500);
             }
         }
+    };
+
+    // Upload one of the 3 PDS images (photo / signature / thumbmark)
+    const handleImageUpload = async (file, endpoint, dbKey) => {
+        const fd = new FormData();
+        const fieldName = endpoint === '/photo' ? 'photo' : endpoint === '/signature' ? 'signature' : 'thumbmark';
+        fd.append(fieldName, file);
+        const res = await apiFetch(`/applicant/pds${endpoint}`, {
+            method: 'POST',
+            headers: {},          // let browser set multipart/form-data boundary
+            body: fd,
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Upload failed');
+        const data = await res.json();
+        setForm(prev => ({ ...prev, [dbKey]: data.path }));
+    };
+
+    const handleImageRemove = async (endpoint, dbKey) => {
+        if (!window.confirm('Remove this image?')) return;
+        await apiFetch(`/applicant/pds${endpoint}`, {
+            method: 'POST',
+            headers: {},
+            body: new FormData(),  // empty body signals removal (no file)
+        });
+        setForm(prev => ({ ...prev, [dbKey]: null }));
     };
 
     if (loading || !form) return (
@@ -345,6 +424,18 @@ const PersonalDataSheetForm = () => {
                                 <Field label="Height (m)"><TextInput type="number" value={form.height_m} onChange={v => set('height_m', v)} disabled={isLocked} placeholder="1.68" /></Field>
                                 <Field label="Weight (kg)"><TextInput type="number" value={form.weight_kg} onChange={v => set('weight_kg', v)} disabled={isLocked} placeholder="61" /></Field>
                                 <Field label="Blood Type"><TextInput value={form.blood_type} onChange={v => set('blood_type', v)} disabled={isLocked} placeholder="O, A, B, AB" /></Field>
+                            </div>
+                            {form.civil_status === 'others' && (
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-5">
+                                    <Field label="Civil Status — Specify" required>
+                                        <TextInput value={form.civil_status_other} onChange={v => set('civil_status_other', v)} disabled={isLocked} placeholder="e.g. Live-in Partner" />
+                                    </Field>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                                <Field label="Religion"><TextInput value={form.religion} onChange={v => set('religion', v)} disabled={isLocked} placeholder="e.g. Roman Catholic, Islam" /></Field>
+                                <Field label="Disability"><TextInput value={form.disability} onChange={v => set('disability', v)} disabled={isLocked} placeholder="e.g. Visual, Mobility, None" /></Field>
+                                <Field label="Ethnic Group"><TextInput value={form.ethnic_group} onChange={v => set('ethnic_group', v)} disabled={isLocked} placeholder="e.g. Tagalog, Ilocano" /></Field>
                             </div>
 
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-2">Government ID Numbers</p>
@@ -483,6 +574,15 @@ const PersonalDataSheetForm = () => {
 
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Secondary</p>
                             <div className="mb-6"><EducationRow entry={form.secondary} onChange={v => set('secondary', v)} disabled={isLocked} showRemove={false} /></div>
+
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vocational / Trade / Technical</p>
+                                {!isLocked && <button type="button" onClick={() => addRow('vocational', emptyEduEntry)} className="flex items-center gap-1.5 text-[10px] font-black text-[#1B3A6B] uppercase hover:underline"><Plus size={13} /> Add Entry</button>}
+                            </div>
+                            {!form.vocational?.length
+                                ? <p className="text-xs font-bold text-slate-400 italic mb-6">No vocational entries added.</p>
+                                : <div className="space-y-3 mb-6">{form.vocational.map((e, idx) => <EducationRow key={idx} entry={e} onChange={v => updateRow('vocational', idx, v)} onRemove={() => removeRow('vocational', idx)} disabled={isLocked} showRemove />)}</div>
+                            }
 
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">College</p>
@@ -887,6 +987,13 @@ const PersonalDataSheetForm = () => {
                                 ))}
                             </SectionCard>
 
+                            {/* ── 2x2 PHOTO ──────────────────────────────────────── */}
+                            <SectionCard icon={Camera} title="2×2 Photo" subtitle="Recent 2×2 passport-size photo with white background">
+                                <ImageUploadField label="2×2 Photo" icon={Camera} value={form.photo_path}
+                                    onUpload={(file) => handleImageUpload(file, '/photo', 'photo_path')}
+                                    onRemove={() => handleImageRemove('/photo', 'photo_path')} disabled={isLocked} />
+                            </SectionCard>
+
                             {/* ── REFERENCES (Q41) ─────────────────────────────── */}
                             <SectionCard icon={Users} title="41. References" subtitle="Person not related by consanguinity or affinity to applicant / appointee">
                                 <div className="hidden md:grid grid-cols-[2fr_2fr_1fr_32px] gap-4 px-1 mb-2">
@@ -942,6 +1049,18 @@ const PersonalDataSheetForm = () => {
                                         <Plus size={13} /> Add Another ID
                                     </button>
                                 )}
+                            </SectionCard>
+
+                            {/* ── SIGNATURE SPECIMEN + RIGHT THUMBMARK ──────────── */}
+                            <SectionCard icon={PenTool} title="Signature & Thumbmark" subtitle="Signature specimen and right thumbmark">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <ImageUploadField label="Signature Specimen" sublabel="Sign on white paper" icon={PenTool} value={form.signature_path}
+                                        onUpload={(file) => handleImageUpload(file, '/signature', 'signature_path')}
+                                        onRemove={() => handleImageRemove('/signature', 'signature_path')} disabled={isLocked} />
+                                    <ImageUploadField label="Right Thumbmark" sublabel="Thumb impression on white paper" icon={Fingerprint} value={form.thumbmark_path}
+                                        onUpload={(file) => handleImageUpload(file, '/thumbmark', 'thumbmark_path')}
+                                        onRemove={() => handleImageRemove('/thumbmark', 'thumbmark_path')} disabled={isLocked} />
+                                </div>
                             </SectionCard>
 
                             {/* ── DATE ACCOMPLISHED + OATH TEXT ─────────────────── */}

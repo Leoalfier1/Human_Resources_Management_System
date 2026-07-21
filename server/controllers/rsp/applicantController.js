@@ -7,9 +7,27 @@ exports.getApplicants = async (req, res) => {
 
         let query = `
             SELECT a.id, a.full_name, a.email, a.status, a.ref_no, a.submitted_at, a.current_school, a.applicant_id,
-                   v.position_title, v.subject, v.assigned_school, v.position_type
+                   a.initial_evaluation_remarks, a.disqualification_recorded_by, a.disqualification_recorded_at,
+                   u.full_name AS disqualified_by_name,
+                   v.position_title, v.subject, v.assigned_school, v.position_type,
+                   COALESCE(a.snap_address, ae.address) AS address,
+                   COALESCE(a.snap_age, ae.age) AS age,
+                   COALESCE(a.snap_sex, ae.sex) AS sex,
+                   COALESCE(a.snap_civil_status, ae.civil_status) AS civil_status,
+                   COALESCE(a.snap_religion, ae.religion) AS religion,
+                   COALESCE(a.snap_disability, ae.disability) AS disability,
+                   COALESCE(a.snap_ethnic_group, ae.ethnic_group) AS ethnic_group,
+                   COALESCE(a.phone, ae.contact_no) AS contact_no,
+                   COALESCE(a.snap_education, ae.education) AS education,
+                   ae.training_title,
+                   COALESCE(a.snap_training_hours, ae.training_hours) AS training_hours,
+                   COALESCE(a.years_experience, ae.experience_years) AS experience_years,
+                   ae.experience_details,
+                   COALESCE(a.snap_eligibility, ae.eligibility) AS eligibility
             FROM applications a
             LEFT JOIN vacancies v ON a.vacancy_id = v.id
+            LEFT JOIN applicant_eligibility_screening ae ON ae.application_id = a.id
+            LEFT JOIN users u ON a.disqualification_recorded_by = u.id
             WHERE a.status != 'draft'
         `;
         
@@ -68,7 +86,25 @@ exports.getApplicants = async (req, res) => {
             status: r.status || 'submitted',
             applicant_code: r.ref_no,
             id_number: r.applicant_id || '-',
-            school_abbreviation: r.current_school || r.assigned_school || 'N/A'
+            school_abbreviation: r.current_school || r.assigned_school || 'N/A',
+            address: r.address || 'Not provided',
+            age: r.age || null,
+            sex: r.sex || 'Not provided',
+            civil_status: r.civil_status || 'Not provided',
+            religion: r.religion || 'Not provided',
+            disability: r.disability || 'Not provided',
+            ethnic_group: r.ethnic_group || 'Not provided',
+            contact_no: r.contact_no || 'Not provided',
+            education: r.education || 'Not provided',
+            training_title: r.training_title || 'Not provided',
+            training_hours: r.training_hours || null,
+            experience_years: r.experience_years || null,
+            experience_details: r.experience_details || 'Not provided',
+            eligibility: r.eligibility || 'Not provided',
+            initial_evaluation_remarks: r.initial_evaluation_remarks || null,
+            disqualification_recorded_by: r.disqualification_recorded_by || null,
+            disqualification_recorded_at: r.disqualification_recorded_at || null,
+            disqualified_by_name: r.disqualified_by_name || null
         }));
 
         res.json({
@@ -123,26 +159,54 @@ exports.getApplicantSummary = async (req, res) => {
 exports.updateApplicantStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, remarks } = req.body;
 
         if (!status) return res.status(400).json({ message: 'Status is required' });
 
-        await db.query(
-            `UPDATE applications SET status = ? WHERE id = ?`,
-            [status, id]
-        );
-
-        // Also emit socket event to refresh applicant's dashboard and notify admin
         const [appRow] = await db.query(
             'SELECT a.full_name, v.position_title FROM applications a JOIN vacancies v ON a.vacancy_id = v.id WHERE a.id = ?',
             [id]
         );
+        const posTitle = appRow[0]?.position_title || 'this position';
+
+        if (status === 'disqualified') {
+            if (!remarks || typeof remarks !== 'string' || remarks.trim().length < 10) {
+                return res.status(422).json({ message: 'Remarks are required for disqualification (minimum 10 characters).' });
+            }
+            const userId = req.user.id;
+            await db.query(
+                `UPDATE applications SET status = ?, current_stage = 3, initial_evaluation_remarks = ?, disqualification_recorded_by = ?, disqualification_recorded_at = NOW() WHERE id = ?`,
+                [status, remarks.trim(), userId, id]
+            );
+            await db.query(
+                `INSERT INTO application_disqualification_history (application_id, reason, recorded_by, recorded_at) VALUES (?, ?, ?, NOW())`,
+                [id, remarks.trim(), userId]
+            );
+            await db.query(`
+                INSERT INTO stage_history (application_id, stage_number, status, completed_at, updated_by)
+                VALUES (?, 3, 'completed', NOW(), ?)
+                ON DUPLICATE KEY UPDATE status = 'completed', completed_at = NOW(), updated_by = VALUES(updated_by)
+            `, [id, userId]);
+
+            const notifMessage = `Your application for ${posTitle} has been evaluated. Unfortunately, you did not meet the minimum qualification standards required for this position. Reason: ${remarks.trim()}`;
+            await db.query(
+                `INSERT INTO notifications (application_id, message) VALUES (?, ?)`,
+                [id, notifMessage]
+            );
+        } else {
+            await db.query(
+                `UPDATE applications SET status = ? WHERE id = ?`,
+                [status, id]
+            );
+        }
+
         const io = req.app.get('socketio');
         if (io) {
             io.to(`application-${id}`).emit('application:stage-update', { applicationId: id });
+            io.emit('rsp:applicants:update');
             io.emit('rsp:dashboard:update');
             io.emit('notification:admin', {
-                message: `Applicant ${appRow[0]?.full_name || ''} status changed to ${status} for ${appRow[0]?.position_title || ''}`,
+                message: `Applicant ${appRow[0]?.full_name || ''} status changed to ${status} for ${posTitle}`,
                 type: 'rsp'
             });
         }
@@ -154,7 +218,77 @@ exports.updateApplicantStatus = async (req, res) => {
     }
 };
 
-// 4. GET /api/rsp/applicants/export -> Export applicants as CSV
+// 4. GET /api/rsp/applicants/mqs-criteria -> Fetch MQS criteria for a vacancy (Annex D header)
+exports.getVacancyMqsCriteria = async (req, res) => {
+    try {
+        const { vacancy_id } = req.query;
+        if (!vacancy_id) return res.status(400).json({ message: 'vacancy_id is required' });
+
+        const [vacancyRows] = await db.query(
+            `SELECT id, position_title, salary_grade, monthly_salary, minimum_qualifications, position_type
+             FROM vacancies WHERE id = ?`,
+            [vacancy_id]
+        );
+        if (vacancyRows.length === 0) return res.status(404).json({ message: 'Vacancy not found' });
+        const vacancy = vacancyRows[0];
+
+        const [mqsRows] = await db.query(
+            `SELECT education, training, experience, eligibility
+             FROM rsp_mqs_criteria WHERE vacancy_id = ?`,
+            [vacancy_id]
+        );
+
+        const mqs = mqsRows.length > 0 ? mqsRows[0] : {
+            education: vacancy.minimum_qualifications || null,
+            training: null,
+            experience: null,
+            eligibility: null
+        };
+
+        res.json({
+            vacancy_id: vacancy.id,
+            position_title: vacancy.position_title,
+            salary_grade: vacancy.salary_grade ? `SG-${vacancy.salary_grade}` : null,
+            monthly_salary: vacancy.monthly_salary,
+            position_type: vacancy.position_type,
+            mqs: {
+                education: mqs.education || 'None Required',
+                training: mqs.training || 'None Required',
+                experience: mqs.experience || 'None Required',
+                eligibility: mqs.eligibility || 'None Required'
+            }
+        });
+    } catch (err) {
+        console.error('❌ GET MQS CRITERIA ERROR:', err);
+        res.status(500).json({ message: 'Server error fetching MQS criteria' });
+    }
+};
+
+// 5. PUT /api/rsp/applicants/mqs-criteria -> Upsert MQS criteria for a vacancy
+exports.upsertMqsCriteria = async (req, res) => {
+    try {
+        const { vacancy_id, education, training, experience, eligibility } = req.body;
+        if (!vacancy_id) return res.status(400).json({ message: 'vacancy_id is required' });
+
+        await db.query(
+            `INSERT INTO rsp_mqs_criteria (vacancy_id, education, training, experience, eligibility)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                education = VALUES(education),
+                training = VALUES(training),
+                experience = VALUES(experience),
+                eligibility = VALUES(eligibility)`,
+            [vacancy_id, education || null, training || null, experience || null, eligibility || null]
+        );
+
+        res.json({ message: 'MQS criteria updated successfully' });
+    } catch (err) {
+        console.error('❌ UPSERT MQS CRITERIA ERROR:', err);
+        res.status(500).json({ message: 'Server error updating MQS criteria' });
+    }
+};
+
+// 6. GET /api/rsp/applicants/export -> Export applicants as CSV
 exports.exportApplicants = async (req, res) => {
     try {
         const { search, status, vacancy_id } = req.query;

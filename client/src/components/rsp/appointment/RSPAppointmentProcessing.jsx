@@ -2,10 +2,187 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Award, FileText, CheckCircle2, Upload, AlertCircle,
-    Loader2, Clock, ChevronDown, Users
+    Loader2, Clock, ChevronDown, Users, Eye, X, ExternalLink, Edit3
 } from 'lucide-react';
 import CompletenessRing from './CompletenessRing';
-import { API_BASE } from '../../../utils/api';
+import EmptyStagePanel from '../../shared/EmptyStagePanel';
+import { API_BASE, SERVER_BASE } from '../../../utils/api';
+
+// ── Build a browser-accessible URL from the stored file_path ──────
+// Applicant uploads: file_path = '/uploads/applications/appointment-docs/xxx.pdf'  (starts with /)
+// HR uploads:       file_path = 'uploads/rsp/appointment-docs/APPT-xxx.pdf'  (no leading /)
+const buildPreviewUrl = (filePath) => {
+    if (!filePath) return null;
+    const normalized = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    return `${SERVER_BASE}${normalized}`;
+};
+
+// ── Inline document preview modal ────────────────────────────────
+const DocumentPreviewModal = ({ doc, onClose }) => {
+    if (!doc) return null;
+    const url = buildPreviewUrl(doc.file_path);
+    if (!url) return null;
+
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.file_path);
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                key="preview-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={onClose}
+            >
+                <motion.div
+                    initial={{ scale: 0.93, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.93, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                    className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Modal header */}
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-[#1B3A6B]/10 rounded-lg">
+                                <FileText size={16} className="text-[#1B3A6B]" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-[#1B3A6B] uppercase tracking-tight">{doc.document_type}</p>
+                                {doc.file_name && (
+                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5 truncate max-w-xs">{doc.file_name}</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[#1B3A6B] hover:bg-slate-50 transition-all"
+                            >
+                                <ExternalLink size={12} /> Open in New Tab
+                            </a>
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Preview body */}
+                    <div className="flex-1 bg-slate-50 overflow-auto">
+                        {isImage ? (
+                            <div className="w-full h-full flex items-center justify-center p-6">
+                                <img
+                                    src={url}
+                                    alt={doc.document_type}
+                                    className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
+                                />
+                            </div>
+                        ) : (
+                            <iframe
+                                src={url}
+                                title={doc.document_type}
+                                className="w-full h-full border-0"
+                            />
+                        )}
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
+// ── Revision Note Modal ─────────────────────────────────────────────
+const RevisionNoteModal = ({ doc, onClose, onSave }) => {
+    const [note, setNote] = useState(doc?.revision_note || '');
+    const [saving, setSaving] = useState(false);
+
+    if (!doc) return null;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!note.trim()) return;
+        setSaving(true);
+        await onSave(doc.id, note.trim());
+        setSaving(false);
+        onClose();
+    };
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                key="revision-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={onClose}
+            >
+                <motion.div
+                    initial={{ scale: 0.93, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.93, opacity: 0 }}
+                    className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden p-6"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                                <Edit3 size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-[#1B3A6B] uppercase">Request Revision</h3>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate max-w-xs">{doc.document_type}</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-500 rounded-xl">
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                Revision Instructions for Applicant
+                            </label>
+                            <textarea
+                                rows={4}
+                                required
+                                value={note}
+                                onChange={e => setNote(e.target.value)}
+                                placeholder="Specify what needs to be fixed (e.g. Document is expired, clear scanned copy required)..."
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saving || !note.trim()}
+                                className="px-5 py-2.5 rounded-xl bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider hover:bg-amber-600 shadow-md flex items-center gap-2"
+                            >
+                                {saving ? <Loader2 size={14} className="animate-spin" /> : 'Save & Request Revision'}
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
 
 const authHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
 
@@ -39,6 +216,8 @@ const RSPAppointmentProcessing = () => {
     const [issuing,      setIssuing]      = useState(false);
     const [uploadingId,  setUploadingId]  = useState(null); // which doc is uploading
     const [toast,        setToast]        = useState(null);
+    const [previewDoc,   setPreviewDoc]   = useState(null); // doc being previewed
+    const [revisionModal, setRevisionModal] = useState(null); // doc being requested revision
 
     const showToast = (type, msg) => {
         setToast({ type, msg });
@@ -105,6 +284,27 @@ const RSPAppointmentProcessing = () => {
             );
             if (res.ok) {
                 showToast('success', 'Document verified.');
+                fetchDocs(selectedApp.id);
+            } else {
+                const d = await res.json();
+                showToast('error', d.message);
+            }
+        } catch (e) { showToast('error', 'Network error.'); }
+    };
+
+    // Request revision for a document
+    const handleRequestRevision = async (docId, note) => {
+        try {
+            const res = await fetch(
+                `${API_BASE}/api/rsp/appointment/documents/${docId}/revision`,
+                {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', ...authHeader() },
+                    body: JSON.stringify({ note })
+                }
+            );
+            if (res.ok) {
+                showToast('success', 'Revision requested.');
                 fetchDocs(selectedApp.id);
             } else {
                 const d = await res.json();
@@ -184,6 +384,10 @@ const RSPAppointmentProcessing = () => {
         <div className="space-y-6 select-none pb-24">
             <AnimatePresence><Toast toast={toast} /></AnimatePresence>
 
+            {/* ── DOCUMENT PREVIEW MODAL ────────────────────────── */}
+            <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
+            <RevisionNoteModal doc={revisionModal} onClose={() => setRevisionModal(null)} onSave={handleRequestRevision} />
+
             {/* ── SELECTOR BAR ──────────────────────────────────── */}
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 flex flex-wrap gap-6 items-end">
                 {/* Vacancy */}
@@ -232,14 +436,13 @@ const RSPAppointmentProcessing = () => {
 
             {/* ── NO APPOINTEES ─────────────────────────────────── */}
             {noAppointees && (
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 p-20 text-center shadow-sm">
-                    <Users size={48} className="text-slate-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-black text-[#1B3A6B] uppercase italic mb-2">No Selected Applicants</h3>
-                    <p className="text-slate-500 text-sm max-w-md mx-auto">
-                        No applicants have been marked as "selected" for this vacancy yet.
-                        Complete the Congratulatory Advice stage first.
-                    </p>
-                </div>
+                <EmptyStagePanel
+                    icon={Users}
+                    title="No Selected Applicants"
+                    message="No applicants have been marked as 'selected' for this vacancy yet. Complete the Congratulatory Advice stage first."
+                    actionLabel="Go to Deliberation & Shortlist"
+                    onAction={() => { window.location.href = '/rsp/deliberation'; }}
+                />
             )}
 
             {/* ── MAIN LAYOUT ───────────────────────────────────── */}
@@ -341,6 +544,7 @@ const RSPAppointmentProcessing = () => {
                                 {docData.documents.map(doc => {
                                     const isVerified = doc.verification_status === 'verified';
                                     const isPending  = doc.verification_status === 'uploaded_pending_review';
+                                    const isNeedsRevision = doc.verification_status === 'needs_revision';
                                     const isUploading = uploadingId === doc.id;
 
                                     return (
@@ -349,19 +553,22 @@ const RSPAppointmentProcessing = () => {
                                             className={`flex items-center justify-between p-4 rounded-2xl border transition-all
                                                 ${isVerified ? 'bg-emerald-50 border-emerald-100'
                                                 : isPending  ? 'bg-blue-50 border-blue-100'
+                                                : isNeedsRevision ? 'bg-amber-50 border-amber-200'
                                                 : 'bg-white border-slate-100'}`}
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
                                                 <div className={`p-2 rounded-lg shrink-0
                                                     ${isVerified ? 'bg-emerald-500 text-white'
                                                     : isPending  ? 'bg-blue-500 text-white'
+                                                    : isNeedsRevision ? 'bg-amber-500 text-white'
                                                     : 'bg-slate-100 text-slate-300'}`}>
-                                                    {isVerified ? <CheckCircle2 size={18} /> : <FileText size={18} />}
+                                                    {isVerified ? <CheckCircle2 size={18} /> : isNeedsRevision ? <AlertCircle size={18} /> : <FileText size={18} />}
                                                 </div>
-                                                <div>
-                                                    <p className={`text-xs font-black uppercase
+                                                <div className="min-w-0 flex-1">
+                                                    <p className={`text-xs font-black uppercase truncate
                                                         ${isVerified ? 'text-emerald-700'
                                                         : isPending  ? 'text-blue-700'
+                                                        : isNeedsRevision ? 'text-amber-700'
                                                         : 'text-slate-400'}`}>
                                                         {doc.document_type}
                                                     </p>
@@ -370,13 +577,43 @@ const RSPAppointmentProcessing = () => {
                                                             {doc.file_name}
                                                         </p>
                                                     )}
+                                                    {isVerified && !doc.file_path && (
+                                                        <p className="text-[9px] font-bold text-slate-400 mt-0.5 italic">
+                                                            Verified manually (no digital copy)
+                                                        </p>
+                                                    )}
                                                     {isPending && (
                                                         <p className="text-[9px] font-bold text-blue-500 mt-0.5 uppercase">Uploaded · Awaiting Review</p>
+                                                    )}
+                                                    {!isVerified && !isPending && !isNeedsRevision && doc.file_path && (
+                                                        <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                            File available · View then Verify
+                                                        </p>
+                                                    )}
+                                                    {isNeedsRevision && doc.revision_note && (
+                                                        <div className="mt-1.5 bg-amber-100/70 border border-amber-200 p-2 rounded-xl text-[10px] font-bold text-amber-800">
+                                                            <span className="font-black uppercase tracking-wider text-[9px] text-amber-900 block mb-0.5">Revision Required:</span>
+                                                            {doc.revision_note}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="flex gap-2 shrink-0">
+                                            <div className="flex gap-2 shrink-0 items-center">
+                                                {/* View button — always present, disabled if no file */}
+                                                <button
+                                                    onClick={() => doc.file_path && setPreviewDoc(doc)}
+                                                    disabled={!doc.file_path}
+                                                    title={doc.file_path ? `View ${doc.document_type}` : 'Not yet submitted'}
+                                                    className={`p-2 rounded-xl border shadow-sm transition-all flex items-center justify-center ${
+                                                        doc.file_path
+                                                            ? 'bg-white border-slate-200 text-[#1B3A6B] hover:bg-[#1B3A6B] hover:text-white hover:border-[#1B3A6B]'
+                                                            : 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    <Eye size={14} />
+                                                </button>
+
                                                 {/* Verify button — only if not yet verified */}
                                                 {!isVerified && (
                                                     <button
@@ -386,6 +623,19 @@ const RSPAppointmentProcessing = () => {
                                                         Verify
                                                     </button>
                                                 )}
+
+                                                {/* Request Revision button */}
+                                                <button
+                                                    onClick={() => setRevisionModal(doc)}
+                                                    title={doc.revision_note ? 'Edit Revision Note' : 'Request Revision'}
+                                                    className={`p-2 rounded-xl border shadow-sm transition-all flex items-center justify-center ${
+                                                        isNeedsRevision
+                                                            ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600'
+                                                            : 'bg-white border-slate-200 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500'
+                                                    }`}
+                                                >
+                                                    <Edit3 size={14} />
+                                                </button>
 
                                                 {/* Upload button */}
                                                 <label className="cursor-pointer p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-[#1B3A6B] hover:border-[#1B3A6B] shadow-sm transition-all flex items-center justify-center">

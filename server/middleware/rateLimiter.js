@@ -1,7 +1,10 @@
 const rateLimitStore = new Map();
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
-function rateLimit({ windowMs = 15 * 60 * 1000, max = 20 } = {}) {
+function rateLimit({ windowMs = 15 * 60 * 1000, max = 20, skipInDev = false } = {}) {
   return (req, res, next) => {
+    if (skipInDev && IS_DEV) return next();
+
     const key = req.ip;
     const now = Date.now();
 

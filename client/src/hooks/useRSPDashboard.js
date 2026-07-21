@@ -58,7 +58,7 @@ export const useRSPDashboard = () => {
         const refreshEvents = [
             'rsp:dashboard:update', // General updates
             'application:new',       // When an applicant submits a form
-            'vacancy:updated'       // When a vacancy changes stage
+            'vacancy:stage-update'  // When a vacancy changes stage
         ];
 
         refreshEvents.forEach(eventName => {

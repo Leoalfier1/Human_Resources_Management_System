@@ -7,12 +7,17 @@ const pageTitles = {
   '/personnel-admin/dashboard': 'Dashboard',
   '/personnel-admin/employees': 'Employee Directory',
   '/personnel-admin/employees/new': 'Add Employee',
+  '/personnel-admin/201-checklist': '201 File Checklist',
   '/personnel-admin/leave': 'Leave Management',
   '/personnel-admin/travel': 'Travel Management',
   '/personnel-admin/document-requests': 'Document Requests',
+  '/personnel-admin/profile-change-requests': 'Profile Change Requests',
   '/personnel-admin/eligibility-screening': 'Eligibility Screening',
   '/personnel-admin/reports': 'Reports & Analytics',
   '/personnel-admin/audit': 'Audit Log',
+  '/personnel-admin/signatories': 'Signatories',
+  '/personnel-admin/schools-offices': 'Schools & Offices',
+  '/personnel-admin/admin-tools': 'Admin Tools',
 };
 
 const PersonnelAdminLayout = () => {

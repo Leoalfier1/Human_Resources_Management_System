@@ -27,7 +27,7 @@ const ModuleCard = ({ icon: Icon, badge, title, description, status, onClick }) 
       {/* Colored Left Edge Accent Bar */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isActive ? 'bg-[#D6402F]' : 'bg-slate-300'}`} />
 
-      <div className="p-7 flex-grow">
+      <div className="p-7 flex-1">
         {/* Top Row: Icon and Badge */}
         <div className="flex justify-between items-start mb-8">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg ${

@@ -49,8 +49,8 @@ const PMAdminLayout = () => {
                 className="bg-[#1B3A6B] text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-[100] overflow-hidden"
             >
                 <div className="p-5 flex items-center gap-3 border-b border-white/10">
-                    <div className="bg-[#D6402F] p-2 rounded-xl shrink-0">
-                        <ClipboardList size={22} />
+                    <div className="bg-[#D6402F] p-2 rounded-xl shrink-0 overflow-hidden">
+                        <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
                     </div>
                     {!isCollapsed && (
                         <div className="overflow-hidden">

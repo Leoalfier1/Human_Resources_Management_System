@@ -1,13 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, User, Folder, CalendarCheck, Plane, FileSignature, Bell } from 'lucide-react';
+import { FileText, User, Folder, CalendarCheck, FileSignature, Bell } from 'lucide-react';
 
 const navItems = [
   { label: 'MY PDS', path: '/personnel/pds', icon: FileText },
   { label: 'MY PROFILE', path: '/personnel/profile', icon: User },
   { label: '201 FILES', path: '/personnel/201-files', icon: Folder },
   { label: 'LEAVE', path: '/personnel/leave', icon: CalendarCheck },
-  { label: 'TRAVEL', path: '/personnel/travel', icon: Plane },
   { label: 'CERTIFICATES', path: '/personnel/certificates', icon: FileSignature },
   { label: 'NOTIFICATIONS', path: '/personnel/notifications', icon: Bell },
 ];

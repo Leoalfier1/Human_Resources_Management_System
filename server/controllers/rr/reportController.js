@@ -168,66 +168,124 @@ function escapeCsv(val) {
 
 exports.getDashboardStats = async (req, res) => {
     try {
-        const [activeSearches] = await db.query(
-            "SELECT COUNT(*) as count FROM rr_searches WHERE status IN ('open','evaluation','deliberation','announced')"
+        const currentYear = new Date().getFullYear();
+
+        // 1. Current / active nomination cycles (new system)
+        const [activeCalls] = await db.query(`
+            SELECT nc.*, at.name AS award_type_name, at.award_level
+            FROM rr_nomination_calls nc
+            JOIN rr_award_types at ON nc.award_type_id = at.id
+            WHERE nc.status IN ('published','closed')
+            ORDER BY nc.created_at DESC
+            LIMIT 1
+        `);
+        const currentCycle = activeCalls[0] || null;
+
+        // 2. Active calls count (published status)
+        const [activeCallsCount] = await db.query(
+            "SELECT COUNT(*) AS count FROM rr_nomination_calls WHERE status = 'published'"
         );
 
+        // 3. Total nominations this year (new system)
         const [nominationsThisYear] = await db.query(`
-            SELECT COUNT(*) as count FROM rr_nominations n
-            JOIN rr_searches s ON n.search_id = s.id
-            WHERE YEAR(n.created_at) = YEAR(CURRENT_DATE)
-        `);
+            SELECT COUNT(*) AS count FROM rr_call_nominations
+            WHERE YEAR(created_at) = ?
+        `, [currentYear]);
 
+        // 4. Advanced / awardees this year (new system — status = 'advanced')
         const [awardeesThisYear] = await db.query(`
-            SELECT COUNT(*) as count FROM rr_awards a
-            JOIN rr_searches s ON a.search_id = s.id
-            WHERE YEAR(a.created_at) = YEAR(CURRENT_DATE)
-        `);
+            SELECT COUNT(*) AS count FROM rr_call_nominations
+            WHERE status = 'advanced' AND YEAR(created_at) = ?
+        `, [currentYear]);
 
-        const [positionBreakdown] = await db.query(`
-            SELECT a.position_type, COUNT(*) as count
-            FROM rr_awards a
-            JOIN rr_searches s ON a.search_id = s.id
-            WHERE YEAR(a.created_at) = YEAR(CURRENT_DATE)
-            GROUP BY a.position_type
-        `);
+        // 5. Finalized meetings
+        const [finalizedMeetings] = await db.query(
+            "SELECT COUNT(*) AS count FROM rr_praise_meetings WHERE status = 'finalized'"
+        );
 
+        // 6. Upcoming ceremonies
+        const [upcomingCeremonies] = await db.query(
+            "SELECT COUNT(*) AS count FROM rr_ceremonies WHERE ceremony_datetime >= NOW()"
+        );
+
+        // 7. Award distribution by category (teaching / teaching_related / non_teaching)
+        const [categoryBreakdown] = await db.query(`
+            SELECT nominee_category AS position_type, COUNT(*) AS count
+            FROM rr_call_nominations
+            WHERE YEAR(created_at) = ?
+            GROUP BY nominee_category
+        `, [currentYear]);
+
+        // 8. Award levels breakdown — derive from calls joined to award_types
         const [levelBreakdown] = await db.query(`
-            SELECT a.award_level, COUNT(*) as count
-            FROM rr_awards a
-            JOIN rr_searches s ON a.search_id = s.id
-            WHERE YEAR(a.created_at) = YEAR(CURRENT_DATE)
-            GROUP BY a.award_level
-        `);
+            SELECT at.award_level, COUNT(cn.id) AS count
+            FROM rr_call_nominations cn
+            JOIN rr_nomination_calls nc ON cn.call_id = nc.id
+            JOIN rr_award_types at ON nc.award_type_id = at.id
+            WHERE YEAR(cn.created_at) = ?
+            GROUP BY at.award_level
+        `, [currentYear]);
 
-        const [upcomingCeremonies] = await db.query(`
-            SELECT COUNT(*) as count FROM rr_ceremony c
-            JOIN rr_searches s ON c.search_id = s.id
-            WHERE c.ceremony_date >= CURRENT_DATE
-        `);
-
+        // 9. Recent activity feed (last 10 events across multiple tables)
         const [recentActivity] = await db.query(`
-            (SELECT 'nomination' as type, n.created_at as date, CONCAT(u.full_name, ' nominated for ', ac.category_name) as description
-                FROM rr_nominations n
-                JOIN users u ON n.nominee_id = u.id
-                JOIN rr_award_categories ac ON n.category_id = ac.id
-                ORDER BY n.created_at DESC LIMIT 5)
+            (SELECT 'nomination' AS type, cn.created_at AS date,
+                CONCAT(cn.nominee_name, ' nominated for ', at.name) AS description
+             FROM rr_call_nominations cn
+             JOIN rr_nomination_calls nc ON cn.call_id = nc.id
+             JOIN rr_award_types at ON nc.award_type_id = at.id
+             ORDER BY cn.created_at DESC LIMIT 5)
             UNION ALL
-            (SELECT 'award' as type, a.created_at as date, CONCAT(u.full_name, ' awarded as ', a.award_title) as description
-                FROM rr_awards a
-                JOIN users u ON a.user_id = u.id
-                ORDER BY a.created_at DESC LIMIT 5)
+            (SELECT 'meeting' AS type, pm.created_at AS date,
+                CONCAT('PRAISE Meeting on ', DATE_FORMAT(pm.meeting_date, '%b %d, %Y')) AS description
+             FROM rr_praise_meetings pm
+             ORDER BY pm.created_at DESC LIMIT 3)
+            UNION ALL
+            (SELECT 'ceremony' AS type, cr.created_at AS date,
+                CONCAT('Ceremony: ', COALESCE(cr.venue, 'TBD')) AS description
+             FROM rr_ceremonies cr
+             ORDER BY cr.created_at DESC LIMIT 3)
+            UNION ALL
+            (SELECT 'announcement' AS type, an.created_at AS date,
+                CONCAT('Results announced for call #', an.nomination_call_id) AS description
+             FROM rr_announcements an
+             ORDER BY an.created_at DESC LIMIT 3)
             ORDER BY date DESC LIMIT 10
         `);
 
+        // 10. Legacy stats (fallback if new tables are empty)
+        let legacyStats = null;
+        if (nominationsThisYear[0].count === 0) {
+            const [legActive] = await db.query(
+                "SELECT COUNT(*) AS count FROM rr_searches WHERE status IN ('open','evaluation','deliberation','announced')"
+            );
+            const [legNoms] = await db.query(`
+                SELECT COUNT(*) AS count FROM rr_nominations n
+                JOIN rr_searches s ON n.search_id = s.id
+                WHERE YEAR(n.created_at) = ?
+            `, [currentYear]);
+            const [legAwardees] = await db.query(`
+                SELECT COUNT(*) AS count FROM rr_awards a
+                JOIN rr_searches s ON a.search_id = s.id
+                WHERE YEAR(a.created_at) = ?
+            `, [currentYear]);
+            legacyStats = {
+                active_searches: legActive[0].count,
+                nominations_this_year: legNoms[0].count,
+                awardees_this_year: legAwardees[0].count,
+            };
+        }
+
         res.json({
-            active_searches: activeSearches[0].count,
+            current_cycle: currentCycle,
+            active_cycles: activeCallsCount[0].count,
             nominations_this_year: nominationsThisYear[0].count,
             awardees_this_year: awardeesThisYear[0].count,
-            position_breakdown: positionBreakdown,
-            level_breakdown: levelBreakdown,
+            finalized_meetings: finalizedMeetings[0].count,
             upcoming_ceremonies: upcomingCeremonies[0].count,
-            recent_activity: recentActivity
+            category_breakdown: categoryBreakdown,
+            level_breakdown: levelBreakdown,
+            recent_activity: recentActivity,
+            legacy: legacyStats
         });
     } catch (err) {
         console.error('❌ DASHBOARD STATS ERROR:', err);

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Search } from 'lucide-react';
 import { API_BASE } from '../../utils/api';
+import { usePersonnelRealtime } from '../../hooks/usePersonnelRealtime';
 
 const AuditLog = () => {
   const [logs, setLogs] = useState([]);
@@ -9,8 +10,8 @@ const AuditLog = () => {
   const [actionFilter, setActionFilter] = useState('');
   const [page, setPage] = useState(0);
 
-  const fetchLogs = async () => {
-    setLoading(true);
+  const fetchLogs = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({ limit: 50, offset: page * 50 });
@@ -26,9 +27,13 @@ const AuditLog = () => {
     } catch {} finally {
       setLoading(false);
     }
-  };
+  }, [page, actionFilter]);
 
-  useEffect(() => { fetchLogs(); }, [page, actionFilter]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  usePersonnelRealtime(['personnel:update'], () => {
+    fetchLogs(true);
+  });
 
   return (
     <div className="space-y-8">

@@ -1,11 +1,36 @@
 const db = require('../../db');
+const { syncEligibilityScreeningRow } = require('./syncEligibilityScreening');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const pdsUploadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../../uploads/pds');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'PDS-' + req.user.id + '-' + file.fieldname.toUpperCase() + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const pdsImageFilter = (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+    cb(null, allowed.includes(file.mimetype));
+};
+
+exports.uploadPhoto = multer({ storage: pdsUploadStorage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: pdsImageFilter }).single('photo');
+exports.uploadSignature = multer({ storage: pdsUploadStorage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: pdsImageFilter }).single('signature');
+exports.uploadThumbmark = multer({ storage: pdsUploadStorage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: pdsImageFilter }).single('thumbmark');
 
 // Fields that are safe to mass-assign from the request body.
 // Keeping this list explicit avoids letting the client write to
 // id / user_id / status / submitted_at directly.
 const EDITABLE_FIELDS = [
     'surname', 'first_name', 'middle_name', 'name_extension',
-    'date_of_birth', 'place_of_birth', 'sex', 'civil_status', 'civil_status_other',
+    'date_of_birth', 'place_of_birth', 'sex',     'civil_status', 'civil_status_other', 'religion', 'disability', 'ethnic_group',
     'height_m', 'weight_kg', 'blood_type',
     'gsis_id_no', 'pagibig_id_no', 'philhealth_no', 'sss_no', 'tin_no', 'agency_employee_no',
     'citizenship', 'dual_citizenship_country', 'dual_citizenship_type',
@@ -92,14 +117,78 @@ exports.getMyPDS = async (req, res) => {
         let [rows] = await db.query('SELECT * FROM personal_data_sheets WHERE user_id = ?', [userId]);
 
         if (rows.length === 0) {
+            const [empRows] = await db.query('SELECT * FROM employees WHERE user_id = ?', [userId]);
+            let surname = null, first_name = null, middle_name = null, name_extension = null;
+            let date_of_birth = null, place_of_birth = null, sex = null, civil_status = null;
+            let blood_type = null, gsis_id_no = null, pagibig_id_no = null, philhealth_no = null;
+            let tin_no = null, mobile_no = null, email_address = req.user.email || null;
+
+            if (empRows.length > 0) {
+                const emp = empRows[0];
+                surname = emp.last_name || null;
+                first_name = emp.first_name || null;
+                middle_name = emp.middle_name || null;
+                name_extension = emp.name_extension || null;
+                date_of_birth = emp.date_of_birth || null;
+                place_of_birth = emp.place_of_birth || null;
+                sex = emp.sex || null;
+                civil_status = emp.civil_status || null;
+                blood_type = emp.blood_type || null;
+                gsis_id_no = emp.gsis_id || null;
+                pagibig_id_no = emp.pagibig_id || null;
+                philhealth_no = emp.philhealth_no || null;
+                tin_no = emp.tin_no || null;
+                mobile_no = emp.mobile_no || null;
+                email_address = emp.email || email_address;
+            }
+
             await db.query(
-                'INSERT INTO personal_data_sheets (user_id, email_address) VALUES (?, ?)',
-                [userId, req.user.email || null]
+                `INSERT INTO personal_data_sheets 
+                 (user_id, surname, first_name, middle_name, name_extension, date_of_birth, place_of_birth, sex, civil_status, blood_type, gsis_id_no, pagibig_id_no, philhealth_no, tin_no, mobile_no, email_address) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [userId, surname, first_name, middle_name, name_extension, date_of_birth, place_of_birth, sex, civil_status, blood_type, gsis_id_no, pagibig_id_no, philhealth_no, tin_no, mobile_no, email_address]
             );
             [rows] = await db.query('SELECT * FROM personal_data_sheets WHERE user_id = ?', [userId]);
         }
 
-        const pds = normalizeRow(rows[0]);
+        let pds = normalizeRow(rows[0]);
+
+        if (pds && pds.status === 'draft') {
+            const [empRows] = await db.query('SELECT * FROM employees WHERE user_id = ?', [userId]);
+            if (empRows.length > 0) {
+                const emp = empRows[0];
+                const mappings = {
+                    surname: emp.last_name,
+                    first_name: emp.first_name,
+                    middle_name: emp.middle_name,
+                    name_extension: emp.name_extension,
+                    date_of_birth: emp.date_of_birth,
+                    place_of_birth: emp.place_of_birth,
+                    sex: emp.sex,
+                    civil_status: emp.civil_status,
+                    blood_type: emp.blood_type,
+                    gsis_id_no: emp.gsis_id,
+                    pagibig_id_no: emp.pagibig_id,
+                    philhealth_no: emp.philhealth_no,
+                    tin_no: emp.tin_no,
+                    mobile_no: emp.mobile_no,
+                    email_address: emp.email
+                };
+                let updated = false;
+                const payload = {};
+                for (const [pdsKey, empVal] of Object.entries(mappings)) {
+                    if ((pds[pdsKey] === null || pds[pdsKey] === undefined || pds[pdsKey] === '') && empVal) {
+                        pds[pdsKey] = empVal;
+                        payload[pdsKey] = empVal;
+                        updated = true;
+                    }
+                }
+                if (updated) {
+                    await db.query('UPDATE personal_data_sheets SET ? WHERE user_id = ?', [payload, userId]);
+                }
+            }
+        }
+
         res.json({ pds, isComplete: isComplete(pds) });
     } catch (error) {
         console.error('getMyPDS Error:', error);
@@ -136,7 +225,7 @@ exports.updateMyPDS = async (req, res) => {
         res.json({ message: 'Progress saved.', pds, isComplete: isComplete(pds) });
     } catch (error) {
         console.error('updateMyPDS Error:', error);
-        res.status(500).json({ message: 'Could not save Personal Data Sheet.' });
+        res.status(500).json({ message: 'Could not save Personal Data Sheet: ' + error.message });
     }
 };
 
@@ -167,10 +256,23 @@ exports.submitMyPDS = async (req, res) => {
             [userId]
         );
 
+        const [apps] = await db.query(
+            "SELECT id FROM applications WHERE applicant_id = ? AND status != 'draft'", [userId]
+        );
+        for (const app of apps) {
+            await syncEligibilityScreeningRow(app.id);
+        }
+
+        const io = req.app.get('socketio');
+        if (io) {
+            io.emit('rsp:applicants:update', { userId });
+            io.emit('pds:completion-updated', { userId, isComplete: true });
+        }
+
         res.json({ message: 'Personal Data Sheet submitted successfully.' });
     } catch (error) {
         console.error('submitMyPDS Error:', error);
-        res.status(500).json({ message: 'Could not submit Personal Data Sheet.' });
+        res.status(500).json({ message: 'Could not submit Personal Data Sheet: ' + error.message });
     }
 };
 
@@ -196,6 +298,54 @@ exports.getPDSStatus = async (req, res) => {
         });
     } catch (error) {
         console.error('getPDSStatus Error:', error);
-        res.status(500).json({ message: 'Could not check Personal Data Sheet status.' });
+        res.status(500).json({ message: 'Could not check Personal Data Sheet status: ' + error.message });
     }
 };
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/applicant/pds/photo  |  /signature  |  /thumbmark
+// Single-file image upload (2x2 photo, signature specimen, right thumbmark).
+// File is saved to uploads/pds/ and the relative path is stored in the DB.
+// ─────────────────────────────────────────────────────────────
+async function handleImageUpload(req, res, columnName) {
+    try {
+        const userId = req.user.id;
+
+        // ── REMOVE mode: no file in request body → delete existing image ──
+        if (!req.file) {
+            const [existing] = await db.query(`SELECT ${columnName} FROM personal_data_sheets WHERE user_id = ?`, [userId]);
+            if (existing.length > 0 && existing[0][columnName]) {
+                const oldPath = path.join(__dirname, '../../uploads', existing[0][columnName]);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+                await db.query(`UPDATE personal_data_sheets SET ${columnName} = NULL WHERE user_id = ?`, [userId]);
+            }
+            return res.json({ message: 'Image removed.', path: null });
+        }
+        const relativePath = 'pds/' + req.file.filename;
+
+        // Delete old file if one existed
+        const [existing] = await db.query(`SELECT ${columnName} FROM personal_data_sheets WHERE user_id = ?`, [userId]);
+        if (existing.length > 0 && existing[0][columnName]) {
+            const oldPath = path.join(__dirname, '../../uploads', existing[0][columnName]);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+
+        await db.query(
+            `INSERT INTO personal_data_sheets (user_id, ${columnName}) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE ${columnName} = VALUES(${columnName})`,
+            [userId, relativePath]
+        );
+
+        const io = req.app.get('socketio');
+        if (io) io.emit('pds:completion-updated', { userId });
+
+        res.json({ message: `${columnName.replace('_path', '').charAt(0).toUpperCase() + columnName.replace('_path', '').slice(1)} uploaded.`, path: relativePath });
+    } catch (error) {
+        console.error(`handleImageUpload (${columnName}) Error:`, error);
+        res.status(500).json({ message: 'Could not upload image: ' + error.message });
+    }
+}
+
+exports.uploadMyPhoto     = (req, res) => handleImageUpload(req, res, 'photo_path');
+exports.uploadMySignature = (req, res) => handleImageUpload(req, res, 'signature_path');
+exports.uploadMyThumbmark = (req, res) => handleImageUpload(req, res, 'thumbmark_path');

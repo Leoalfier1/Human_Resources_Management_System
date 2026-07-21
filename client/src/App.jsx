@@ -14,6 +14,7 @@ import RSPVacancyPosting from './components/rsp/vacancy/RSPVacancyPosting';
 import RSPApplicantManagement from './components/rsp/applicants/RSPApplicantManagement';
 import RSPInitialEvaluation from './components/rsp/evaluation/RSPInitialEvaluation';
 import RSPComparativeAssessment from './components/rsp/assessment/RSPComparativeAssessment';
+import IndividualEvaluationPage from './components/rsp/assessment/IndividualEvaluationPage';
 import RSPResultsPosting from './components/rsp/results/RSPResultsPosting';
 import RSPDeliberationShortlist from './components/rsp/deliberation/RSPDeliberationShortlist';
 import RSPCongratulatoryAdvice from './components/rsp/advice/RSPCongratulatoryAdvice';
@@ -37,7 +38,7 @@ import ApplicantPortalLayout from './components/applicant/ApplicantPortalLayout'
 import JobOpenings from './pages/applicant/JobOpenings';
 import JobDetail from './pages/applicant/JobDetail';
 import ApplicationStatus from './pages/applicant/ApplicationStatus';
-import AdviceNextSteps from './pages/applicant/AdviceNextSteps';
+
 import ApplicationWizard from './pages/applicant/ApplicationWizard';
 import ResultsNotices from './pages/applicant/ResultsNotices';
 
@@ -48,11 +49,19 @@ import RRAdminLayout from './components/rr/RRAdminLayout';
 import RRDashboard from './components/rr/dashboard/RRDashboard';
 import RRSearchManagement from './components/rr/searches/RRSearchManagement';
 import RRNominationManagement from './components/rr/nominations/RRNominationManagement';
-import RREvaluationWorkspace from './components/rr/evaluation/RREvaluationWorkspace';
-import RRDeliberationPanel from './components/rr/deliberation/RRDeliberationPanel';
+import ValidationInterview from './components/rr/validation/ValidationInterview';
+import DeliberationFinalization from './components/rr/deliberation/DeliberationFinalization';
 import RRAwardsManagement from './components/rr/awards/RRAwardsManagement';
-import RRReportsManagement from './components/rr/reports/RRReportsManagement';
+import PraiseCommitteeMeeting from './components/rr/praise/PraiseCommitteeMeeting';
+import CallForNominees from './components/rr/callForNominees/CallForNominees';
+import PreliminaryEvaluation from './components/rr/preliminaryEvaluation/PreliminaryEvaluation';
+import AnnouncementOfResults from './components/rr/announcement/AnnouncementOfResults';
+import AwardingCeremony from './components/rr/ceremony/AwardingCeremony';
+import RRImplementationReport from './components/rr/implementationReport/RRImplementationReport';
 import MyAwards from './pages/applicant/MyAwards';
+import SharedComponentLibrary from './components/shared/SharedComponentLibrary';
+import RROpportunities from './components/rr/opportunities/RROpportunities';
+import RRApplicantLayout from './components/rr/RRApplicantLayout';
 
 // --- PERSONNEL MODULE (PERS) ---
 import PersonalDataSheetForm from './pages/personnel/PersonalDataSheetForm';
@@ -60,7 +69,6 @@ import PersonnelLayout from './components/personnel/PersonnelLayout';
 import EmployeeProfile from './pages/personnel/EmployeeProfile';
 import My201Files from './pages/personnel/My201Files';
 import LeaveApplication from './pages/personnel/LeaveApplication';
-import TravelAuthority from './pages/personnel/TravelAuthority';
 import CertificateRequests from './pages/personnel/CertificateRequests';
 import PersonnelNotifications from './pages/personnel/PersonnelNotifications';
 
@@ -75,8 +83,14 @@ import TravelManagement from './pages/personnelAdmin/TravelManagement';
 import DocumentRequests from './pages/personnelAdmin/DocumentRequests';
 import Reports from './pages/personnelAdmin/Reports';
 import AuditLog from './pages/personnelAdmin/AuditLog';
+import FileChecklistAdmin from './pages/personnelAdmin/FileChecklistAdmin';
 import EligibilityScreening from './pages/personnelAdmin/EligibilityScreening';
+import Signatories from './pages/personnelAdmin/Signatories';
+import AdminTools from './pages/personnelAdmin/AdminTools';
+import SchoolsOffices from './pages/personnelAdmin/SchoolsOffices';
+import ProfileChangeRequests from './pages/personnelAdmin/ProfileChangeRequests';
 import ProfileSettings from './pages/applicant/ProfileSettings';
+import AdviceNextSteps from './pages/applicant/AdviceNextSteps';
 
 // --- PERFORMANCE MANAGEMENT (PM) MODULE ---
 import PMAdminLayout from './components/pm/PMAdminLayout';
@@ -122,6 +136,7 @@ function App() {
           <Route path="applicants" element={<RSPApplicantManagement />} />
           <Route path="initial-evaluation" element={<RSPInitialEvaluation />} />
           <Route path="comparative-assessment" element={<RSPComparativeAssessment />} />
+          <Route path="individual-evaluation" element={<IndividualEvaluationPage />} />
           <Route path="results-posting" element={<RSPResultsPosting />} />
           <Route path="deliberation" element={<RSPDeliberationShortlist />} />
           <Route path="congratulatory-advice" element={<RSPCongratulatoryAdvice />} />
@@ -137,33 +152,34 @@ function App() {
           />
         </Route>
 
-        {/* 4. APPLICANT RSP ROUTES (Strict Applicant Only) */}
+        {/* 4. APPLICANT PORTAL ROUTES (Top-Tab Layout) */}
         <Route 
           path="/jobs" 
           element={(isAuthenticated && isApplicant) ? <ApplicantPortalLayout /> : <Navigate to="/" replace />}
         >
-          {/* Dashboard/List of openings */}
           <Route index element={<JobOpenings />} />
-          
-          {/* Phase 3: Status Tracker */}
           <Route path="my-application" element={<ApplicationStatus />} />
-          
-          {/* Phase 6: Results */}
           <Route path="results" element={<ResultsNotices />} />
-          
-          {/* Phase 4: Advice & Stage 9+ */}
           <Route path="advice" element={<AdviceNextSteps />} />
-          
-          {/* Phase 10: Appointment */}
           <Route path="appointment" element={<AppointmentNotice />} />
-          
-          {/* Phase 1: Vacancy Detail */}
-          <Route path=":id" element={<JobDetail />} />
-
-          {/* Phase 2: Apply Wizard */}
-          <Route path=":id/apply" element={<ApplicationWizard />} />
           <Route path="profile" element={<ProfileSettings />} />
+          {/* Dynamic catch-alls LAST */}
+          <Route path=":id" element={<JobDetail />} />
+          <Route path=":id/apply" element={<ApplicationWizard />} />
+        </Route>
 
+        {/* 4a. R&R APPLICANT PAGES — dedicated R&R header */}
+        <Route
+          path="/jobs/rr-opportunities"
+          element={(isAuthenticated && isApplicant) ? <RRApplicantLayout /> : <Navigate to="/" replace />}
+        >
+          <Route index element={<RROpportunities />} />
+        </Route>
+        <Route
+          path="/jobs/my-awards"
+          element={(isAuthenticated && isApplicant) ? <RRApplicantLayout /> : <Navigate to="/" replace />}
+        >
+          <Route index element={<MyAwards />} />
         </Route>
 
         {/* 4b. L&D MODULE — admin routes with sidebar layout */}
@@ -212,19 +228,19 @@ function App() {
         >
           <Route index element={<Navigate to="/rr/dashboard" replace />} />
           <Route path="dashboard" element={<RRDashboard />} />
+          <Route path="praise-committee-meeting" element={<PraiseCommitteeMeeting />} />
+          <Route path="call-for-nominees" element={<CallForNominees />} />
+          <Route path="preliminary-evaluation" element={<PreliminaryEvaluation />} />
           <Route path="searches" element={<RRSearchManagement />} />
           <Route path="nominations" element={<RRNominationManagement />} />
-          <Route path="evaluation" element={<RREvaluationWorkspace />} />
-          <Route path="deliberation" element={<RRDeliberationPanel />} />
+          <Route path="evaluation" element={<ValidationInterview />} />
+          <Route path="deliberation" element={<DeliberationFinalization />} />
+          <Route path="announcement" element={<AnnouncementOfResults />} />
+          <Route path="ceremony" element={<AwardingCeremony />} />
           <Route path="awards" element={<RRAwardsManagement />} />
-          <Route path="reports" element={<RRReportsManagement />} />
+          <Route path="reports" element={<RRImplementationReport />} />
+          <Route path="component-library" element={<SharedComponentLibrary />} />
         </Route>
-
-        {/* 4f. R&R — applicant My Awards page */}
-        <Route
-          path="/jobs/my-awards"
-          element={(isAuthenticated && isApplicant) ? <MyAwards /> : <Navigate to="/" replace />}
-        />
 
         {/* 4g. PERSONNEL MODULE — EMPLOYEE PORTAL (Top-Tab Layout, applicant role) */}
         <Route
@@ -236,7 +252,6 @@ function App() {
           <Route path="profile" element={<EmployeeProfile />} />
           <Route path="201-files" element={<My201Files />} />
           <Route path="leave" element={<LeaveApplication />} />
-          <Route path="travel" element={<TravelAuthority />} />
           <Route path="certificates" element={<CertificateRequests />} />
           <Route path="notifications" element={<PersonnelNotifications />} />
         </Route>
@@ -251,11 +266,16 @@ function App() {
           <Route path="employees" element={<EmployeeDirectory />} />
           <Route path="employees/new" element={<CreateEmployee />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
+          <Route path="201-checklist" element={<FileChecklistAdmin />} />
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="travel" element={<TravelManagement />} />
           <Route path="document-requests" element={<DocumentRequests />} />
+          <Route path="profile-change-requests" element={<ProfileChangeRequests />} />
           <Route path="reports" element={<Reports />} />
           <Route path="audit" element={<AuditLog />} />
+          <Route path="signatories" element={<Signatories />} />
+          <Route path="admin-tools" element={<AdminTools />} />
+          <Route path="schools-offices" element={<SchoolsOffices />} />
           <Route path="eligibility-screening" element={<EligibilityScreening />} />
         </Route>
 

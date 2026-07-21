@@ -4,6 +4,7 @@ import { API_BASE } from '../utils/api';
 export const useDeliberation = (vacancyId) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isEndorsing, setIsEndorsing] = useState(false);
 
     const fetchData = useCallback(async () => {
@@ -16,8 +17,10 @@ export const useDeliberation = (vacancyId) => {
             });
             const json = await res.json();
             setData(Array.isArray(json) ? json : []);
+            setError(null);
         } catch (e) {
             console.error('Failed to load deliberation list:', e);
+            setError(e.message || 'Failed to load deliberation list');
             setData([]);
         } finally {
             setLoading(false);
@@ -91,5 +94,5 @@ export const useDeliberation = (vacancyId) => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    return { data, loading, updateBI, recommend, endorse, isEndorsing, refresh: fetchData };
+    return { data, loading, error, updateBI, recommend, endorse, isEndorsing, refresh: fetchData };
 };

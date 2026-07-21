@@ -1,4 +1,5 @@
 const db = require('../../db');
+const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 const ORG_HEADER = {
     republic: "REPUBLIC OF THE PHILIPPINES",
@@ -21,19 +22,23 @@ const getPreview = async (req, res) => {
         const vacancy = vacRows[0];
 
         // 2. Get Ranked Results
-        // NOTE: comparative_assessment_results does NOT have rank_val or is_qualified
-        // columns — those are computed here instead of trusted from storage.
+        // Rank only among non-disqualified candidates by partitioning.
+        // Disqualified candidates get their own rank sequence (displayed as "—").
         const [results] = await db.query(`
             SELECT 
                 a.full_name, 
                 a.status,
                 IFNULL(r.total_score, 0) as total_score,
-                RANK() OVER (ORDER BY IFNULL(r.total_score, 0) DESC) as rank_val
+                RANK() OVER (
+                    PARTITION BY (a.status = 'disqualified')
+                    ORDER BY IFNULL(r.total_score, 0) DESC
+                ) as rank_val
             FROM applications a
             LEFT JOIN comparative_assessment_results r ON a.id = r.applicant_id
             WHERE a.vacancy_id = ? 
               AND a.status IN ('qualified', 'disqualified', 'shortlisted', 'selected', 'appointed')
-            ORDER BY rank_val ASC`, [vacancy_id]);
+            ORDER BY CASE WHEN a.status = 'disqualified' THEN 1 ELSE 0 END,
+                     IFNULL(r.total_score, 0) DESC`, [vacancy_id]);
 
         // 3. Check Publication Status
         const [pubRows] = await db.query('SELECT * FROM results_postings WHERE vacancy_id = ?', [vacancy_id]);
@@ -100,6 +105,7 @@ const publishResults = async (req, res) => {
         // 4. Advance Stage to 8 (Deliberation) — only if not already past it
         if (vac[0].current_stage < 8) {
             await db.query('UPDATE vacancies SET current_stage = 8 WHERE id = ?', [vacancy_id]);
+            await syncApplicationsStage(vacancy_id, 8, req.app.get('socketio'));
         }
 
         // 5. Activity Log & Socket

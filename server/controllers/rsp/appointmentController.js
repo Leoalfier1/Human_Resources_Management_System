@@ -1,4 +1,5 @@
 const db = require('../../db');
+const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 /**
  * TODO(product-owner): Confirm required appointment docs for teaching_related.
@@ -70,7 +71,42 @@ const getProcessingAppointees = async (req, res) => {
 };
 
 // ── 2. GET DOCUMENT CHECKLIST ─────────────────────────────────────
-// Seeds doc list if not yet created, returns status per doc
+// Seeds doc list if not yet created, returns status per doc.
+// Also enriches file_path from application_documents when the appointment
+// row has no upload yet — applicants often submit documents during the
+// initial MQS application phase, and those files live in a different table.
+
+/**
+ * Keyword groups for fuzzy matching appointment_documents.document_type
+ * against application_documents.document_type across different naming schemes.
+ */
+const DOC_KEYWORD_GROUPS = [
+    ['transcript', 'tor'],
+    ['personal data sheet', 'cs form 212', 'pds'],
+    ['diploma'],
+    ['nbi clearance', 'nbi'],
+    ['medical certificate', 'medical'],
+    ['dental certificate', 'dental'],
+    ['marriage certificate', 'marriage contract'],
+    ['service record'],
+    ['csc eligibility', 'eligibility'],
+    ['no pending', 'omnibus sworn statement', 'csc mc 10']
+];
+
+const matchApplicationDoc = (apptDocType, applicationDocs) => {
+    const lower = apptDocType.toLowerCase();
+    for (const kwSet of DOC_KEYWORD_GROUPS) {
+        if (kwSet.some(k => lower.includes(k))) {
+            const found = applicationDocs.find(d =>
+                d.file_path && d.verification_status !== 'superseded' &&
+                kwSet.some(k => d.document_type.toLowerCase().includes(k))
+            );
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
 const getDocuments = async (req, res) => {
     try {
         const { applicantId } = req.params;
@@ -107,14 +143,49 @@ const getDocuments = async (req, res) => {
             [applicantId]
         );
 
+        // ── ENRICHMENT: surface files uploaded during the MQS/application phase ──
+        // If any appointment_documents row still has file_path = NULL, check the
+        // application_documents table (same application_id) for a matching file.
+        const hasNullFilePaths = docs.some(d => !d.file_path);
+        let applicationDocs = [];
+        if (hasNullFilePaths) {
+            const [appDocs] = await db.query(
+                `SELECT document_type, file_name, file_path, verification_status
+                 FROM application_documents
+                 WHERE application_id = ? AND file_path IS NOT NULL
+                 ORDER BY id DESC`,
+                [applicantId]
+            );
+            applicationDocs = appDocs;
+        }
+
+        const enrichedDocs = docs.map(doc => {
+            if (doc.file_path) return doc; // already has a file — no enrichment needed
+
+            const matched = matchApplicationDoc(doc.document_type, applicationDocs);
+            if (!matched) return doc;
+
+            // Only enrich file_path and file_name — do NOT change verification_status.
+            // The admin must still explicitly VERIFY each document via the VERIFY button.
+            // Elevating status here would desync the frontend from the DB and cause
+            // issueAppointment (which queries appointment_documents directly) to fail.
+            return {
+                ...doc,
+                file_path: matched.file_path,
+                file_name: matched.file_name || doc.file_name,
+                _source: 'application_documents' // debug marker, not persisted
+            };
+        });
+
         const stats = {
-            total:    docs.length,
-            verified: docs.filter(d => d.verification_status === 'verified').length,
-            uploaded: docs.filter(d => d.verification_status === 'uploaded_pending_review').length,
-            pending:  docs.filter(d => d.verification_status === 'not_uploaded').length
+            total:    enrichedDocs.length,
+            verified: enrichedDocs.filter(d => d.verification_status === 'verified').length,
+            uploaded: enrichedDocs.filter(d => d.verification_status === 'uploaded_pending_review').length,
+            pending:  enrichedDocs.filter(d => d.verification_status === 'not_uploaded').length,
+            revision: enrichedDocs.filter(d => d.verification_status === 'needs_revision').length
         };
 
-        res.json({ documents: docs, stats });
+        res.json({ documents: enrichedDocs, stats });
     } catch (error) {
         console.error('getDocuments Error:', error);
         res.status(500).json({ message: error.message });
@@ -128,7 +199,7 @@ const verifyDocument = async (req, res) => {
 
         const [result] = await db.query(
             `UPDATE appointment_documents
-             SET verification_status = 'verified', verified_at = NOW()
+             SET verification_status = 'verified', verified_at = NOW(), revision_note = NULL
              WHERE id = ?`,
             [documentId]
         );
@@ -144,6 +215,47 @@ const verifyDocument = async (req, res) => {
     }
 };
 
+// ── 3.5. REQUEST REVISION ──────────────────────────────────────────
+const requestRevision = async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const { note } = req.body;
+
+        if (!note || !note.trim()) {
+            return res.status(400).json({ message: 'Revision note is required' });
+        }
+
+        const [result] = await db.query(
+            `UPDATE appointment_documents
+             SET verification_status = 'needs_revision', revision_note = ?, verified_at = NULL
+             WHERE id = ?`,
+            [note.trim(), documentId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        // Send real-time notification to applicant if io available
+        const [docRows] = await db.query('SELECT applicant_id, document_type FROM appointment_documents WHERE id = ?', [documentId]);
+        if (docRows.length > 0) {
+            const io = req.app.get('socketio');
+            if (io) {
+                io.to(`application-${docRows[0].applicant_id}`).emit('application:document-update', {
+                    applicationId: docRows[0].applicant_id,
+                    document_type: docRows[0].document_type,
+                    status: 'needs_revision'
+                });
+            }
+        }
+
+        res.json({ message: 'Revision request saved successfully' });
+    } catch (error) {
+        console.error('requestRevision Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // ── 4. UPLOAD DOCUMENT (HR on behalf of appointee) ────────────────
 const uploadDocument = async (req, res) => {
     try {
@@ -154,7 +266,7 @@ const uploadDocument = async (req, res) => {
 
         await db.query(
             `UPDATE appointment_documents
-             SET file_path = ?, file_name = ?, verification_status = 'uploaded_pending_review'
+             SET file_path = ?, file_name = ?, verification_status = 'uploaded_pending_review', revision_note = NULL
              WHERE id = ?`,
             [filePath, req.file.originalname, documentId]
         );
@@ -207,6 +319,7 @@ const issueAppointment = async (req, res) => {
         // If all slots for this vacancy are filled, move to Stage 11 (Final)
         if (appointedCount[0].count >= vac[0].no_of_vacancies) {
             await db.query('UPDATE vacancies SET current_stage = 11 WHERE id = ?', [vacancy_id]);
+            await syncApplicationsStage(vacancy_id, 11, req.app.get('socketio'));
         }
 
         // Per-applicant stage tracking: this applicant has now completed Stage 11
@@ -260,6 +373,7 @@ module.exports = {
     getProcessingAppointees,
     getDocuments,
     verifyDocument,
+    requestRevision,
     uploadDocument,
     issueAppointment
 };

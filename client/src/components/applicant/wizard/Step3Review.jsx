@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, User, Phone, Mail, MapPin, Briefcase, FileText, Loader2 } from 'lucide-react';
+import { CheckCircle2, User, Phone, Mail, MapPin, Briefcase, FileText, Loader2, Hash, Calendar, Users, Heart, BookOpen, Shield, Globe, GraduationCap, Award, ShieldCheck } from 'lucide-react';
 import { API_BASE } from '../../../utils/api';
 
 const Step3Review = ({ applicationId, onNext, onPrev }) => {
@@ -78,6 +78,13 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
                         
                         <div className="space-y-5">
                             <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Hash size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">App Code</p>
+                                    <p className="text-sm font-bold text-slate-400 italic">Will be assigned upon submission</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
                                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><User size={14}/></div>
                                 <div>
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Full Name</p>
@@ -101,8 +108,64 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
                             <div className="flex gap-4 items-start">
                                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><MapPin size={14}/></div>
                                 <div>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Current School / Station</p>
-                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.current_school}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Address</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_address || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Calendar size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Age</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_age ?? '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Users size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sex</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_sex || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Heart size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Civil Status</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_civil_status || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><BookOpen size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Religion</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_religion || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Shield size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Disability</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_disability || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Globe size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ethnic Group</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_ethnic_group || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><GraduationCap size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Education</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_education || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Award size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Training (Hours)</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_training_hours != null ? application.snap_training_hours : '—'}</p>
                                 </div>
                             </div>
                             <div className="flex gap-4 items-start">
@@ -110,6 +173,20 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
                                 <div>
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Years of Experience</p>
                                     <p className="text-sm font-bold text-[#1B3A6B]">{application.years_experience} years</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><ShieldCheck size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Eligibility</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_eligibility || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><MapPin size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Current School / Station</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.current_school}</p>
                                 </div>
                             </div>
                         </div>

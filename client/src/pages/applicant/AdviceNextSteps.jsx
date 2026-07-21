@@ -13,7 +13,8 @@ const AdviceNextSteps = () => {
     const [appId, setAppId] = useState(null);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState(null);          // { message, type: 'access'|'error' }
+    const [retryCount, setRetryCount] = useState(0);  // increment to re-trigger fetch
     const [uploading, setUploading] = useState(null); // tracks which doc_type is uploading
     const fileInputRef = useRef(null);
     const [pendingDocType, setPendingDocType] = useState(null);
@@ -59,13 +60,13 @@ const AdviceNextSteps = () => {
                     setData(json);
                     setError(null);
                 } else if (res.status === 403) {
-                    setError('Congratulatory advice is only available once you reach Stage 9 of the RSP process.');
+                    setError({ message: 'Congratulatory advice is only available once you reach Stage 9 of the RSP process.', type: 'access' });
                 } else {
-                    const json = await res.json();
-                    setError(json.message || 'Failed to load advice details.');
+                    const json = await res.json().catch(() => ({}));
+                    setError({ message: json.message || 'Something went wrong. Please try again later.', type: 'error' });
                 }
             } catch (err) {
-                setError('Could not connect to the server.');
+                setError({ message: 'Could not connect to the server.', type: 'error' });
             } finally {
                 setLoading(false);
             }
@@ -80,7 +81,7 @@ const AdviceNextSteps = () => {
         socket.on('application:stage-update', fetchAdvice);
 
         return () => { if (socket) socket.disconnect(); };
-    }, [appId]);
+    }, [appId, retryCount]);
 
     // 3. Handle file upload
     const handleUpload = (documentType) => {
@@ -161,8 +162,8 @@ const AdviceNextSteps = () => {
         </div>
     );
 
-    // LOCKED STATE
-    if (error) return (
+    // 403 STAGE GATE — Locked / Not yet issued
+    if (error?.type === 'access') return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-10 select-none">
             <motion.div 
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -172,10 +173,32 @@ const AdviceNextSteps = () => {
                     <Lock size={40} />
                 </div>
                 <h2 className="text-2xl font-black text-[#1B3A6B] uppercase italic tracking-tight">Access Restricted</h2>
-                <p className="text-slate-500 mt-4 font-medium leading-relaxed">{error}</p>
+                <p className="text-slate-500 mt-4 font-medium leading-relaxed">{error.message}</p>
                 <div className="mt-8 pt-6 border-t border-slate-50">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Stage 9: Selection & Issuance Required</p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Stage 9: Selection &amp; Issuance Required</p>
                 </div>
+            </motion.div>
+        </div>
+    );
+
+    // 500 SERVER ERROR — Neutral error state with retry
+    if (error?.type === 'error') return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-10 select-none">
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-lg"
+            >
+                <div className="bg-amber-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-400">
+                    <AlertCircle size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tight">Something Went Wrong</h2>
+                <p className="text-slate-500 mt-4 font-medium leading-relaxed">{error.message}</p>
+                <button
+                    onClick={() => { setLoading(true); setError(null); setRetryCount(c => c + 1); }}
+                    className="mt-8 px-8 py-3 bg-[#1B3A6B] text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-[#15305a] transition-all active:scale-95"
+                >
+                    Try Again
+                </button>
             </motion.div>
         </div>
     );
@@ -244,11 +267,30 @@ const AdviceNextSteps = () => {
                 <div className="lg:col-span-2">
                     <div className="bg-white p-12 md:p-20 rounded-[3rem] shadow-sm border border-slate-100 font-serif text-slate-800 leading-relaxed shadow-inner">
                         {/* Letterhead */}
-                        <div className="text-center mb-16 border-b-2 border-[#1B3A6B] pb-6">
-                            <p className="uppercase text-[10px] tracking-[0.3em] font-medium text-slate-400">Republic of the Philippines</p>
-                            <p className="uppercase text-xs font-bold tracking-widest mt-1">Department of Education</p>
-                            <p className="uppercase text-sm font-black text-[#1B3A6B] tracking-tight">
-                                {settings?.office_name || 'Schools Division Office of Dapitan City'}
+                        <div className="text-center mb-8 border-b-2 border-[#1B3A6B] pb-6">
+                            {/* DepEd Seal */}
+                            <div className="relative w-[96px] h-[96px] mx-auto mb-3">
+                                <img
+                                    src="/assets/deped-seal.png"
+                                    alt="DepEd Seal"
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                />
+                                <div className="hidden w-full h-full rounded-full border-2 border-[#1B3A6B] items-center justify-center bg-white">
+                                    <span className="text-[7px] font-bold text-[#1B3A6B] text-center leading-tight">DEPED<br />SEAL</span>
+                                </div>
+                            </div>
+                            <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontStyle: 'italic', fontSize: '12pt', color: '#1a1a1a', marginBottom: '1px', lineHeight: '1.4' }}>
+                                Republic of the Philippines
+                            </p>
+                            <p style={{ fontFamily: '"Old English Text MT", "UnifrakturMaguntia", "Times New Roman", serif', fontSize: '17pt', fontWeight: 'bold', color: '#1a1a1a', marginBottom: '1px', lineHeight: '1.3', letterSpacing: '0.5px' }}>
+                                Department of Education
+                            </p>
+                            <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontVariant: 'small-caps', fontSize: '10pt', color: '#1a1a1a', marginBottom: '1px', letterSpacing: '0.5px', lineHeight: '1.4' }}>
+                                Region IX, Zamboanga Peninsula
+                            </p>
+                            <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontVariant: 'small-caps', fontSize: '10.5pt', fontWeight: 'bold', color: '#1B3A6B', letterSpacing: '0.5px', lineHeight: '1.4' }}>
+                                {settings?.office_name || 'Schools Division of Dapitan City'}
                             </p>
                         </div>
 
@@ -260,7 +302,12 @@ const AdviceNextSteps = () => {
                             <p className="text-sm uppercase font-bold text-slate-500">Dapitan City, Zamboanga Peninsula</p>
                         </div>
 
-                        <p className="font-bold text-lg mb-6">Dear Mr/Ms. {letter.full_name?.split(' ').pop()},</p>
+                        <p className="font-bold text-lg mb-6">
+                            Dear {letter.salutation || 'Mr./Ms.'} {(() => {
+                                const rawLast = letter.full_name?.trim().split(/\s+/).pop() || '';
+                                return rawLast.charAt(0).toUpperCase() + rawLast.slice(1).toLowerCase();
+                            })()},
+                        </p>
                         
                         <div className="space-y-6 text-justify text-base">
                             <p>
@@ -338,15 +385,26 @@ const AdviceNextSteps = () => {
                                     const hasFile = !!doc.file_path;
                                     const isVerified = doc.verification_status === 'verified';
                                     const isPending = doc.verification_status === 'uploaded_pending_review';
+                                    const isNeedsRevision = doc.verification_status === 'needs_revision';
                                     const isUploadingThis = uploading === doc.document_type;
 
                                     return (
-                                        <div key={i} className={`p-4 rounded-2xl border transition-all ${hasFile ? 'bg-slate-50 border-slate-200' : 'bg-white border-dashed border-slate-200 opacity-60'}`}>
+                                        <div key={i} className={`p-4 rounded-2xl border transition-all ${
+                                            isNeedsRevision 
+                                                ? 'bg-amber-50/70 border-amber-300 shadow-sm' 
+                                                : hasFile 
+                                                    ? 'bg-slate-50 border-slate-200' 
+                                                    : 'bg-white border-dashed border-slate-200 opacity-60'
+                                        }`}>
                                             <div className="flex justify-between items-start gap-4">
                                                 <p className="text-[11px] font-black text-[#1B3A6B] leading-tight uppercase flex-1">{doc.document_type}</p>
                                                 {isVerified ? (
                                                     <div className="bg-emerald-500 text-white p-1 rounded-full shadow-lg shadow-emerald-500/20">
                                                         <CheckCircle2 size={14}/>
+                                                    </div>
+                                                ) : isNeedsRevision ? (
+                                                    <div className="bg-amber-500 text-white p-1 rounded-full shadow-lg shadow-amber-500/20">
+                                                        <AlertCircle size={14}/>
                                                     </div>
                                                 ) : isPending ? (
                                                     <div className="bg-blue-500 text-white p-1 rounded-full animate-pulse">
@@ -357,7 +415,7 @@ const AdviceNextSteps = () => {
                                             
                                             {hasFile && doc.file_name && (
                                                 <a 
-                                                    href={`${SERVER_BASE}${doc.file_path}`} 
+                                                    href={`${SERVER_BASE}${doc.file_path.startsWith('/') ? doc.file_path : `/${doc.file_path}`}`} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
                                                     className="text-[9px] font-bold text-blue-500 hover:underline mt-2 block truncate max-w-[200px]"
@@ -365,10 +423,21 @@ const AdviceNextSteps = () => {
                                                     {doc.file_name}
                                                 </a>
                                             )}
+
+                                            {isNeedsRevision && doc.revision_note && (
+                                                <div className="mt-2.5 bg-amber-100/80 border border-amber-300/60 p-2.5 rounded-xl text-[10px] text-amber-900 font-bold">
+                                                    <div className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-900 tracking-wider mb-0.5">
+                                                        <AlertCircle size={12} className="text-amber-600"/> Revision Requested by HR:
+                                                    </div>
+                                                    <p className="font-semibold text-slate-800 leading-relaxed">{doc.revision_note}</p>
+                                                </div>
+                                            )}
                                             
                                             <div className="mt-4 flex justify-between items-center">
-                                                <span className={`text-[9px] font-black uppercase tracking-widest ${isVerified ? 'text-emerald-600' : isPending ? 'text-blue-600' : 'text-slate-300'}`}>
-                                                    {isVerified ? 'Verified' : isPending ? 'Uploaded – pending review' : 'Not yet uploaded'}
+                                                <span className={`text-[9px] font-black uppercase tracking-widest ${
+                                                    isVerified ? 'text-emerald-600' : isNeedsRevision ? 'text-amber-700' : isPending ? 'text-blue-600' : 'text-slate-300'
+                                                }`}>
+                                                    {isVerified ? 'Verified' : isNeedsRevision ? 'Action Required · Revision Requested' : isPending ? 'Uploaded – pending review' : 'Not yet uploaded'}
                                                 </span>
                                                 <button 
                                                     onClick={() => handleUpload(doc.document_type)}
@@ -376,13 +445,17 @@ const AdviceNextSteps = () => {
                                                     className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                                                         isUploadingThis 
                                                             ? 'bg-slate-100 text-slate-400 cursor-wait' 
-                                                            : hasFile 
-                                                                ? 'text-slate-400 hover:text-[#D6402F] hover:bg-red-50' 
-                                                                : 'bg-[#1B3A6B] text-white shadow-lg shadow-blue-900/10 hover:bg-[#15305a]'
+                                                            : isNeedsRevision
+                                                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600'
+                                                                : hasFile 
+                                                                    ? 'text-slate-400 hover:text-[#D6402F] hover:bg-red-50' 
+                                                                    : 'bg-[#1B3A6B] text-white shadow-lg shadow-blue-900/10 hover:bg-[#15305a]'
                                                     }`}
                                                 >
                                                     {isUploadingThis ? (
                                                         <><Loader2 size={12} className="animate-spin"/> Uploading...</>
+                                                    ) : isNeedsRevision ? (
+                                                        <><Upload size={12}/> Re-upload</>
                                                     ) : hasFile ? (
                                                         'Replace'
                                                     ) : (

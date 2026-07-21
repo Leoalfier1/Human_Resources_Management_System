@@ -9,10 +9,11 @@ router.get('/my-applications', verifyToken, requireRole('applicant'), ctrl.getMy
 router.post('/', verifyToken, requireRole('applicant'), ctrl.submitLeaveApplication);
 router.patch('/:id/cancel', verifyToken, requireRole('applicant'), ctrl.cancelLeave);
 
-// HR admin routes
+// HR admin routes — two-level approval chain
 router.get('/all', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getAllLeaveApplications);
-router.patch('/:id/approve', verifyToken, requireRole('admin', 'hr_staff'), ctrl.approveLeave);
-router.patch('/:id/reject', verifyToken, requireRole('admin', 'hr_staff'), ctrl.rejectLeave);
+router.patch('/:id/recommend', verifyToken, requireRole('admin', 'hr_staff'), ctrl.recommendLeave);
+router.patch('/:id/final-approve', verifyToken, requireRole('admin', 'hr_staff', 'appointing_authority'), ctrl.finalApproveLeave);
+router.patch('/:id/reject', verifyToken, requireRole('admin', 'hr_staff', 'appointing_authority'), ctrl.rejectLeave);
 router.get('/report', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getLeaveReport);
 
 module.exports = router;

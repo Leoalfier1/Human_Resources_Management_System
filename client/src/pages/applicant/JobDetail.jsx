@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, MapPin, Users, Calendar, Clock,
     CheckCircle2, Dot, FileText, AlertCircle,
-    BookOpen, Briefcase
+    BookOpen, Briefcase, X
 } from 'lucide-react';
-import { PDSGateBanner } from '../../components/applicant/PDSGate';
+import { PDSGateBanner, usePDSGate } from '../../components/applicant/PDSGate';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -56,6 +56,8 @@ const JobDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isAuthenticated, isApplicant } = useAuth();
+    const { checking: pdsChecking, isPdsComplete, requireCompletePDS } = usePDSGate();
+    const [showPDSModal, setShowPDSModal] = useState(false);
 
     const [vacancy, setVacancy] = useState(null);
     const [hasApplied, setHasApplied] = useState(false);
@@ -358,12 +360,19 @@ const JobDetail = () => {
                                         Admin accounts cannot apply.
                                     </div>
                                 ) : (
-                                    <Link
-                                        to={`/jobs/${id}/apply`}
-                                        className="block w-full text-center bg-[#D6402F] hover:bg-[#b53526] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-900/30"
+                                    <button
+                                        onClick={() => {
+                                            if (isPdsComplete) {
+                                                navigate(`/jobs/${id}/apply`);
+                                            } else {
+                                                setShowPDSModal(true);
+                                            }
+                                        }}
+                                        disabled={pdsChecking}
+                                        className={`block w-full text-center bg-[#D6402F] hover:bg-[#b53526] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-900/30 ${pdsChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         Apply Now →
-                                    </Link>
+                                    </button>
                                 )}
                             </>
                         )}
@@ -401,6 +410,74 @@ const JobDetail = () => {
 
                 </div>
             </div>
+
+            {/* PDS Required Modal */}
+            <AnimatePresence>
+                {showPDSModal && (
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setShowPDSModal(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setShowPDSModal(false)}
+                                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
+                                    <AlertCircle size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">
+                                        PDS Completion Required
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+                                        Personal Data Sheet
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 mb-8">
+                                <p className="text-sm font-semibold text-slate-600 leading-relaxed">
+                                    Please complete and submit your Personal Data Sheet (PDS) before applying for a position.
+                                </p>
+                                <div className="bg-slate-50 rounded-2xl p-4 text-[11px] font-medium text-slate-500 leading-relaxed">
+                                    Note: Your Personal Data Sheet (PDS) is a separate, more detailed form than your basic profile, required by CSC (Form 212) for all applications.
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowPDSModal(false)}
+                                    className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex-1"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowPDSModal(false);
+                                        navigate('/personnel/pds');
+                                    }}
+                                    className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#1B3A6B] hover:bg-[#162E55] text-white shadow-lg transition-all flex-1 flex items-center justify-center gap-1.5"
+                                >
+                                    <FileText size={14} /> Go to PDS
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

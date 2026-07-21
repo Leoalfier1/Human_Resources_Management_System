@@ -1,6 +1,7 @@
 const db = require('../../db');
 const path = require('path');
 const fs = require('fs');
+const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 // Helper: compute days left & elapsed
 function computeDays(deadlineDate) {
@@ -21,14 +22,36 @@ function parseSalaryGrade(val) {
     return isNaN(num) ? null : num;
 }
 
+function validateSalaryGradeForPositionType(positionType, salaryGrade) {
+    const sg = Number(salaryGrade);
+    if (!Number.isInteger(sg) || sg < 1 || sg > 33) {
+        return 'Salary grade must be from SG-1 to SG-33.';
+    }
+
+    if (positionType === 'teaching_related') {
+        const hasRubric = (sg >= 11 && sg <= 24) || sg === 27;
+        if (!hasRubric) {
+            return 'Teaching-related comparative assessment supports SG-11 to SG-24, or SG-27 only.';
+        }
+    }
+
+    return null;
+}
+
 // ─── 1. GET ALL VACANCIES (Admin View) ───────────────────────────
 exports.getVacancies = async (req, res) => {
     try {
+        const view = req.query.view || 'active';
+        const isDeletedFilter = view === 'deleted'
+            ? 'WHERE v.is_deleted = 1'
+            : 'WHERE v.is_deleted = 0';
+
         const [rows] = await db.query(`
             SELECT v.*,
                 (SELECT COUNT(*) FROM applications
                  WHERE vacancy_id = v.id AND status != 'draft') AS applicant_count
             FROM vacancies v
+            ${isDeletedFilter}
             ORDER BY v.posting_date DESC
         `);
 
@@ -54,7 +77,9 @@ exports.getVacancies = async (req, res) => {
 exports.getVacancyById = async (req, res) => {
     try {
         const { id } = req.params;
-        const [rows] = await db.query('SELECT * FROM vacancies WHERE id = ?', [id]);
+        const includeDeleted = req.query.includeDeleted === 'true';
+        const filter = includeDeleted ? '' : ' AND is_deleted = 0';
+        const [rows] = await db.query(`SELECT * FROM vacancies WHERE id = ?${filter}`, [id]);
         if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found' });
 
         const v = rows[0];
@@ -97,6 +122,9 @@ exports.createVacancy = async (req, res) => {
 
         // C. Strip "SG-" prefix — store only the number
         const sgNumber = parseSalaryGrade(salary_grade);
+        const posType = position_type || 'teaching';
+        const salaryGradeError = validateSalaryGradeForPositionType(posType, sgNumber);
+        if (salaryGradeError) return res.status(400).json({ message: salaryGradeError });
 
         // D. Auto-generate Ref No (V-YYYY-001)
         const year = new Date().getFullYear();
@@ -125,8 +153,6 @@ exports.createVacancy = async (req, res) => {
         }
 
         // G. Insert into DB
-        const posType = position_type || 'teaching';
-
         const [result] = await db.query(`
             INSERT INTO vacancies (
                 ref_no, position_title, item_number, salary_grade,
@@ -163,7 +189,7 @@ exports.createVacancy = async (req, res) => {
         console.error('❌ CREATE VACANCY ERROR:', error);
         res.status(500).json({
             message: 'Internal server error — could not save vacancy.',
-            details: error.message   // shown in browser console for easy debugging
+            details: error.message
         });
     }
 };
@@ -179,6 +205,7 @@ exports.advanceStage = async (req, res) => {
         }
 
         await db.query('UPDATE vacancies SET current_stage = ? WHERE id = ?', [next_stage, id]);
+        await syncApplicationsStage(id, next_stage, req.app.get('socketio'));
 
         await db.query(
             `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
@@ -205,33 +232,151 @@ exports.updateVacancy = async (req, res) => {
         if (updates.salary_grade) {
             updates.salary_grade = parseSalaryGrade(updates.salary_grade);
         }
+
+        if (updates.salary_grade || updates.position_type) {
+            const [currentRows] = await db.query('SELECT position_type, salary_grade FROM vacancies WHERE id = ?', [id]);
+            if (currentRows.length === 0) return res.status(404).json({ message: 'Vacancy not found.' });
+
+            const nextPositionType = updates.position_type || currentRows[0].position_type;
+            const nextSalaryGrade = updates.salary_grade || currentRows[0].salary_grade;
+            const salaryGradeError = validateSalaryGradeForPositionType(nextPositionType, nextSalaryGrade);
+            if (salaryGradeError) return res.status(400).json({ message: salaryGradeError });
+        }
+
         await db.query('UPDATE vacancies SET ? WHERE id = ?', [updates, id]);
+        await db.query(
+            `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
+            [id, req.user.id, `Vacancy updated: ${id}`]
+        );
         res.json({ message: 'Vacancy updated successfully.' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-// ─── 6. DELETE VACANCY ────────────────────────────────────────────
+// ─── 6. SOFT DELETE VACANCY ───────────────────────────────────────
 exports.deleteVacancy = async (req, res) => {
     try {
         const { id } = req.params;
 
         const [rows] = await db.query(
-            'SELECT division_memo_file_path FROM vacancies WHERE id = ?', [id]
+            'SELECT ref_no, position_title, status, is_deleted FROM vacancies WHERE id = ?', [id]
         );
-        if (rows.length > 0 && rows[0].division_memo_file_path) {
+        if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found.' });
+        if (rows[0].is_deleted) return res.status(400).json({ message: 'Vacancy is already deleted.' });
+
+        const currentStatus = rows[0].status;
+
+        await db.query(`
+            UPDATE vacancies SET
+                is_deleted = 1,
+                deleted_at = NOW(),
+                deleted_by = ?,
+                previous_status = ?
+            WHERE id = ?
+        `, [req.user.id, currentStatus, id]);
+
+        await db.query(
+            `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
+            [id, req.user.id, `Vacancy soft-deleted: ${rows[0].ref_no} — ${rows[0].position_title}`]
+        );
+
+        const io = req.app.get('socketio');
+        if (io) io.emit('rsp:dashboard:update');
+
+        res.json({ message: 'Vacancy moved to Recently Deleted.' });
+    } catch (error) {
+        console.error('❌ SOFT DELETE VACANCY ERROR:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ─── 7. RESTORE VACANCY ───────────────────────────────────────────
+exports.restoreVacancy = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [rows] = await db.query(
+            'SELECT ref_no, position_title, previous_status, deadline_date, is_deleted FROM vacancies WHERE id = ?', [id]
+        );
+        if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found.' });
+        if (!rows[0].is_deleted) return res.status(400).json({ message: 'Vacancy is not deleted.' });
+
+        let restoredStatus = rows[0].previous_status || 'active';
+
+        const { daysLeft } = computeDays(rows[0].deadline_date);
+        if (daysLeft < 0) {
+            restoredStatus = 'closed';
+        }
+
+        await db.query(`
+            UPDATE vacancies SET
+                is_deleted = 0,
+                deleted_at = NULL,
+                deleted_by = NULL,
+                previous_status = NULL,
+                status = ?
+            WHERE id = ?
+        `, [restoredStatus, id]);
+
+        await db.query(
+            `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
+            [id, req.user.id, `Vacancy restored: ${rows[0].ref_no} — ${rows[0].position_title} (status: ${restoredStatus})`]
+        );
+
+        const io = req.app.get('socketio');
+        if (io) io.emit('rsp:dashboard:update');
+
+        res.json({ message: 'Vacancy restored successfully.', status: restoredStatus });
+    } catch (error) {
+        console.error('❌ RESTORE VACANCY ERROR:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ─── 8. PERMANENT DELETE VACANCY ──────────────────────────────────
+exports.permanentDeleteVacancy = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { confirmRefNo } = req.body;
+
+        const [rows] = await db.query(
+            'SELECT ref_no, position_title, division_memo_file_path, is_deleted FROM vacancies WHERE id = ?', [id]
+        );
+        if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found.' });
+        if (!rows[0].is_deleted) return res.status(400).json({ message: 'Vacancy must be soft-deleted first.' });
+
+        if (confirmRefNo !== rows[0].ref_no) {
+            return res.status(400).json({ message: 'Ref No. does not match. Type the exact Ref No. to confirm.' });
+        }
+
+        const [appCount] = await db.query(
+            'SELECT COUNT(*) AS cnt FROM applications WHERE vacancy_id = ?', [id]
+        );
+        if (appCount[0].cnt > 0) {
+            return res.status(409).json({
+                message: `Cannot permanently delete — this vacancy has ${appCount[0].cnt} associated applicant record(s). Contact system admin if removal is required.`
+            });
+        }
+
+        if (rows[0].division_memo_file_path) {
             const fullPath = path.join(__dirname, '../../', rows[0].division_memo_file_path);
             if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
         }
 
         await db.query('DELETE FROM vacancies WHERE id = ?', [id]);
 
+        await db.query(
+            `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
+            [id, req.user.id, `Vacancy permanently deleted: ${rows[0].ref_no} — ${rows[0].position_title}`]
+        );
+
         const io = req.app.get('socketio');
         if (io) io.emit('rsp:dashboard:update');
 
-        res.json({ message: 'Vacancy deleted.' });
+        res.json({ message: 'Vacancy permanently deleted.' });
     } catch (error) {
+        console.error('❌ PERMANENT DELETE VACANCY ERROR:', error);
         res.status(500).json({ message: error.message });
     }
 };

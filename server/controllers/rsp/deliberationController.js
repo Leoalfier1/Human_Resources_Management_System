@@ -1,4 +1,5 @@
 const db = require('../../db');
+const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 const getRankedList = async (req, res) => {
     try {
@@ -19,7 +20,7 @@ const getRankedList = async (req, res) => {
             JOIN comparative_assessment_results r ON a.id = r.applicant_id
             JOIN vacancies v ON a.vacancy_id = v.id
             LEFT JOIN deliberation_notes n ON a.id = n.applicant_id
-            WHERE a.vacancy_id = ?
+            WHERE a.vacancy_id = ? AND a.status != 'disqualified'
             ORDER BY rank_val ASC`;
 
         const [rows] = await db.query(query, [vacancy_id]);
@@ -31,6 +32,21 @@ const getRankedList = async (req, res) => {
         }));
 
         res.json(results);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getQualifiedCount = async (req, res) => {
+    try {
+        const { vacancy_id } = req.query;
+        if (!vacancy_id) return res.status(400).json({ message: 'vacancy_id required' });
+
+        const [[row]] = await db.query(
+            `SELECT COUNT(*) AS count FROM applications WHERE vacancy_id = ? AND status = 'qualified'`,
+            [vacancy_id]
+        );
+        res.json({ count: row.count });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -92,6 +108,7 @@ const endorseShortlist = async (req, res) => {
 
         // Advance to Stage 9
         await db.query(`UPDATE vacancies SET current_stage = 9 WHERE id = ?`, [vacancy_id]);
+        await syncApplicationsStage(vacancy_id, 9, req.app.get('socketio'));
 
         // Log Activity
         await db.query(`INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
@@ -149,4 +166,4 @@ const endorseShortlist = async (req, res) => {
     } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-module.exports = { getRankedList, updateNotes, toggleRecommend, endorseShortlist };
+module.exports = { getRankedList, getQualifiedCount, updateNotes, toggleRecommend, endorseShortlist };

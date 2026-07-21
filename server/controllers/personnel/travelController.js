@@ -2,6 +2,7 @@ const db = require('../../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { findOrCreateEmployee } = require('../../utils/employeeHelper');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -15,13 +16,21 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }).single('file');
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Only PDF and image files are allowed'), false);
+    }
+}).single('file');
 
 exports.getMyTravelRequests = async (req, res) => {
     try {
-        const [emp] = await db.query('SELECT id FROM employees WHERE user_id = ?', [req.user.id]);
-        if (emp.length === 0) return res.status(404).json({ message: 'Employee record not found.' });
-        const [rows] = await db.query('SELECT * FROM travel_authority_requests WHERE employee_id = ? ORDER BY created_at DESC', [emp[0].id]);
+        const empRow = await findOrCreateEmployee(req.user.id);
+        if (!empRow) return res.status(404).json({ message: 'Employee record not found.' });
+        const [rows] = await db.query('SELECT * FROM travel_authority_requests WHERE employee_id = ? ORDER BY created_at DESC', [empRow.id]);
         res.json(rows);
     } catch (error) {
         console.error('getMyTravelRequests Error:', error);
@@ -37,23 +46,27 @@ exports.submitTravelRequest = (req, res) => {
             if (!purpose || !destination || !date_from || !date_to) {
                 return res.status(400).json({ message: 'purpose, destination, date_from, and date_to are required.' });
             }
-            const [emp] = await db.query('SELECT id FROM employees WHERE user_id = ?', [req.user.id]);
-            if (emp.length === 0) return res.status(404).json({ message: 'Employee record not found.' });
+            const empRow = await findOrCreateEmployee(req.user.id);
+            if (!empRow) return res.status(404).json({ message: 'Employee record not found.' });
 
             const file_path = req.file ? '/uploads/personnel/travel/' + req.file.filename : null;
 
             const [result] = await db.query(
                 'INSERT INTO travel_authority_requests (employee_id, purpose, destination, date_from, date_to, transport_mode, estimated_expense, supporting_file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [emp[0].id, purpose, destination, date_from, date_to, transport_mode || null, estimated_expense || null, file_path, 'pending']
+                [empRow.id, purpose, destination, date_from, date_to, transport_mode || null, estimated_expense || null, file_path, 'pending']
             );
 
             await db.query(
                 'INSERT INTO personnel_notifications (employee_id, type, reference_id, message) VALUES (?, ?, ?, ?)',
-                [emp[0].id, 'travel', result.insertId, 'Travel authority request submitted.']
+                [empRow.id, 'travel', result.insertId, 'Travel authority request submitted.']
             );
 
             const io = req.app.get('socketio');
-            if (io) io.emit('personnel:update');
+            if (io) {
+                io.emit('personnel:update');
+                io.emit('personnel:travel:update');
+                io.emit('personnel:notification:update');
+            }
 
             res.status(201).json({ message: 'Travel request submitted.', id: result.insertId });
         } catch (error) {
@@ -66,15 +79,18 @@ exports.submitTravelRequest = (req, res) => {
 exports.cancelTravelRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        const [emp] = await db.query('SELECT id FROM employees WHERE user_id = ?', [req.user.id]);
-        if (emp.length === 0) return res.status(404).json({ message: 'Employee record not found.' });
+        const empRow = await findOrCreateEmployee(req.user.id);
+        if (!empRow) return res.status(404).json({ message: 'Employee record not found.' });
 
-        const [travel] = await db.query('SELECT id FROM travel_authority_requests WHERE id = ? AND employee_id = ? AND status = ?', [id, emp[0].id, 'pending']);
+        const [travel] = await db.query('SELECT id FROM travel_authority_requests WHERE id = ? AND employee_id = ? AND status = ?', [id, empRow.id, 'pending']);
         if (travel.length === 0) return res.status(403).json({ message: 'Only pending travel requests can be cancelled.' });
 
         await db.query('UPDATE travel_authority_requests SET status = ? WHERE id = ?', ['cancelled', id]);
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:travel:update');
+        }
         res.json({ message: 'Travel request cancelled.' });
     } catch (error) {
         console.error('cancelTravelRequest Error:', error);
@@ -177,7 +193,11 @@ exports.approveTravel = async (req, res) => {
         );
 
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:travel:update');
+            io.emit('personnel:notification:update');
+        }
         res.json({ message: 'Travel request approved.', travel_order_path });
     } catch (error) {
         console.error('approveTravel Error:', error);
@@ -203,7 +223,11 @@ exports.rejectTravel = async (req, res) => {
         );
 
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:travel:update');
+            io.emit('personnel:notification:update');
+        }
         res.json({ message: 'Travel request rejected.' });
     } catch (error) {
         console.error('rejectTravel Error:', error);

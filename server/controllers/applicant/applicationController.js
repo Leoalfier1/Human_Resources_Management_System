@@ -87,7 +87,11 @@ exports.getLatestApplication = async (req, res) => {
 exports.updateApplication = async (req, res) => {
     try {
         const { id } = req.params;
-        const { full_name, email, phone, current_school, years_experience, status } = req.body;
+        const {
+            full_name, email, phone, current_school, years_experience, status,
+            snap_address, snap_age, snap_sex, snap_civil_status, snap_religion,
+            snap_disability, snap_ethnic_group, snap_education, snap_training_hours, snap_eligibility
+        } = req.body;
         const applicant_id = req.user.id;
 
         const [appCheck] = await db.query(
@@ -99,8 +103,16 @@ exports.updateApplication = async (req, res) => {
         // CASE A: Drafting / progress save
         if (status !== 'submitted') {
             await db.query(
-                `UPDATE applications SET full_name=?, email=?, phone=?, current_school=?, years_experience=? WHERE id=?`,
-                [full_name, email, phone, current_school, years_experience, id]
+                `UPDATE applications SET full_name=?, email=?, phone=?, current_school=?, years_experience=?,
+                 snap_address=?, snap_age=?, snap_sex=?, snap_civil_status=?, snap_religion=?,
+                 snap_disability=?, snap_ethnic_group=?, snap_education=?, snap_training_hours=?, snap_eligibility=?
+                 WHERE id=?`,
+                [
+                    full_name, email, phone, current_school, years_experience || 0,
+                    snap_address || null, snap_age || null, snap_sex || null, snap_civil_status || null, snap_religion || null,
+                    snap_disability || null, snap_ethnic_group || null, snap_education || null, snap_training_hours || null, snap_eligibility || null,
+                    id
+                ]
             );
             return res.json({ message: 'Progress saved successfully.' });
         }
@@ -108,8 +120,27 @@ exports.updateApplication = async (req, res) => {
         // CASE B: Final submission
         // CASE B: Final submission
 if (status === 'submitted') {
-    const year = new Date().getFullYear();
-    const ref_no = `APP-${String(id).padStart(3, '0')}-${year}`;
+    // Determine position-type prefix from vacancy
+    const [vacTypeRows] = await db.query(
+        'SELECT position_type FROM vacancies WHERE id = ?', [appCheck[0].vacancy_id]
+    );
+    const positionType = vacTypeRows[0]?.position_type || 'teaching';
+    const prefixMap = { teaching: 'T', teaching_related: 'TR', non_teaching: 'NT' };
+    const prefix = prefixMap[positionType] || 'T';
+
+    // Get next sequential number for this prefix (across all vacancies/years)
+    const [maxRow] = await db.query(
+        `SELECT ref_no FROM applications 
+         WHERE ref_no REGEXP ? AND status != 'draft'
+         ORDER BY ref_no DESC LIMIT 1`,
+        [`^${prefix}-[0-9]+$`]
+    );
+    let nextSeq = 1;
+    if (maxRow.length > 0) {
+        const match = maxRow[0].ref_no.match(/(\d+)$/);
+        if (match) nextSeq = parseInt(match[1], 10) + 1;
+    }
+    const ref_no = `${prefix}-${String(nextSeq).padStart(3, '0')}`;
 
     await db.query(
         `UPDATE applications SET status='submitted', submitted_at=NOW(), ref_no=? WHERE id=?`,
@@ -153,6 +184,11 @@ if (status === 'submitted') {
 
             await syncEligibilityScreeningRow(id);
 
+            if (io) {
+                io.emit('rsp:applicants:update', { applicationId: id });
+                io.emit('application:new', { applicationId: id });
+            }
+
             return res.json({ message: 'Application submitted!', ref_no });
         }
 
@@ -173,6 +209,15 @@ exports.uploadDocument = (req, res) => {
             const { id } = req.params;
             const { document_type } = req.body;
             const file_path = `/uploads/applications/${req.file.filename}`;
+
+            // If there's an existing needs_revision record for this doc type, supersede it
+            // so the evaluation join doesn't produce duplicates
+            await db.query(
+                `UPDATE application_documents
+                 SET verification_status = 'superseded'
+                 WHERE application_id = ? AND document_type = ? AND verification_status = 'needs_revision'`,
+                [id, document_type]
+            );
 
             const [result] = await db.query(
                 `INSERT INTO application_documents (application_id, document_type, file_name, file_path) 
@@ -305,11 +350,23 @@ exports.getApplicationStatus = async (req, res) => {
             WHERE r.applicant_id = ?
         `, [id]);
 
+        // Fetch documents with verification_status for applicant-side visibility
+        const [documents] = await db.query(`
+            SELECT ad.id, ad.document_type, ad.file_name, ad.file_path,
+                   ad.verification_status, ad.revision_note,
+                   ad.revision_requested_at, ad.uploaded_at
+            FROM application_documents ad
+            WHERE ad.application_id = ?
+              AND ad.verification_status != 'superseded'
+            ORDER BY ad.document_type ASC
+        `, [id]);
+
         res.json({
             application: app[0],
             stageHistory: history,
             notifications: notifs,
-            score: scoreRows.length > 0 ? scoreRows[0] : null
+            score: scoreRows.length > 0 ? scoreRows[0] : null,
+            documents
         });
     } catch (error) {
         console.error('getApplicationStatus Error:', error);

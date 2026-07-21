@@ -11,6 +11,7 @@ router.post('/', verifyToken, requireRole('applicant'), ctrl.submitRequest);
 router.get('/all', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getAllRequests);
 router.patch('/:id/process', verifyToken, requireRole('admin', 'hr_staff'), ctrl.processRequest);
 router.patch('/:id/release', verifyToken, requireRole('admin', 'hr_staff'), ctrl.releaseDocument);
+router.patch('/:id/reject', verifyToken, requireRole('admin', 'hr_staff'), ctrl.rejectRequest);
 
 // PDF generation - accessible by both employee and HR
 router.get('/:employee_id/service-record', verifyToken, requireRole('admin', 'hr_staff', 'applicant'), ctrl.generateServiceRecord);

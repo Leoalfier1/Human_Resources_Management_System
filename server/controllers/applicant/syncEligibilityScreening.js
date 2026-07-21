@@ -96,6 +96,24 @@ function getTopTraining(pds) {
     return { title: '', hours: null };
 }
 
+function getExperienceDetails(pds) {
+    if (!pds) return '';
+    try {
+        const work = safeParseJSON(pds.work_experience);
+        if (Array.isArray(work) && work.length > 0) {
+            return work.map(w => {
+                const parts = [];
+                if (w.position_title) parts.push(w.position_title);
+                if (w.company_agency) parts.push(w.company_agency);
+                if (w.date_from) parts.push(`${w.date_from} - ${w.date_to || 'Present'}`);
+                return parts.join(' at ');
+            }).join('; ');
+        }
+    } catch (e) {
+    }
+    return '';
+}
+
 async function syncEligibilityScreeningRow(applicationId) {
     try {
         const [rows] = await db.query(`
@@ -111,6 +129,9 @@ async function syncEligibilityScreeningRow(applicationId) {
                 pds.date_of_birth,
                 pds.sex,
                 pds.civil_status,
+                pds.religion,
+                pds.disability,
+                pds.ethnic_group,
                 pds.res_house_block_lot,
                 pds.res_street,
                 pds.res_subdivision_village,
@@ -140,13 +161,15 @@ async function syncEligibilityScreeningRow(applicationId) {
         const education = getHighestEducation(app);
         const eligibility = getTopEligibility(app);
         const training = getTopTraining(app);
+        const experienceDetails = getExperienceDetails(app);
 
         await db.query(`
             INSERT INTO applicant_eligibility_screening 
                 (application_id, application_code, applicant_name, address, age, sex, civil_status,
-                 email, contact_no, education, training_title, training_hours, experience_years,
+                 religion, disability, ethnic_group,
+                 email, contact_no, education, training_title, training_hours, experience_years, experience_details,
                  eligibility, vacancy_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 application_code = VALUES(application_code),
                 applicant_name = VALUES(applicant_name),
@@ -154,12 +177,16 @@ async function syncEligibilityScreeningRow(applicationId) {
                 age = VALUES(age),
                 sex = VALUES(sex),
                 civil_status = VALUES(civil_status),
+                religion = VALUES(religion),
+                disability = VALUES(disability),
+                ethnic_group = VALUES(ethnic_group),
                 email = VALUES(email),
                 contact_no = VALUES(contact_no),
                 education = VALUES(education),
                 training_title = VALUES(training_title),
                 training_hours = VALUES(training_hours),
                 experience_years = VALUES(experience_years),
+                experience_details = VALUES(experience_details),
                 eligibility = VALUES(eligibility),
                 vacancy_id = VALUES(vacancy_id)
         `, [
@@ -170,12 +197,16 @@ async function syncEligibilityScreeningRow(applicationId) {
             age,
             app.sex || null,
             app.civil_status || null,
+            app.religion || null,
+            app.disability || null,
+            app.ethnic_group || null,
             app.email,
             app.phone,
             education,
             training.title,
             training.hours,
             app.years_experience || 0,
+            experienceDetails,
             eligibility,
             app.vacancy_id
         ]);

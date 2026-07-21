@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Bell, GraduationCap, UserCheck, LayoutDashboard, Trophy, Users, BarChart3, ListChecks, Award, FileText } from 'lucide-react';
+import { X, Bell, GraduationCap, UserCheck, LayoutDashboard, Trophy, Users, BarChart3, ListChecks, Award, FileText, CalendarDays, Search, ClipboardCheck, Vote, Megaphone, PartyPopper, FileBarChart, ArrowLeft, Layers } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 
@@ -25,12 +25,17 @@ const RRAdminLayout = () => {
 
     const navItems = [
         { path: '/rr/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { path: '/rr/searches', label: 'Step 1-2\nSearches & Nominations', icon: Trophy },
-        { path: '/rr/nominations', label: 'Step 3\nEvaluation Prep', icon: Users },
-        { path: '/rr/evaluation', label: 'Step 4\nEvaluation', icon: BarChart3 },
-        { path: '/rr/deliberation', label: 'Step 5\nDeliberation', icon: ListChecks },
-        { path: '/rr/awards', label: 'Step 6-7\nAwards & Ceremony', icon: Award },
-        { path: '/rr/reports', label: 'Step 8\nReports', icon: FileText },
+    ];
+
+    const rrNavItems = [
+        { path: '/rr/praise-committee-meeting', label: 'PRAISE\nCommittee Meeting', icon: CalendarDays },
+        { path: '/rr/call-for-nominees', label: 'Call for\nNominees', icon: Search },
+        { path: '/rr/preliminary-evaluation', label: 'Preliminary\nEvaluation', icon: ClipboardCheck },
+        { path: '/rr/evaluation', label: 'Validation &\nInterview', icon: Users },
+        { path: '/rr/deliberation', label: 'Deliberation &\nFinalization', icon: Vote },
+        { path: '/rr/announcement', label: 'Announcement\nof Results', icon: Megaphone },
+        { path: '/rr/ceremony', label: 'Awarding\nCeremony', icon: PartyPopper },
+        { path: '/rr/reports', label: 'R&R\nImplementation Report', icon: FileBarChart },
     ];
 
     const notificationIcons = {
@@ -49,17 +54,19 @@ const RRAdminLayout = () => {
     return (
         <div className="flex bg-[#F1F3F6] min-h-screen">
             <motion.div
+                initial={{ width: 260 }}
                 animate={{ width: isCollapsed ? 80 : 260 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="bg-[#1B3A6B] text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-[100] overflow-hidden"
             >
                 <div className="p-5 flex items-center gap-3 border-b border-white/10">
-                    <div className="bg-amber-500 p-2 rounded-xl shrink-0">
-                        <Trophy size={22} />
+                    <div className="bg-[#D6402F] p-2 rounded-xl shrink-0 overflow-hidden">
+                        <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
                     </div>
                     {!isCollapsed && (
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-black uppercase tracking-tight leading-tight">Rewards &</p>
-                            <p className="text-[10px] text-amber-200 font-bold uppercase tracking-widest">Recognition</p>
+                        <div>
+                            <p className="text-sm font-black uppercase tracking-tight leading-tight">PRIME</p>
+                            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">HRM System</p>
                         </div>
                     )}
                 </div>
@@ -67,13 +74,36 @@ const RRAdminLayout = () => {
                 <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                     {navItems.map(item => {
                         const active = isActive(item.path);
-                        const lines = item.label.split('\n');
                         return (
                             <button
                                 key={item.path}
                                 onClick={() => navigate(item.path)}
                                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left
-                                    ${active ? 'bg-amber-500/20 text-amber-300 shadow-lg' : 'text-blue-200 hover:bg-white/10 hover:text-white'}`}
+                                    ${active ? 'bg-[#D6402F] text-white shadow-lg' : 'text-blue-200 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <item.icon size={20} className="shrink-0" />
+                                {!isCollapsed && (
+                                    <span className="text-xs font-black uppercase leading-tight">{item.label}</span>
+                                )}
+                            </button>
+                        );
+                    })}
+
+                    {!isCollapsed && (
+                        <div className="pt-4 pb-1 px-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-300/60">Rewards & Recognition</p>
+                        </div>
+                    )}
+
+                    {rrNavItems.map(item => {
+                        const active = isActive(item.path);
+                        const lines = item.label.split('\n');
+                        return (
+                            <button
+                                key={item.path}
+                                onClick={() => navigate(item.path)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left
+                                    ${active ? 'bg-[#D6402F] text-white shadow-lg' : 'text-blue-200 hover:bg-white/10 hover:text-white'}`}
                             >
                                 <item.icon size={20} className="shrink-0" />
                                 {!isCollapsed && (
@@ -85,6 +115,22 @@ const RRAdminLayout = () => {
                             </button>
                         );
                     })}
+
+                    {!isCollapsed && (
+                        <div className="pt-4 pb-1 px-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-300/60">Developer</p>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => navigate('/rr/component-library')}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left
+                            ${isActive('/rr/component-library') ? 'bg-[#D6402F] text-white shadow-lg' : 'text-blue-200 hover:bg-white/10 hover:text-white'}`}
+                    >
+                        <Layers size={20} className="shrink-0" />
+                        {!isCollapsed && (
+                            <span className="text-xs font-black uppercase leading-tight">Component Library</span>
+                        )}
+                    </button>
                 </div>
 
                 <div className="p-4 border-t border-white/10">
@@ -98,23 +144,40 @@ const RRAdminLayout = () => {
                         <div className="mt-3">
                             <p className="text-xs font-bold text-white">{user?.fullName}</p>
                             <p className="text-[9px] text-blue-300 uppercase tracking-widest">{ROLE_LABELS[user?.role] || 'Staff'}</p>
-                            <button onClick={() => navigate('/pillars')} className="mt-2 text-[10px] text-blue-300 hover:text-white underline underline-offset-2">
-                                Back to Pillars
-                            </button>
                         </div>
                     )}
+                    <button
+                        onClick={() => navigate('/pillars')}
+                        className="mt-3 flex items-center gap-2 text-[10px] text-blue-300 hover:text-white transition-colors font-bold uppercase tracking-wider"
+                    >
+                        <ArrowLeft size={14} />
+                        {!isCollapsed && 'Back to Pillars'}
+                    </button>
                 </div>
             </motion.div>
 
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
                 <header className="h-[72px] bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
                     <div>
-                        <h1 className="text-xl font-bold text-[#1B3A6B] leading-tight">
-                            {navItems.find(n => location.pathname.startsWith(n.path))?.label.split('\n')[0] || 'R&R Module'}
-                        </h1>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                            R&R Module · PRIME-HRM · SDO Dapitan City
-                        </p>
+                        {location.pathname.includes('component-library') ? (
+                            <>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">
+                                    Developer Tools /
+                                </p>
+                                <h1 className="text-xl font-bold text-[#1B3A6B] leading-tight">
+                                    Component Library
+                                </h1>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-xl font-bold text-[#1B3A6B] leading-tight">
+                                    {[...navItems, ...rrNavItems].find(n => location.pathname.startsWith(n.path))?.label.split('\n').join(' ') || 'R&R Module'}
+                                </h1>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                                    R&R Module · PRIME-HRM · SDO Dapitan City
+                                </p>
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="w-9 h-9 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-xs">

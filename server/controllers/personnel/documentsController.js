@@ -2,6 +2,7 @@ const db = require('../../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { findOrCreateEmployee } = require('../../utils/employeeHelper');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -17,16 +18,34 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
-    limits: { fileSize: 20 * 1024 * 1024 }
+    limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Only PDF and image files are allowed'), false);
+    }
 }).single('file');
+
+const CHECKLIST_ALIASES = {
+    'Transcript of Records / S.O.': ['Transcript of Records'],
+    'Marriage Contract': ['Marriage Contract', 'Marriage Certificate'],
+    'CSC Form 211': ['CSC Form 211'],
+    'SALN': ['SALN'],
+    'NBI Clearance': ['NBI Clearance'],
+    'Police Clearance': ['Police Clearance'],
+    'BIR Form 1902/2305': ['BIR Form 1902/2305'],
+    'DBP ATM Application': ['DBP ATM Application'],
+    'PhilHealth No. (PEN)': ['PhilHealth No. (PEN)'],
+    'Pag-IBIG MID No.': ['Pag-IBIG MID No.'],
+};
 
 exports.getMyDocuments = async (req, res) => {
     try {
-        const [emp] = await db.query('SELECT id FROM employees WHERE user_id = ?', [req.user.id]);
-        if (emp.length === 0) return res.status(404).json({ message: 'Employee record not found.' });
+        const empRow = await findOrCreateEmployee(req.user.id);
+        if (!empRow) return res.status(404).json({ message: 'Employee record not found.' });
         const [rows] = await db.query(
             'SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY created_at DESC',
-            [emp[0].id]
+            [empRow.id]
         );
         res.json(rows);
     } catch (error) {
@@ -40,17 +59,20 @@ exports.uploadMyDocument = (req, res) => {
         if (err) return res.status(400).json({ message: err.message });
         if (!req.file) return res.status(400).json({ message: 'No file selected.' });
         try {
-            const [emp] = await db.query('SELECT id FROM employees WHERE user_id = ?', [req.user.id]);
-            if (emp.length === 0) return res.status(404).json({ message: 'Employee record not found.' });
+            const empRow = await findOrCreateEmployee(req.user.id);
+            if (!empRow) return res.status(404).json({ message: 'Employee record not found.' });
 
             const file_path = '/uploads/personnel/201/' + req.file.filename;
             await db.query(
                 'INSERT INTO employee_documents (employee_id, document_type, file_name, file_path, file_size_kb, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)',
-                [emp[0].id, req.body.document_type || 'General', req.file.originalname, file_path, Math.round(req.file.size / 1024), req.user.id]
+                [empRow.id, req.body.document_type || 'General', req.file.originalname, file_path, Math.round(req.file.size / 1024), req.user.id]
             );
 
             const io = req.app.get('socketio');
-            if (io) io.emit('personnel:update');
+            if (io) {
+                io.emit('personnel:update');
+                io.emit('personnel:document:update');
+            }
 
             res.json({ message: 'Document uploaded successfully.', file_name: req.file.originalname });
         } catch (error) {
@@ -82,14 +104,83 @@ exports.verifyDocument = async (req, res) => {
     try {
         const { id } = req.params;
         await db.query(
-            'UPDATE employee_documents SET is_verified = 1, verified_by = ?, verified_at = NOW() WHERE id = ?',
+            'UPDATE employee_documents SET is_verified = 1, status = \'approved\', verified_by = ?, verified_at = NOW() WHERE id = ?',
             [req.user.id, id]
         );
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:document:update');
+        }
         res.json({ message: 'Document verified.' });
     } catch (error) {
         console.error('verifyDocument Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.rejectDocument = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rejection_reason } = req.body;
+        await db.query(
+            'UPDATE employee_documents SET is_verified = 0, status = \'rejected\', remarks = ?, verified_by = ?, verified_at = NOW() WHERE id = ?',
+            [rejection_reason || null, req.user.id, id]
+        );
+        const io = req.app.get('socketio');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:document:update');
+        }
+        res.json({ message: 'Document rejected.' });
+    } catch (error) {
+        console.error('rejectDocument Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.get201Summary = async (req, res) => {
+    try {
+        const [employees] = await db.query(
+            'SELECT id, employee_no, CONCAT(first_name, \' \', last_name) AS employee_name FROM employees ORDER BY last_name, first_name'
+        );
+
+        const aliasValues = Object.values(CHECKLIST_ALIASES).flat();
+        const placeholders = aliasValues.map(() => '?').join(',');
+        const [docs] = await db.query(
+            `SELECT employee_id, document_type, status, is_verified
+             FROM employee_documents
+             WHERE document_type IN (${placeholders})`,
+            aliasValues
+        );
+
+        const summary = employees.map(emp => {
+            const empDocs = docs.filter(d => d.employee_id === emp.id);
+            let completedCount = 0;
+
+            for (const [, aliases] of Object.entries(CHECKLIST_ALIASES)) {
+                const matched = empDocs.filter(doc =>
+                    aliases.some(a => a.toLowerCase() === (doc.document_type || '').toLowerCase())
+                );
+                if (matched.length > 0) {
+                    const isApproved = matched.some(d => d.status === 'approved' || d.is_verified);
+                    if (isApproved) completedCount++;
+                }
+            }
+
+            return {
+                employee_id: emp.id,
+                employee_no: emp.employee_no,
+                employee_name: emp.employee_name,
+                completed_count: completedCount,
+            };
+        });
+
+        summary.sort((a, b) => b.completed_count - a.completed_count);
+
+        res.json(summary);
+    } catch (error) {
+        console.error('get201Summary Error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -104,12 +195,15 @@ exports.uploadHRDocument = (req, res) => {
 
             const file_path = '/uploads/personnel/201/' + req.file.filename;
             await db.query(
-                'INSERT INTO employee_documents (employee_id, document_type, file_name, file_path, file_size_kb, uploaded_by, is_verified) VALUES (?, ?, ?, ?, ?, ?, 1)',
+                'INSERT INTO employee_documents (employee_id, document_type, file_name, file_path, file_size_kb, uploaded_by, is_verified, status) VALUES (?, ?, ?, ?, ?, ?, 1, \'approved\')',
                 [employee_id, document_type || 'General', req.file.originalname, file_path, Math.round(req.file.size / 1024), req.user.id]
             );
 
             const io = req.app.get('socketio');
-            if (io) io.emit('personnel:update');
+            if (io) {
+                io.emit('personnel:update');
+                io.emit('personnel:document:update');
+            }
 
             res.json({ message: 'Document uploaded successfully.' });
         } catch (error) {

@@ -1,12 +1,10 @@
 import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Briefcase, FileText, Bell, Star, UserCheck, Shield, LogOut, Settings } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { Outlet, NavLink } from 'react-router-dom';
+import { Briefcase, FileText, Bell, Star, UserCheck, Settings } from 'lucide-react';
+import ApplicantAccountBlock from '../shared/ApplicantAccountBlock';
+import PortalBackButton from '../shared/PortalBackButton';
 
 const ApplicantPortalLayout = () => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
-
     const navItems = [
         { label: 'JOB OPENINGS', path: '/jobs', icon: Briefcase },
         { label: 'MY APPLICATION', path: '/jobs/my-application', icon: FileText },
@@ -32,8 +30,8 @@ const ApplicantPortalLayout = () => {
                     
                     {/* Brand Logo */}
                     <div className="flex flex-col items-center">
-                        <div className="bg-[#1B3A6B] p-3 rounded-xl text-white shadow-lg">
-                            <Shield size={28} fill="currentColor" />
+                        <div className="bg-[#1B3A6B] p-3 rounded-xl text-white shadow-lg overflow-hidden">
+                            <img src="/assets/deped-seal.png" alt="DepEd" className="w-7 h-7 object-contain" />
                         </div>
                         <p className="text-[9px] font-black text-slate-400 mt-2 tracking-widest uppercase">SDO Dapitan City</p>
                     </div>
@@ -44,6 +42,7 @@ const ApplicantPortalLayout = () => {
                             <NavLink
                                 key={item.path}
                                 to={item.path}
+                                end={item.path === '/jobs'}
                                 className={({ isActive }) => `
                                     flex flex-col items-center justify-center w-24 h-24 rounded-2xl transition-all
                                     ${isActive 
@@ -64,25 +63,9 @@ const ApplicantPortalLayout = () => {
                     </div>
 
                     {/* User Info & Switch Module */}
-                    <div className="flex items-center gap-6">
-                        <div className="text-right border-r pr-6 border-slate-100 hidden md:block">
-                            <h3 className="text-sm font-black text-[#1B3A6B] leading-none uppercase">
-                                {user?.fullName || "LEO ALFIER TEST"}
-                            </h3>
-                            <p className="text-[10px] font-black text-[#D6402F] mt-1 tracking-tighter uppercase">
-                                Applicant Account
-                            </p>
-                        </div>
-                        <button 
-                            onClick={() => navigate('/pillars')} 
-                            className="group flex flex-col items-center gap-1"
-                            title="Back to Pillars"
-                        >
-                            <div className="bg-slate-50 text-slate-400 p-3 rounded-full group-hover:bg-red-50 group-hover:text-[#D6402F] transition-all border border-slate-100">
-                                <LogOut size={20} />
-                            </div>
-                            <span className="text-[8px] font-black text-slate-400 uppercase">Back</span>
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <ApplicantAccountBlock />
+                        <PortalBackButton />
                     </div>
                 </div>
             </nav>

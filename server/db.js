@@ -69,7 +69,63 @@ async function patchDatabase() {
             console.log("🔹 Added application_id column + FK to applicant_eligibility_screening");
         }
 
+        // 4. Widen name_extension column size to VARCHAR(100) to prevent ER_DATA_TOO_LONG
+        const [pdsCols] = await db.query("SHOW COLUMNS FROM personal_data_sheets");
+        const neColPds = pdsCols.find(c => c.Field === 'name_extension');
+        if (neColPds && neColPds.Type && neColPds.Type.includes('20')) {
+            await db.query("ALTER TABLE personal_data_sheets MODIFY COLUMN name_extension VARCHAR(100) DEFAULT NULL");
+            console.log("🔹 Widened name_extension column to VARCHAR(100) in personal_data_sheets");
+        }
+
+        const [empCols] = await db.query("SHOW COLUMNS FROM employees");
+        const neColEmp = empCols.find(c => c.Field === 'name_extension');
+        if (neColEmp && neColEmp.Type && neColEmp.Type.includes('20')) {
+            await db.query("ALTER TABLE employees MODIFY COLUMN name_extension VARCHAR(100) DEFAULT NULL");
+            console.log("🔹 Widened name_extension column to VARCHAR(100) in employees");
+        }
+
+        // 5. Sync IES evaluation weights from templates to correct older records that had 10.00
+        await db.query(`
+            UPDATE ies_criterion_scores ics
+            JOIN ies_evaluations ie ON ics.ies_evaluation_id = ie.id
+            JOIN ies_weight_templates iwt ON ie.position_category = iwt.position_category 
+                AND (ie.bracket_key = iwt.bracket_key OR (ie.bracket_key IS NULL AND iwt.bracket_key IS NULL))
+                AND ics.criteria_key = iwt.criteria_key
+            SET ics.weight_allocation = iwt.max_points
+            WHERE ics.weight_allocation != iwt.max_points;
+        `);
+        console.log("🔹 Synced IES evaluation criteria weights with DO 007 templates");
+
+        // 6. Fix "0 as sentinel" flaw by allowing NULL in actual_score
+        const [icsCols] = await db.query("SHOW COLUMNS FROM ies_criterion_scores");
+        const asCol = icsCols.find(c => c.Field === 'actual_score');
+        if (asCol && asCol.Null === 'NO') {
+            await db.query("ALTER TABLE ies_criterion_scores MODIFY COLUMN actual_score decimal(5,2) DEFAULT NULL");
+            // Set existing 0.00 to NULL to clear the old scaffolded default, BUT ONLY for draft evaluations with total 0
+            await db.query(`
+                UPDATE ies_criterion_scores ics
+                JOIN ies_evaluations ie ON ics.ies_evaluation_id = ie.id
+                SET ics.actual_score = NULL
+                WHERE ics.actual_score = 0 AND ie.status = 'draft' AND (ie.total_score = 0 OR ie.total_score IS NULL)
+            `);
+            console.log("🔹 Updated actual_score to allow NULL and cleared old 0.00 scaffolds");
+        }
+
+        // 7. Fix schools_offices collation mismatch (migration 045)
+        //    schools_offices was created with the MySQL 8 server-default collation
+        //    (utf8mb4_0900_ai_ci) while every other table uses utf8mb4_unicode_ci.
+        //    JOINing schools_offices.name against vacancies.assigned_school causes
+        //    "Illegal mix of collations" (ER_CANT_AGGREGATE_2COLLATIONS).
+        const [soStatus] = await db.query(`SHOW TABLE STATUS WHERE Name = 'schools_offices'`);
+        if (soStatus.length > 0 && soStatus[0].Collation !== 'utf8mb4_unicode_ci') {
+            await db.query(
+                `ALTER TABLE schools_offices CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+            );
+            console.log('🔹 Fixed schools_offices collation → utf8mb4_unicode_ci');
+        }
+
         console.log("✅ Database self-healing check completed successfully.");
+
     } catch (err) {
         console.error('❌ Database self-healing check failed:', err.message);
     }

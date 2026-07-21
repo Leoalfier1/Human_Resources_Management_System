@@ -2,22 +2,96 @@ const db = require('../../db');
 
 exports.personnelSummary = async (req, res) => {
     try {
-        const [total] = await db.query('SELECT COUNT(*) as count FROM employees WHERE is_active = 1');
-        const [byType] = await db.query('SELECT employment_type, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_type');
-        const [byStatus] = await db.query('SELECT employment_status, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_status');
-        const [bySchool] = await db.query('SELECT assigned_school, COUNT(*) as count FROM employees WHERE is_active = 1 AND assigned_school IS NOT NULL GROUP BY assigned_school ORDER BY count DESC LIMIT 10');
-        const [pendingLeave] = await db.query("SELECT COUNT(*) as count FROM leave_applications WHERE status = 'pending'");
-        const [pendingTravel] = await db.query("SELECT COUNT(*) as count FROM travel_authority_requests WHERE status = 'pending'");
-        const [pendingDocs] = await db.query("SELECT COUNT(*) as count FROM document_requests WHERE status = 'pending'");
+        const queries = {};
+
+        const run = async (key, sql, params) => {
+            try {
+                const [rows] = await db.query(sql, params || []);
+                queries[key] = rows;
+            } catch (err) {
+                console.error(`personnelSummary query [${key}] Error:`, err.message);
+                queries[key] = [];
+            }
+        };
+
+        await Promise.all([
+            run('total', 'SELECT COUNT(*) as count FROM employees WHERE is_active = 1'),
+            run('byType', 'SELECT employment_type, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_type'),
+            run('byStatus', 'SELECT employment_status, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_status'),
+            run('bySchool', 'SELECT assigned_school, COUNT(*) as count FROM employees WHERE is_active = 1 AND assigned_school IS NOT NULL GROUP BY assigned_school ORDER BY count DESC LIMIT 10'),
+            run('pendingLeave', "SELECT COUNT(*) as count FROM leave_applications WHERE status IN ('pending', 'recommended')"),
+            run('pendingDocs', "SELECT COUNT(*) as count FROM document_requests WHERE status = 'pending'"),
+            run('recentActivity',
+                `SELECT pal.id, pal.action_type, pal.description, pal.created_at,
+                        u.full_name AS actor_name
+                 FROM personnel_activity_log pal
+                 LEFT JOIN users u ON u.id = pal.actor_id
+                 ORDER BY pal.created_at DESC
+                 LIMIT 10`),
+            run('docSummary',
+                `SELECT e.id AS employee_id,
+                        ed.document_type, ed.status, ed.is_verified
+                 FROM employees e
+                 LEFT JOIN employee_documents ed
+                    ON ed.employee_id = e.id
+                    AND ed.document_type IN (
+                        'Transcript of Records', 'Marriage Contract', 'Marriage Certificate',
+                        'CSC Form 211', 'SALN', 'NBI Clearance', 'Police Clearance',
+                        'BIR Form 1902/2305', 'DBP ATM Application',
+                        'PhilHealth No. (PEN)', 'Pag-IBIG MID No.'
+                    )
+                 WHERE e.is_active = 1`)
+        ]);
+
+        const CHECKLIST_ALIASES = {
+            'Transcript of Records / S.O.': ['Transcript of Records'],
+            'Marriage Contract': ['Marriage Contract', 'Marriage Certificate'],
+            'CSC Form 211': ['CSC Form 211'],
+            'SALN': ['SALN'],
+            'NBI Clearance': ['NBI Clearance'],
+            'Police Clearance': ['Police Clearance'],
+            'BIR Form 1902/2305': ['BIR Form 1902/2305'],
+            'DBP ATM Application': ['DBP ATM Application'],
+            'PhilHealth No. (PEN)': ['PhilHealth No. (PEN)'],
+            'Pag-IBIG MID No.': ['Pag-IBIG MID No.'],
+        };
+
+        const empDocs = queries.docSummary || [];
+
+        const empMap = {};
+        for (const row of empDocs) {
+            if (!empMap[row.employee_id]) empMap[row.employee_id] = [];
+            if (row.document_type) empMap[row.employee_id].push(row);
+        }
+
+        let totalCompliance = 0;
+        const empIds = Object.keys(empMap);
+        for (const empId of empIds) {
+            let completed = 0;
+            for (const aliases of Object.values(CHECKLIST_ALIASES)) {
+                const matched = empMap[empId].filter(d =>
+                    aliases.some(a => a.toLowerCase() === (d.document_type || '').toLowerCase())
+                );
+                if (matched.length > 0 && matched.some(d => d.status === 'approved' || d.is_verified)) {
+                    completed++;
+                }
+            }
+            totalCompliance += completed;
+        }
+
+        const avg201 = empIds.length > 0
+            ? Math.round((totalCompliance / empIds.length / 10) * 1000) / 10
+            : 0;
 
         res.json({
-            total_employees: total[0].count,
-            by_employment_type: byType,
-            by_employment_status: byStatus,
-            top_schools: bySchool,
-            pending_leave: pendingLeave[0].count,
-            pending_travel: pendingTravel[0].count,
-            pending_documents: pendingDocs[0].count
+            total_employees: queries.total[0]?.count ?? 0,
+            by_employment_type: queries.byType,
+            by_employment_status: queries.byStatus,
+            top_schools: queries.bySchool,
+            pending_leave: queries.pendingLeave[0]?.count ?? 0,
+            pending_documents: queries.pendingDocs[0]?.count ?? 0,
+            avg_201_compliance: avg201,
+            recent_activity: queries.recentActivity
         });
     } catch (error) {
         console.error('personnelSummary Error:', error);
@@ -149,3 +223,21 @@ exports.auditLog = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.badgeCounts = async (req, res) => {
+    try {
+        const [profileRows] = await db.query("SELECT COUNT(*) as count FROM employee_profile_change_requests WHERE status = 'pending'");
+        const [leaveRows]   = await db.query("SELECT COUNT(*) as count FROM leave_applications WHERE status IN ('pending', 'recommended')");
+        const [docRows]     = await db.query("SELECT COUNT(*) as count FROM document_requests WHERE status = 'pending'");
+
+        res.json({
+            pending_profile_changes: profileRows[0]?.count ?? 0,
+            pending_leave: leaveRows[0]?.count ?? 0,
+            pending_documents: docRows[0]?.count ?? 0,
+        });
+    } catch (error) {
+        console.error('badgeCounts Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+

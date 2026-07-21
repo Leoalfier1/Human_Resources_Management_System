@@ -2,30 +2,9 @@ const db = require('../../db');
 const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
-const multer = require('multer');
 
 const CERT_DIR = './uploads/rr/certificates/';
-const PHOTO_DIR = './uploads/rr/ceremony/';
 if (!fs.existsSync(CERT_DIR)) fs.mkdirSync(CERT_DIR, { recursive: true });
-if (!fs.existsSync(PHOTO_DIR)) fs.mkdirSync(PHOTO_DIR, { recursive: true });
-
-const photoStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, PHOTO_DIR),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'CEREMONY-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-const uploadPhotos = multer({
-    storage: photoStorage,
-    limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
-        if (allowed.includes(file.mimetype)) cb(null, true);
-        else cb(new Error('Only image files are allowed'), false);
-    }
-}).array('photos', 20);
 
 exports.getAwards = async (req, res) => {
     try {
@@ -62,10 +41,16 @@ exports.announceResults = async (req, res) => {
         await db.query('UPDATE rr_awards SET announced_at = NOW() WHERE search_id = ?', [search_id]);
 
         for (const award of awards) {
-            await db.query(
-                'INSERT INTO notifications (application_id, message) VALUES (NULL, ?)',
-                [`Congratulations! You have been awarded "${award.award_title}" in the R&R Search.`]
+            const [emp] = await db.query(
+                'SELECT id AS employee_id FROM employees WHERE user_id = ? LIMIT 1',
+                [award.user_id]
             );
+            if (emp.length > 0) {
+                await db.query(
+                    'INSERT INTO personnel_notifications (employee_id, type, message) VALUES (?, ?, ?)',
+                    [emp[0].employee_id, 'general', `Congratulations! You have been awarded "${award.award_title}" in the R&R Search.`]
+                );
+            }
         }
 
         const io = req.app.get('socketio');
@@ -261,49 +246,4 @@ exports.downloadMyCertificate = async (req, res) => {
         console.error('❌ DOWNLOAD CERT ERROR:', err);
         res.status(500).json({ message: 'Failed to download certificate' });
     }
-};
-
-exports.recordCeremony = async (req, res) => {
-    try {
-        const { search_id, ceremony_date, venue, program_of_activities, guest_of_honor } = req.body;
-
-        await db.query(`
-            INSERT INTO rr_ceremony (search_id, ceremony_date, venue, program_of_activities, guest_of_honor)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE ceremony_date = VALUES(ceremony_date), venue = VALUES(venue),
-                program_of_activities = VALUES(program_of_activities), guest_of_honor = VALUES(guest_of_honor)
-        `, [search_id, ceremony_date, venue, program_of_activities, guest_of_honor]);
-
-        const io = req.app.get('socketio');
-        if (io) io.emit('rr:dashboard:update');
-
-        res.json({ message: 'Ceremony details saved' });
-    } catch (err) {
-        console.error('❌ RECORD CEREMONY ERROR:', err);
-        res.status(500).json({ message: 'Failed to save ceremony details' });
-    }
-};
-
-exports.uploadCeremonyPhotos = async (req, res) => {
-    uploadPhotos(req, res, async (err) => {
-        if (err) return res.status(400).json({ message: err.message });
-        try {
-            const { search_id } = req.body;
-            const files = req.files || [];
-            if (files.length === 0) return res.status(400).json({ message: 'No photos uploaded' });
-
-            const photoPaths = files.map(f => f.path.replace(/\\/g, '/'));
-
-            await db.query(`
-                INSERT INTO rr_ceremony (search_id, photos_path)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE photos_path = VALUES(photos_path)
-            `, [search_id, photoPaths.join(',')]);
-
-            res.json({ message: `${files.length} photo(s) uploaded`, photos: photoPaths });
-        } catch (err) {
-            console.error('❌ UPLOAD CEREMONY PHOTOS ERROR:', err);
-            res.status(500).json({ message: 'Failed to upload photos' });
-        }
-    });
 };

@@ -86,5 +86,50 @@ const sendResetPasswordEmail = async (email, token) => {
     return transporter.sendMail(mailOptions);
 };
 
+const sendAnnexEEmail = async (email, applicantName, positionTitle, letterType, pdfBuffer, applicationCode) => {
+    const subject = letterType === 'qualified'
+        ? `Initial Evaluation Result – ${positionTitle} (Qualified)`
+        : `Initial Evaluation Result – ${positionTitle} (Disqualified)`;
+
+    const body = letterType === 'qualified'
+        ? `<p>Dear ${applicantName},</p>
+           <p>Please find attached your Initial Evaluation Advice Letter regarding your application for the position of <strong>${positionTitle}</strong> (Application Code: <strong>${applicationCode}</strong>).</p>
+           <p>Congratulations! You have been found qualified based on the initial evaluation of your qualifications vis-à-vis the CSC-approved Qualification Standards.</p>
+           <p>You may refer to the attached Annex E for the detailed evaluation results and next steps in the selection process.</p>`
+        : `<p>Dear ${applicantName},</p>
+           <p>Please find attached your Initial Evaluation Advice Letter regarding your application for the position of <strong>${positionTitle}</strong> (Application Code: <strong>${applicationCode}</strong>).</p>
+           <p>After careful review of your qualifications vis-à-vis the CSC-approved Qualification Standards, we regret to inform you that you did not meet the minimum requirements for this position.</p>
+           <p>You may, however, continue to submit job applications in response to other vacancy announcements published on our official channels.</p>
+           <p>Thank you and we wish you the best of luck in your future endeavors.</p>`;
+
+    const mailOptions = {
+        from: `"DepEd HRMIS – SDO Dapitan City" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject,
+        html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #1B3A6B; margin: 0;">Schools Division Office of Dapitan City</h2>
+                    <p style="color: #64748b; font-size: 12px; margin: 4px 0 0;">Department of Education – Region IX</p>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                ${body}
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">
+                    This is an official communication from the Human Resource Management Division.<br>
+                    Please do not reply to this email. For inquiries, contact us at the numbers provided in the attached letter.
+                </p>
+            </div>
+        `,
+        attachments: pdfBuffer ? [{
+            filename: `AnnexE_${applicationCode}_${letterType === 'qualified' ? 'Qualified' : 'Disqualified'}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+        }] : []
+    };
+
+    return transporter.sendMail(mailOptions);
+};
+
 // Update your module.exports at the bottom to include it:
-module.exports = { sendVerificationEmail, sendResetPasswordEmail };
+module.exports = { sendVerificationEmail, sendResetPasswordEmail, sendAnnexEEmail };

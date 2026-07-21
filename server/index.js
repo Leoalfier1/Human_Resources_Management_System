@@ -7,6 +7,7 @@ const path = require('path');
 const db = require('./db');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // 1. SOCKET.IO SETUP
@@ -53,63 +54,76 @@ function registerRoute(path, routePath) {
 console.log('📦 Registering routes...');
 
 // Auth
-registerRoute('/api/auth',    './routes/auth');
+registerRoute('/api/auth', './routes/auth');
 registerRoute('/api/branding', './routes/branding');
 
 // Admin user management & profile
-registerRoute('/api/admin',    './routes/admin');
-registerRoute('/api/profile',  './routes/profile');
+registerRoute('/api/admin', './routes/admin');
+registerRoute('/api/profile', './routes/profile');
 
 // Applicant-facing routes
-registerRoute('/api/vacancies',    './routes/applicant/vacancies');
+registerRoute('/api/vacancies', './routes/applicant/vacancies');
 registerRoute('/api/applications', './routes/applicant/applications');
 registerRoute('/api/applicant/pds', './routes/applicant/pds');
 
 // Admin RSP routes
-registerRoute('/api/rsp/dashboard',              './routes/rsp/dashboard');
-registerRoute('/api/rsp/vacancies',              './routes/rsp/vacancies');
-registerRoute('/api/rsp/applicants',             './routes/rsp/applicants');
-registerRoute('/api/rsp/evaluation',             './routes/rsp/evaluation');
+registerRoute('/api/rsp/dashboard', './routes/rsp/dashboard');
+registerRoute('/api/rsp/vacancies', './routes/rsp/vacancies');
+registerRoute('/api/rsp/applicants', './routes/rsp/applicants');
+registerRoute('/api/rsp/evaluation', './routes/rsp/evaluation');
 registerRoute('/api/rsp/comparative-assessment', './routes/rsp/comparative-assessment');
-registerRoute('/api/rsp/results',                './routes/rsp/results');
-registerRoute('/api/rsp/deliberation',           './routes/rsp/deliberation');
-registerRoute('/api/rsp/congratulatory-advice',  './routes/rsp/advice');
-registerRoute('/api/rsp/appointment',            './routes/rsp/appointment');
-registerRoute('/api/rsp/notice-of-appointment',  './routes/rsp/notice');
-registerRoute('/api/rsp/eligibility',            './routes/rsp/eligibility');
-registerRoute('/api/rsp/appeals',                './routes/rsp/appeals');
+registerRoute('/api/rsp/ca-workspace', './routes/rsp/ca-workspace');
+registerRoute('/api/rsp/ies', './routes/rsp/ies');
+registerRoute('/api/rsp/results', './routes/rsp/results');
+registerRoute('/api/rsp/deliberation', './routes/rsp/deliberation');
+registerRoute('/api/rsp/congratulatory-advice', './routes/rsp/advice');
+registerRoute('/api/rsp/appointment', './routes/rsp/appointment');
+registerRoute('/api/rsp/notice-of-appointment', './routes/rsp/notice');
+registerRoute('/api/rsp/eligibility', './routes/rsp/eligibility');
+registerRoute('/api/rsp/appeals', './routes/rsp/appeals');
 
 // L&D routes
-registerRoute('/api/ld/tna',         './routes/ld/tna');
-registerRoute('/api/ld/objectives',  './routes/ld/objectives');
-registerRoute('/api/ld/plans',       './routes/ld/plans');
-registerRoute('/api/ld/programs',    './routes/ld/programs');
-registerRoute('/api/ld/evaluation',  './routes/ld/evaluation');
+registerRoute('/api/ld/tna', './routes/ld/tna');
+registerRoute('/api/ld/objectives', './routes/ld/objectives');
+registerRoute('/api/ld/plans', './routes/ld/plans');
+registerRoute('/api/ld/programs', './routes/ld/programs');
+registerRoute('/api/ld/evaluation', './routes/ld/evaluation');
 
 // PM routes
-registerRoute('/api/pm/periods',      './routes/pm/periods');
-registerRoute('/api/pm/commitments',  './routes/pm/commitments');
-registerRoute('/api/pm/coaching',     './routes/pm/coaching');
-registerRoute('/api/pm/ratings',      './routes/pm/ratings');
-registerRoute('/api/pm/rewards',      './routes/pm/rewards');
+registerRoute('/api/pm/periods', './routes/pm/periods');
+registerRoute('/api/pm/commitments', './routes/pm/commitments');
+registerRoute('/api/pm/coaching', './routes/pm/coaching');
+registerRoute('/api/pm/ratings', './routes/pm/ratings');
+registerRoute('/api/pm/rewards', './routes/pm/rewards');
 
 // R&R routes
-registerRoute('/api/rr/searches',     './routes/rr/searches');
-registerRoute('/api/rr/nominations',  './routes/rr/nominations');
-registerRoute('/api/rr/evaluation',   './routes/rr/evaluation');
+registerRoute('/api/rr/praise-meetings', './routes/rr/praise-meetings');
+registerRoute('/api/rr/call-for-nominees', './routes/rr/call-for-nominees');
+registerRoute('/api/rr/preliminary-evaluation', './routes/rr/preliminary-evaluation');
+registerRoute('/api/rr/searches', './routes/rr/searches');
+registerRoute('/api/rr/nominations', './routes/rr/nominations');
+registerRoute('/api/rr/evaluation', './routes/rr/evaluation');
+registerRoute('/api/rr/validation', './routes/rr/validation-interview');
 registerRoute('/api/rr/deliberation', './routes/rr/deliberation');
-registerRoute('/api/rr/awards',       './routes/rr/awards');
-registerRoute('/api/rr/ceremony',     './routes/rr/ceremony');
-registerRoute('/api/rr/reports',      './routes/rr/reports');
+registerRoute('/api/rr/deliberation2', './routes/rr/deliberation-finalization');
+registerRoute('/api/rr/awards', './routes/rr/awards');
+registerRoute('/api/rr/announcement', './routes/rr/announcement');
+registerRoute('/api/rr/ceremony', './routes/rr/ceremony');
+registerRoute('/api/rr/implementation-report', './routes/rr/implementation-report');
+registerRoute('/api/rr/reports', './routes/rr/reports');
+registerRoute('/api/rr/opportunities', './routes/rr/opportunities');
 
 // Personnel Module routes
-registerRoute('/api/personnel/employees',     './routes/personnel/employee');
-registerRoute('/api/personnel/documents',     './routes/personnel/documents');
-registerRoute('/api/personnel/leave',         './routes/personnel/leave');
-registerRoute('/api/personnel/travel',        './routes/personnel/travel');
-registerRoute('/api/personnel/certificates',  './routes/personnel/certificates');
+registerRoute('/api/personnel/employees', './routes/personnel/employee');
+registerRoute('/api/personnel/documents', './routes/personnel/documents');
+registerRoute('/api/personnel/leave', './routes/personnel/leave');
+registerRoute('/api/personnel/travel', './routes/personnel/travel');
+registerRoute('/api/personnel/certificates', './routes/personnel/certificates');
 registerRoute('/api/personnel/notifications', './routes/personnel/notifications');
-registerRoute('/api/personnel/reports',       './routes/personnel/reports');
+registerRoute('/api/personnel/reports', './routes/personnel/reports');
+registerRoute('/api/personnel/signatories', './routes/personnel/signatory');
+registerRoute('/api/personnel/admin-tools', './routes/personnel/adminTools');
+registerRoute('/api/personnel/schools-offices', './routes/personnel/schoolsOffices');
 
 console.log("✅ All routes registered successfully");
 
@@ -133,6 +147,28 @@ io.on('connection', (socket) => {
     socket.on('join-ld-room', (roomName) => {
         socket.join(roomName);
         console.log(`📡 ${socket.id} joined L&D room: ${roomName}`);
+    });
+
+    // IES room — join by evaluation ID for live score/status updates
+    socket.on('join-ies-room', (roomName) => {
+        socket.join(roomName);
+        console.log(`📡 ${socket.id} joined IES room: ${roomName}`);
+    });
+
+    socket.on('leave-ies-room', (roomName) => {
+        socket.leave(roomName);
+        console.log(`📡 ${socket.id} left IES room: ${roomName}`);
+    });
+
+    // CA workspace room — join by vacancy ID for live score updates
+    socket.on('join-ca-room', (roomName) => {
+        socket.join(roomName);
+        console.log(`📡 ${socket.id} joined CA room: ${roomName}`);
+    });
+
+    socket.on('leave-ca-room', (roomName) => {
+        socket.leave(roomName);
+        console.log(`📡 ${socket.id} left CA room: ${roomName}`);
     });
 
     // R&R module room
@@ -167,6 +203,19 @@ async function start() {
         console.log('✅ MySQL Connected (Laragon)');
         server.listen(PORT, () => {
             console.log(`🚀 Server running on http://localhost:${PORT}`);
+        });
+
+        server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(`\n❌ Port ${PORT} is already in use by another process.`);
+                console.error(`   Run these commands to fix it:`);
+                console.error(`   > netstat -ano | findstr :${PORT}`);
+                console.error(`   > taskkill /PID <PID_from_above> /F`);
+                console.error(`   Then re-run: node index.js\n`);
+            } else {
+                console.error('❌ Server error:', err.message);
+            }
+            process.exit(1);
         });
     } catch (err) {
         console.error('❌ DB CONNECTION FAILED:', err.message);

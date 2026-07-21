@@ -1,4 +1,7 @@
 const db = require('../../db');
+const syncApplicationsStage = require('../../utils/syncApplicationsStage');
+const path = require('path');
+const fs = require('fs');
 
 const LEGAL_BASIS = "This appointment is made pursuant to Section 9, Article B of the Civil Service Rules on Personnel Actions, and in accordance with DepEd Order No. 007, s. 2015 and relevant PRIME-HRM guidelines.";
 
@@ -195,6 +198,9 @@ const postNotice = async (req, res) => {
             WHERE ap.id = ?
         `, [appointmentId]);
 
+        const [[appt]] = await db.query('SELECT vacancy_id FROM appointments WHERE id = ?', [appointmentId]);
+        if (appt) await syncApplicationsStage(appt.vacancy_id, 11, req.app.get('socketio'));
+
         // Activity log
         await db.query(`
             INSERT INTO activity_log (vacancy_id, actor_id, action_description)
@@ -245,13 +251,33 @@ const generatePDF = async (req, res) => {
             `attachment; filename="Notice_of_Appointment_${d.full_name.replace(/\s+/g, '_')}.pdf"`);
         doc.pipe(res);
 
-        // ── Letterhead ──
-        doc.fontSize(10).font('Helvetica').text('Republic of the Philippines', { align: 'center' });
-        doc.text('Department of Education', { align: 'center' });
-        doc.text('Region IX – Zamboanga Peninsula', { align: 'center' });
-        doc.font('Helvetica-Bold').text('Schools Division Office of Dapitan City', { align: 'center' });
-        doc.moveDown(0.5);
-        doc.moveTo(72, doc.y).lineTo(doc.page.width - 72, doc.y).lineWidth(2).stroke('#1B3A6B');
+        // ── DepEd Seal (80px wide, centered — matches adviceController) ─────────
+        const sealPath = path.join(__dirname, '../../assets/deped-seal.png');
+        if (fs.existsSync(sealPath)) {
+            const sealW = 80;
+            const sealX = (doc.page.width - sealW) / 2;
+            doc.image(sealPath, sealX, doc.y || 72, { width: sealW });
+            doc.y = (doc.y || 72) + sealW + 4;
+        }
+
+        // ── Letterhead (Times family, matches adviceController exactly) ────────
+        const L  = 72;
+        const R  = doc.page.width - 72;
+        const W  = R - L;
+        const SI = 'Times-Italic';
+        const SB = 'Times-Bold';
+        const S  = 'Times-Roman';
+
+        doc.fillColor('#000000');
+        doc.font(SI).fontSize(12).text('Republic of the Philippines', L, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.1);
+        doc.font(SB).fontSize(16).text('Department of Education', L, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.1);
+        doc.font(S).fontSize(10).text('REGION IX, ZAMBOANGA PENINSULA', L, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.05);
+        doc.font(SB).fontSize(10.5).text('SCHOOLS DIVISION OF DAPITAN CITY', L, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.3);
+        doc.moveTo(L, doc.y).lineTo(R, doc.y).lineWidth(1.5).stroke('#1B3A6B');
         doc.moveDown(1.5);
 
         // ── Title ──

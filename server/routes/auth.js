@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken'); // Needed to create the token
 const { sendVerificationEmail } = require('../utils/mailer'); // Needed to send the mail
 const { sendResetPasswordEmail } = require('../utils/mailer');
 const { rateLimit } = require('../middleware/rateLimiter');
+const { findOrCreateEmployee } = require('../utils/employeeHelper');
 
 // REGISTER ROUTE
 router.post('/register', rateLimit(), async (req, res) => {
@@ -53,24 +54,31 @@ router.post('/register', rateLimit(), async (req, res) => {
             userId = result.insertId;
         }
 
-        // 5. ATTEMPT TO SEND THE EMAIL
-        console.log("Attempting to send email to:", email); 
+        // 5. AUTO-CREATE employee + leave_credits so personnel endpoints work immediately
+        try {
+            await findOrCreateEmployee(userId);
+        } catch (empErr) {
+            console.error("⚠️ Could not auto-create employee record:", empErr.message);
+        }
+
+        // 6. ATTEMPT TO SEND THE EMAIL
+        console.log("Attempting to send email to:", email);
         try {
             await sendVerificationEmail(email, verificationToken);
             console.log("✅ Email sent successfully!");
-            
+
             // Only send ONE response back to React
-            return res.status(201).json({ 
+            return res.status(201).json({
                 message: "User registered! Please check your email to verify.",
-                userId 
+                userId
             });
 
         } catch (emailError) {
             console.error("❌ NODEMAILER ERROR:", emailError);
             // If email fails, we still tell the user they are registered but the email failed
-            return res.status(201).json({ 
+            return res.status(201).json({
                 message: "User registered, but verification email failed to send.",
-                userId 
+                userId
             });
         }
 
@@ -82,7 +90,7 @@ router.post('/register', rateLimit(), async (req, res) => {
 
 // LOGIN ROUTE
 // UPDATED LOGIN ROUTE WITH RBAC
-router.post('/login', rateLimit({ max: 10 }), async (req, res) => {
+router.post('/login', rateLimit({ max: 10, skipInDev: true }), async (req, res) => {
     try {
         const { identifier, password, loginType } = req.body; // loginType is 'staff' or 'applicant'
 
@@ -97,14 +105,14 @@ router.post('/login', rateLimit({ max: 10 }), async (req, res) => {
         const staffRoles = ['admin', 'staff', 'hr_staff', 'hrmpsb', 'appointing_authority'];
 
         if (loginType === 'staff' && !staffRoles.includes(user.role)) {
-            return res.status(403).json({ 
-                message: "Sorry, this account is only authorized for the Applicant Portal." 
+            return res.status(403).json({
+                message: "Sorry, this account is only authorized for the Applicant Portal."
             });
         }
 
         if (loginType === 'applicant' && user.role !== 'applicant') {
-            return res.status(403).json({ 
-                message: "Sorry, this account is only authorized for the Staff/Admin Portal." 
+            return res.status(403).json({
+                message: "Sorry, this account is only authorized for the Staff/Admin Portal."
             });
         }
 
@@ -141,7 +149,7 @@ router.get('/verify-email', async (req, res) => {
     try {
         // 2. Verify the "Digital ID Card" (token)
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
+
         // 3. Update the user in Laragon
         // We set is_verified to 1 and record the applicant_type they selected.
         // NOTE: we deliberately do NOT touch `role` here — sign-up is applicant-only
@@ -149,7 +157,7 @@ router.get('/verify-email', async (req, res) => {
         // in the query string, otherwise anyone could edit the link to self-promote
         // to admin. Staff/admin accounts are created by the System Administrator only.
         const [result] = await db.query(
-            'UPDATE users SET is_verified = TRUE, applicant_type = ? WHERE email = ? AND role = "applicant"', 
+            'UPDATE users SET is_verified = TRUE, applicant_type = ? WHERE email = ? AND role = "applicant"',
             [type, decoded.email]
         );
 
@@ -215,7 +223,7 @@ router.post('/update-password', async (req, res) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../utils/api';
+import { usePersonnelRealtime } from './usePersonnelRealtime';
 
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const [notifRes, countRes] = await Promise.all([
@@ -28,6 +30,10 @@ export const useNotifications = () => {
   }, []);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  usePersonnelRealtime(['personnel:update', 'personnel:notification:update'], () => {
+    fetchNotifications(true);
+  });
 
   const markAsRead = async (id) => {
     const token = localStorage.getItem('token');

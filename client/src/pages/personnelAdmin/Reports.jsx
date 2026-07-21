@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Download } from 'lucide-react';
-import { API_BASE } from '../../utils/api';
+import { API_BASE, downloadFile } from '../../utils/api';
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -8,30 +8,34 @@ const Reports = () => {
   const [movement, setMovement] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
 
-        if (activeTab === 'summary') {
-          const res = await fetch(`${API_BASE}/api/personnel/reports/summary`, { headers });
-          if (res.ok) setSummary(await res.json());
-        } else if (activeTab === 'movement') {
-          const res = await fetch(`${API_BASE}/api/personnel/reports/employee-movement`, { headers });
-          if (res.ok) setMovement(await res.json());
-        }
-      } catch {} finally {
-        setLoading(false);
+      if (activeTab === 'summary') {
+        const res = await fetch(`${API_BASE}/api/personnel/reports/summary`, { headers });
+        if (res.ok) setSummary(await res.json());
+      } else if (activeTab === 'movement') {
+        const res = await fetch(`${API_BASE}/api/personnel/reports/employee-movement`, { headers });
+        if (res.ok) setMovement(await res.json());
       }
-    };
-    fetchData();
+    } catch {} finally {
+      setLoading(false);
+    }
   }, [activeTab]);
 
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
   const exportLeaveReport = async () => {
-    const token = localStorage.getItem('token');
-    window.open(`${API_BASE}/api/personnel/leave/report?format=csv&token=${token}`, '_blank');
+    await downloadFile('/api/personnel/leave/report?format=csv', 'leave_report.csv');
   };
 
   const tabs = [
@@ -79,7 +83,7 @@ const Reports = () => {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Teaching</p>
             </div>
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
-              <p className="text-4xl font-black text-purple-600">{summary.by_employment_type?.find(t => t.employment_type === 'non-teaching')?.count || 0}</p>
+              <p className="text-4xl font-black text-purple-600">{summary.by_employment_type?.find(t => t.employment_type === 'non_teaching')?.count || 0}</p>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Non-Teaching</p>
             </div>
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-
 import { API_BASE } from '../utils/api';
+import { usePersonnelRealtime } from './usePersonnelRealtime';
 
 export const usePersonalDataSheet = () => {
     const [pds, setPds] = useState(null);
@@ -17,8 +17,8 @@ export const usePersonalDataSheet = () => {
         'Authorization': `Bearer ${token()}`
     });
 
-    const fetchPDS = useCallback(async () => {
-        setLoading(true);
+    const fetchPDS = useCallback(async (isSilent = false) => {
+        if (!isSilent) setLoading(true);
         setError(null);
         try {
             const res = await fetch(`${API_BASE}/api/applicant/pds`, { headers: authHeaders() });
@@ -28,13 +28,17 @@ export const usePersonalDataSheet = () => {
             setIsComplete(data.isComplete);
         } catch (e) {
             console.error('fetchPDS error:', e);
-            setError(e.message);
+            if (!isSilent) setError(e.message);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => { fetchPDS(); }, [fetchPDS]);
+
+    usePersonnelRealtime(['personnel:update'], () => {
+        fetchPDS(true);
+    });
 
     const save = useCallback(async (fields) => {
         setSaving(true);

@@ -4,6 +4,7 @@ const ctrl = require('../../controllers/personnel/reportController');
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware');
 
 // All report routes are HR admin only
+router.get('/badge-counts', verifyToken, requireRole('admin', 'hr_staff'), ctrl.badgeCounts);
 router.get('/summary', verifyToken, requireRole('admin', 'hr_staff'), ctrl.personnelSummary);
 router.get('/leave-utilization', verifyToken, requireRole('admin', 'hr_staff'), ctrl.leaveUtilization);
 router.get('/employee-movement', verifyToken, requireRole('admin', 'hr_staff'), ctrl.employeeMovement);

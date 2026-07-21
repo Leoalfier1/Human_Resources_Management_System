@@ -45,11 +45,11 @@ exports.getDashboardData = async (req, res) => {
         // ── 1. SUMMARY STATS ─────────────────────────────────────────
         const [[statRow]] = await db.query(`
             SELECT
-                (SELECT COUNT(*) FROM vacancies WHERE status = 'active')
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND is_deleted = 0)
                     AS activePostings,
 
                 (SELECT COUNT(*) FROM vacancies
-                 WHERE status = 'active'
+                 WHERE status = 'active' AND is_deleted = 0
                    AND deadline_date <= DATE_ADD(CURDATE(), INTERVAL 5 DAY))
                     AS nearDeadlinePostings,
 
@@ -70,13 +70,13 @@ exports.getDashboardData = async (req, res) => {
                    AND YEAR(COALESCE(updated_at, submitted_at)) = ?)
                     AS appointmentsIssuedFY,
 
-                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'teaching')
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND is_deleted = 0 AND position_type = 'teaching')
                     AS teachingPostings,
 
-                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'non_teaching')
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND is_deleted = 0 AND position_type = 'non_teaching')
                     AS nonTeachingPostings,
 
-                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND position_type = 'teaching_related')
+                (SELECT COUNT(*) FROM vacancies WHERE status = 'active' AND is_deleted = 0 AND position_type = 'teaching_related')
                     AS teachingRelatedPostings,
 
                 (SELECT COUNT(*) FROM applications a
@@ -101,7 +101,7 @@ exports.getDashboardData = async (req, res) => {
             SELECT v.ref_no
             FROM vacancies v
             JOIN applications a ON v.id = a.vacancy_id
-            WHERE a.status IN ('submitted', 'under_evaluation')
+            WHERE a.status IN ('submitted', 'under_evaluation') AND v.is_deleted = 0
             GROUP BY v.id
             ORDER BY COUNT(a.id) DESC
             LIMIT 1
@@ -115,7 +115,7 @@ exports.getDashboardData = async (req, res) => {
                 (SELECT COUNT(*) FROM applications
                  WHERE vacancy_id = v.id AND status != 'draft') AS total_applicants
             FROM vacancies v
-            WHERE v.status = 'active'
+            WHERE v.status = 'active' AND v.is_deleted = 0
             ORDER BY v.created_at DESC
         `);
 

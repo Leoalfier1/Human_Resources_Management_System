@@ -46,7 +46,7 @@ exports.getVacancies = async (req, res) => {
         // If applicant_type is NULL (old accounts or staff browsing), show everything.
         const applicantType = req.user?.applicant_type || null;
 
-        const conditions = ["v.status = 'active'"];
+        const conditions = ["v.is_deleted = 0"];
         const params = [];
 
         // Hard filter: only show matching position_type
@@ -72,7 +72,7 @@ exports.getVacancies = async (req, res) => {
         if (status === 'closing_soon') {
             conditions.push(`DATEDIFF(v.deadline_date, CURDATE()) BETWEEN 0 AND 3`);
         } else if (status === 'closed') {
-            conditions[0] = `(v.status = 'closed' OR DATEDIFF(v.deadline_date, CURDATE()) < 0)`;
+            conditions.push(`(v.status = 'closed' OR DATEDIFF(v.deadline_date, CURDATE()) < 0)`);
         }
 
         const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -114,7 +114,7 @@ exports.getVacancies = async (req, res) => {
             : 10;
 
         res.json({
-            list,
+            list: openItems,
             stats: {
                 openPositions,
                 totalVacancies,
@@ -143,7 +143,7 @@ exports.getVacancyById = async (req, res) => {
                 v.position_type,
                 (SELECT COUNT(*) FROM applications WHERE vacancy_id = v.id AND status != 'draft') AS applicant_count
             FROM vacancies v
-            WHERE v.id = ?
+            WHERE v.id = ? AND v.is_deleted = 0
         `, [id]);
 
         if (rows.length === 0) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Shield, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import PersonnelNavbar from './PersonnelNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE } from '../../utils/api';
@@ -38,8 +38,8 @@ const PersonnelLayout = () => {
         </div>
         <div className="max-w-7xl mx-auto w-full px-6 flex items-center justify-between relative z-10">
           <div className="flex flex-col items-center">
-            <div className="bg-[#1B3A6B] p-3 rounded-xl text-white shadow-lg">
-              <Shield size={28} fill="currentColor" />
+            <div className="bg-[#1B3A6B] p-3 rounded-xl text-white shadow-lg overflow-hidden">
+              <img src="/assets/deped-seal.png" alt="DepEd" className="w-7 h-7 object-contain" />
             </div>
             <p className="text-[9px] font-black text-slate-400 mt-2 tracking-widest uppercase">SDO Dapitan City</p>
           </div>

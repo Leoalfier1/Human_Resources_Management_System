@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Filter } from 'lucide-react';
-import { API_BASE } from '../../utils/api';
+import { API_BASE, downloadFile } from '../../utils/api';
 import ResizableTable from '../../components/shared/ResizableTable';
 
 const DEFAULT_WIDTHS = [
@@ -109,11 +109,11 @@ const EligibilityScreening = () => {
     fetchData();
   };
 
-  const exportCSV = () => {
-    const token = localStorage.getItem('token');
+  const exportCSV = async () => {
     const p = new URLSearchParams();
     if (vacancyId) p.append('vacancy_id', vacancyId);
-    window.open(`${API_BASE}/api/rsp/eligibility/export-csv?${p}&token=${token}`, '_blank');
+    const qs = p.toString();
+    await downloadFile(`/api/rsp/eligibility/export-csv${qs ? '?' + qs : ''}`, 'eligibility_screening.csv');
   };
 
   const badge = (remarks) => {

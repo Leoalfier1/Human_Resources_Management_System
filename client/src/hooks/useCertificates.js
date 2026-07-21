@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE, SERVER_BASE } from '../utils/api';
+import { API_BASE, downloadFile } from '../utils/api';
+import { usePersonnelRealtime } from './usePersonnelRealtime';
 
 export const useCertificates = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/personnel/certificates/my-requests`, {
@@ -17,13 +19,17 @@ export const useCertificates = () => {
         setError(null);
       }
     } catch (err) {
-      setError('Cannot reach the server.');
+      if (!isSilent) setError('Cannot reach the server.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  usePersonnelRealtime(['personnel:update', 'personnel:certificate:update'], () => {
+    fetchRequests(true);
+  });
 
   const submitRequest = async (data) => {
     const token = localStorage.getItem('token');
@@ -37,16 +43,12 @@ export const useCertificates = () => {
     return { success: false, message: err.message };
   };
 
-  const downloadServiceRecord = (employeeId) => {
-    const token = localStorage.getItem('token');
-    const url = `${API_BASE}/api/personnel/certificates/${employeeId}/service-record`;
-    window.open(url + '?token=' + token, '_blank');
+  const downloadServiceRecord = async (employeeId) => {
+    await downloadFile(`/api/personnel/certificates/${employeeId}/service-record`, 'Service_Record.pdf');
   };
 
-  const downloadCOE = (employeeId) => {
-    const token = localStorage.getItem('token');
-    const url = `${API_BASE}/api/personnel/certificates/${employeeId}/coe`;
-    window.open(url + '?token=' + token, '_blank');
+  const downloadCOE = async (employeeId) => {
+    await downloadFile(`/api/personnel/certificates/${employeeId}/coe`, 'Certificate_of_Employment.pdf');
   };
 
   return { requests, loading, error, submitRequest, downloadServiceRecord, downloadCOE, refresh: fetchRequests };

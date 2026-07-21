@@ -8,6 +8,9 @@ export const useComparativeAssessment = () => {
     const [vacancyId, setVacancyId] = useState(null);
     const [vacancy, setVacancy] = useState(null);
     const [criteria, setCriteria] = useState([]);
+    const [sections, setSections] = useState([]);
+    const [layoutMode, setLayoutMode] = useState('sectioned');
+    const [bracketLabel, setBracketLabel] = useState('');
     const [applicants, setApplicants] = useState([]);
     const [rankings, setRankings] = useState([]);
     const [scores, setScores] = useState({}); // { criterion_id: score_given }
@@ -38,7 +41,6 @@ export const useComparativeAssessment = () => {
     }, []);
 
     // Fetch vacancy details, criteria, applicants & rankings when vacancyId changes
-    // isSilent=true skips the loading flag so socket-triggered refreshes don't blank the screen
     const fetchCriteriaAndApplicants = useCallback(async (isSilent = false) => {
         if (!vacancyId) return;
         if (!isSilent) setLoading(true);
@@ -54,8 +56,13 @@ export const useComparativeAssessment = () => {
             const vacData = vacRes.ok ? await vacRes.json() : null;
             setVacancy(vacData);
 
-            const criteriaData = critRes.ok ? await critRes.json() : [];
-            setCriteria(Array.isArray(criteriaData) ? criteriaData : []);
+            const criteriaData = critRes.ok ? await critRes.json() : {};
+            if (criteriaData.layoutMode) {
+                setLayoutMode(criteriaData.layoutMode);
+                setBracketLabel(criteriaData.bracketLabel || '');
+            }
+            setCriteria(Array.isArray(criteriaData.criteria) ? criteriaData.criteria : []);
+            setSections(Array.isArray(criteriaData.sections) ? criteriaData.sections : []);
 
             const appData = appRes.ok ? await appRes.json() : {};
             const apps = Array.isArray(appData.applicants) ? appData.applicants : [];
@@ -166,7 +173,8 @@ export const useComparativeAssessment = () => {
 
     return {
         vacancies, vacancyId, setVacancyId, vacancy,
-        criteria, applicants, rankings, scores,
+        criteria, sections, layoutMode, bracketLabel,
+        applicants, rankings, scores,
         selectedAppId, setSelectedAppId,
         loading, error,
         refresh: fetchCriteriaAndApplicants,

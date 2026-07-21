@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutGrid, Briefcase, Users, ClipboardCheck, BarChart3, 
-  FileText, ListChecks, Star, Award, FileEdit, ChevronLeft, Shield, LogOut,
+  FileText, ListChecks, Star, Award, FileEdit, ChevronLeft, LogOut,
   Settings, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { section: 'RSP PROCESS', items: [
     { key: 'evaluation', label: 'Initial Evaluation', icon: ClipboardCheck, path: '/rsp/initial-evaluation' },
     { key: 'assessment', label: 'Comparative Assessment', icon: BarChart3, path: '/rsp/comparative-assessment' },
+    { key: 'ies', label: 'Individual Evaluation', icon: FileText, path: '/rsp/individual-evaluation' },
     { key: 'results', label: 'Results Posting', icon: FileText, path: '/rsp/results-posting' },
     { key: 'shortlist', label: 'Deliberation & Shortlist', icon: ListChecks, path: '/rsp/deliberation' },
   ]},
@@ -40,6 +41,7 @@ const RSPSidebar = ({ userName, userRole, onBack }) => {
     if (key === 'users') return role === 'admin';
     if (key === 'appeals') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
     if (key === 'assessment') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
+    if (key === 'ies') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
     if (['results', 'shortlist', 'advice', 'notice'].includes(key)) {
       return ['admin', 'hr_staff'].includes(role);
     }
@@ -63,8 +65,8 @@ const RSPSidebar = ({ userName, userRole, onBack }) => {
       {/* 1. BRAND HEADER */}
       <div className="p-4 flex items-center justify-between border-b border-white/5 h-[72px] bg-[#162E55]">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0">
-            <Shield size={20} className="text-white" fill="currentColor" />
+          <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0 overflow-hidden">
+            <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
           </div>
           {!isCollapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="whitespace-nowrap">

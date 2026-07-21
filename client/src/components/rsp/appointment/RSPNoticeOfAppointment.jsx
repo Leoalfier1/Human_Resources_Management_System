@@ -5,6 +5,7 @@ import {
     CheckCircle2, Shield, Loader2, AlertCircle,
     Printer, ChevronDown, Users
 } from 'lucide-react';
+import EmptyStagePanel from '../../shared/EmptyStagePanel';
 import { API_BASE } from '../../../utils/api';
 
 const token = () => localStorage.getItem('token');
@@ -58,13 +59,13 @@ const RSPNoticeOfAppointment = () => {
         setTimeout(() => setToast(null), 4000);
     };
 
-    // 1. Load active vacancies on mount
+    // 1. Load vacancies on mount (show all, same as Appointment Processing)
     useEffect(() => {
         const fetchVacancies = async () => {
             try {
                 const res = await fetch(`${API_BASE}/api/rsp/vacancies`, { headers: authHeader() });
                 const list = await res.json();
-                const active = Array.isArray(list) ? list.filter(v => v.status === 'active' || v.computed_status === 'active') : [];
+                const active = Array.isArray(list) ? list : [];
                 setVacancies(active);
                 if (active.length > 0) setVacancyId(active[0].id);
             } catch (e) { console.error(e); }
@@ -264,14 +265,13 @@ const RSPNoticeOfAppointment = () => {
 
             {/* ── EMPTY STATE ───────────────────────────────────── */}
             {noAppointees && (
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 p-20 text-center shadow-sm">
-                    <AlertCircle size={48} className="text-slate-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-black text-[#1B3A6B] uppercase italic mb-2">No Appointed Applicants</h3>
-                    <p className="text-slate-500 text-sm max-w-md mx-auto">
-                        No appointments have been issued for this vacancy yet. 
-                        Complete Stage 10 (Appointment Processing) first.
-                    </p>
-                </div>
+                <EmptyStagePanel
+                    icon={AlertCircle}
+                    title="No Appointed Applicants"
+                    message="No appointments have been issued for this vacancy yet. Complete Stage 10 (Appointment Processing) first."
+                    actionLabel="Go to Appointment Processing"
+                    onAction={() => { window.location.href = '/rsp/appointment-processing'; }}
+                />
             )}
 
             {/* ── LOADING ───────────────────────────────────────── */}
@@ -322,14 +322,35 @@ const RSPNoticeOfAppointment = () => {
                             {/* Letter body (also used for print) */}
                             <div ref={letterRef} className="p-16 bg-white min-h-[1000px] text-[#1B3A6B]">
 
-                                {/* Letterhead */}
-                                <div className="header text-center mb-10">
-                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Republic of the Philippines</p>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Department of Education</p>
-                                    <p className="text-[11px] font-black uppercase tracking-widest">Region IX – Zamboanga Peninsula</p>
-                                    <p className="text-sm font-black uppercase tracking-tighter border-b-2 border-[#1B3A6B] inline-block pb-1 px-4">
-                                        Schools Division Office of Dapitan City
+                                {/* Letterhead — DepEd seal + text, matching Congratulatory Advice */}
+                                <div className="text-center mb-6">
+                                    {/* Seal */}
+                                    <div className="relative w-[96px] h-[96px] mx-auto mb-2">
+                                        <img
+                                            src="/assets/deped-seal.png"
+                                            alt=""
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                        />
+                                        <div className="hidden w-full h-full rounded-full border-2 border-[#1B3A6B] items-center justify-center bg-white">
+                                            <span className="text-[7px] font-bold text-[#1B3A6B] text-center leading-tight">DEPED<br />SEAL</span>
+                                        </div>
+                                    </div>
+                                    {/* Text block */}
+                                    <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontStyle: 'italic', fontSize: '12pt', color: '#1a1a1a', marginBottom: '1px', lineHeight: '1.4' }}>
+                                        Republic of the Philippines
                                     </p>
+                                    <p style={{ fontFamily: '"Old English Text MT", "UnifrakturMaguntia", "Times New Roman", serif', fontSize: '17pt', fontWeight: 'bold', color: '#1a1a1a', marginBottom: '1px', lineHeight: '1.3', letterSpacing: '0.5px' }}>
+                                        Department of Education
+                                    </p>
+                                    <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontVariant: 'small-caps', fontSize: '10pt', color: '#1a1a1a', marginBottom: '1px', letterSpacing: '0.5px', lineHeight: '1.4' }}>
+                                        Region IX, Zamboanga Peninsula
+                                    </p>
+                                    <p style={{ fontFamily: '"Times New Roman", Georgia, serif', fontVariant: 'small-caps', fontSize: '10.5pt', fontWeight: 'bold', color: '#1B3A6B', letterSpacing: '0.5px', lineHeight: '1.4' }}>
+                                        Schools Division of Dapitan City
+                                    </p>
+                                    {/* Divider */}
+                                    <div className="border-t-2 border-[#1B3A6B] mt-3" />
                                 </div>
 
                                 <h1 className="text-2xl font-black text-center uppercase tracking-[0.3em] mb-12 italic">

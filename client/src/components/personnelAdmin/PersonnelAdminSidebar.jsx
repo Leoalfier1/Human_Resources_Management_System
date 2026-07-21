@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  LayoutGrid, Users, UserPlus, CalendarCheck, Plane, FileText,
-  BarChart3, ClipboardList, LogOut, Shield, ChevronLeft, ScrollText
+  LayoutGrid, Users, UserPlus, CalendarCheck, FileText, ClipboardCheck,
+  BarChart3, LogOut, ChevronLeft, ScrollText, UserCheck, Wrench, MapPin, UserCog
 } from 'lucide-react';
+import { usePersonnelDashboard } from '../../hooks/usePersonnelDashboard';
 
 const NAV_ITEMS = [
   { section: 'OVERVIEW', items: [
@@ -12,28 +13,30 @@ const NAV_ITEMS = [
   ]},
   { section: 'EMPLOYEE RECORDS', items: [
     { key: 'employees', label: 'Employee Directory', icon: Users, path: '/personnel-admin/employees' },
+    { key: '201-checklist', label: '201 File Checklist', icon: ClipboardCheck, path: '/personnel-admin/201-checklist' },
     { key: 'add-employee', label: 'Add Employee', icon: UserPlus, path: '/personnel-admin/employees/new' },
   ]},
   { section: 'LEAVE MANAGEMENT', items: [
-    { key: 'leave', label: 'Leave Applications', icon: CalendarCheck, path: '/personnel-admin/leave' },
-  ]},
-  { section: 'TRAVEL', items: [
-    { key: 'travel', label: 'Travel Requests', icon: Plane, path: '/personnel-admin/travel' },
+    { key: 'leave', label: 'Leave Applications', icon: CalendarCheck, path: '/personnel-admin/leave', badgeKey: 'pending_leave' },
   ]},
   { section: 'DOCUMENTS & CERTIFICATES', items: [
-    { key: 'documents', label: 'Document Requests', icon: FileText, path: '/personnel-admin/document-requests' },
-  ]},
-  { section: 'RSP TOOLS', items: [
-    { key: 'eligibility', label: 'Eligibility Screening', icon: ClipboardList, path: '/personnel-admin/eligibility-screening' },
+    { key: 'documents', label: 'Document Requests', icon: FileText, path: '/personnel-admin/document-requests', badgeKey: 'pending_documents' },
+    { key: 'profile-changes', label: 'Profile Changes', icon: UserCog, path: '/personnel-admin/profile-change-requests', badgeKey: 'pending_profile_changes' },
   ]},
   { section: 'REPORTS', items: [
     { key: 'reports', label: 'Reports & Analytics', icon: BarChart3, path: '/personnel-admin/reports' },
     { key: 'audit', label: 'Audit Log', icon: ScrollText, path: '/personnel-admin/audit' },
   ]},
+  { section: 'TOOLS', items: [
+    { key: 'schools-offices', label: 'Schools & Offices', icon: MapPin, path: '/personnel-admin/schools-offices' },
+    { key: 'signatories', label: 'Signatories', icon: UserCheck, path: '/personnel-admin/signatories' },
+    { key: 'admin-tools', label: 'Admin Tools', icon: Wrench, path: '/personnel-admin/admin-tools' },
+  ]},
 ];
 
 const PersonnelAdminSidebar = ({ userName, userRole, onBack }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { badgeCounts } = usePersonnelDashboard();
 
   return (
     <motion.div
@@ -43,8 +46,8 @@ const PersonnelAdminSidebar = ({ userName, userRole, onBack }) => {
     >
       <div className="p-4 flex items-center justify-between border-b border-white/5 h-[72px] bg-[#162E55] shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0">
-            <Shield size={20} className="text-white" fill="currentColor" />
+          <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0 overflow-hidden">
+            <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
           </div>
           {!isCollapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="whitespace-nowrap">
@@ -66,36 +69,53 @@ const PersonnelAdminSidebar = ({ userName, userRole, onBack }) => {
                 {section.section}
               </p>
             )}
-            {section.items.map((item) => (
-              <NavLink
-                key={item.key}
-                to={item.path}
-                className={({ isActive }) => `
-                  relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all mb-1 group
-                  ${isActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}
-                `}
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <motion.div
-                        layoutId="pers-nav-active"
-                        className="absolute inset-0 bg-[#D6402F] rounded-xl shadow-lg"
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    <div className="relative z-10 flex items-center gap-3">
-                      <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'group-hover:scale-110 transition-transform'}`} />
-                      {!isCollapsed && (
-                        <span className={`text-sm tracking-wide ${isActive ? 'font-black' : 'font-semibold'}`}>
-                          {item.label}
-                        </span>
+            {section.items.map((item) => {
+              const count = item.badgeKey ? badgeCounts?.[item.badgeKey] : 0;
+
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all mb-1 group
+                    ${isActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}
+                  `}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.div
+                          layoutId="pers-nav-active"
+                          className="absolute inset-0 bg-[#D6402F] rounded-xl shadow-lg"
+                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        />
                       )}
-                    </div>
-                  </>
-                )}
-              </NavLink>
-            ))}
+                      <div className="relative z-10 flex items-center justify-between w-full min-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'group-hover:scale-110 transition-transform'}`} />
+                          {!isCollapsed && (
+                            <span className={`text-sm tracking-wide truncate ${isActive ? 'font-black' : 'font-semibold'}`}>
+                              {item.label}
+                            </span>
+                          )}
+                        </div>
+                        {count > 0 && (
+                          isCollapsed ? (
+                            <span className="w-2 h-2 bg-[#D6402F] rounded-full shrink-0" />
+                          ) : (
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-sm ${
+                              isActive ? 'bg-white text-[#D6402F]' : 'bg-[#D6402F] text-white'
+                            }`}>
+                              {count}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         ))}
       </div>

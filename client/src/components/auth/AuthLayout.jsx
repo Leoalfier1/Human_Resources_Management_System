@@ -23,12 +23,16 @@ const AuthLayout = ({ children }) => {
         <div className="relative z-10">
           {/* Header Logos Section */}
           <div className="flex items-center justify-between mb-6">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center border border-white/20 text-[10px] text-center p-2">DepEd Seal</div>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center border border-white/20 overflow-hidden bg-white/10">
+              <img src="/assets/deped-seal.png" alt="DepEd Seal" className="w-full h-full object-contain p-1" />
+            </div>
             <div className="text-center">
               <p className="text-[10px] tracking-widest uppercase opacity-80">Republic of the Philippines</p>
               <h2 className="text-lg font-bold leading-tight uppercase">Department of Education</h2>
             </div>
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center border border-white/20 text-[10px] text-center p-2">Region IX Seal</div>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center border border-white/20 overflow-hidden bg-white/10">
+              <img src="/assets/deped-seal.png" alt="Region IX Seal" className="w-full h-full object-contain p-1" />
+            </div>
           </div>
 
           <p className="text-[#FACC15] text-center font-bold text-xs tracking-wider mb-4">

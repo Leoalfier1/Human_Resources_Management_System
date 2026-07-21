@@ -1,41 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
-import { API_BASE } from '../../utils/api';
+import { Plus, Camera } from 'lucide-react';
+import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 const CreateEmployee = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
-    user_id: '', first_name: '', middle_name: '', last_name: '', name_extension: '',
+    user_id: '', employee_no: '', first_name: '', middle_name: '', last_name: '', name_extension: '',
     date_of_birth: '', place_of_birth: '', sex: '', civil_status: '', blood_type: '',
     gsis_id: '', pagibig_id: '', philhealth_no: '', tin_no: '', mobile_no: '', email: '', address: '',
     employment_status: 'permanent', employment_type: 'teaching', position_title: '',
-    salary_grade: '', monthly_salary: '', item_number: '', assigned_school: '',
+    salary_grade: '', authorized_salary: '', actual_salary: '', salary_step: '',
+    monthly_salary: '', item_number: '', school_office_id: '',
+    eligibility: '', job_status: 'active',
     date_hired: '', date_original_appointment: ''
   });
-  const [users, setUsers] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
-  const [generatedEmployeeNo, setGeneratedEmployeeNo] = useState(null);
+
+  const [locations, setLocations] = useState([]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/rsp/dashboard/consolidated`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch {}
-    };
-    fetchUsers();
     setUsers([
       { id: 0, full_name: 'Enter user ID manually', email: '' }
     ]);
+    fetch(`${API_BASE}/api/personnel/schools-offices?active_only=1`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    }).then(r => r.json()).then(d => setLocations(d)).catch(() => {});
   }, []);
+
+  const [users, setUsers] = useState([]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Photo must be under 5 MB.' });
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      setMessage({ type: 'error', text: 'Photo must be JPEG or PNG.' });
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setMessage(null);
   };
 
   const handleSubmit = async (e) => {
@@ -44,15 +61,22 @@ const CreateEmployee = () => {
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
+      const fd = new FormData();
+      Object.entries(form).forEach(([key, val]) => {
+        if (val !== '' && val !== null && val !== undefined) {
+          fd.append(key, val);
+        }
+      });
+      if (photoFile) fd.append('photo', photoFile);
+
       const res = await fetch(`${API_BASE}/api/personnel/employees`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form)
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
       });
       if (res.ok) {
         const data = await res.json();
-        setGeneratedEmployeeNo(data.employee_no);
-        setMessage({ type: 'success', text: `Employee created successfully! Employee No: ${data.employee_no}` });
+        setMessage({ type: 'success', text: `Employee created successfully! Employee No: ${form.employee_no}` });
         setTimeout(() => navigate(`/personnel-admin/employees/${data.id}`), 1500);
       } else {
         const err = await res.json();
@@ -75,22 +99,63 @@ const CreateEmployee = () => {
         <p className="text-xs font-bold text-slate-400">Create a new employee record</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-8" encType="multipart/form-data">
         {message && (
           <div className={`px-4 py-3 rounded-xl text-sm font-bold ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
             {message.text}
           </div>
         )}
 
+        {/* Photo + User Account */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
-          <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">User Account</h3>
-          <div>
-            <p className={labelClass}>User ID *</p>
-            <input type="number" name="user_id" value={form.user_id} onChange={handleChange} required className={inputClass} placeholder="Enter the user ID from the users table" />
-            <p className="text-[9px] font-bold text-slate-400 mt-1">The user must already exist in the system. Ask them to register first.</p>
+          <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Photo & Account</h3>
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#1B3A6B] transition-colors bg-slate-50"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera size={32} className="text-slate-300" />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[10px] font-black text-[#1B3A6B] uppercase border border-slate-200 rounded-xl px-4 py-2 hover:bg-slate-50"
+              >
+                Choose Photo
+              </button>
+              {photoPreview && (
+                <button
+                  type="button"
+                  onClick={() => { setPhotoFile(null); setPhotoPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  className="text-[10px] font-black text-red-500 uppercase"
+                >
+                  Remove
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              <p className="text-[9px] font-bold text-slate-400 text-center">JPEG or PNG, max 5 MB</p>
+            </div>
+
+            <div className="flex-1">
+              <p className={labelClass}>User ID *</p>
+              <input type="number" name="user_id" value={form.user_id} onChange={handleChange} required className={inputClass} placeholder="Enter the user ID from the users table" />
+              <p className="text-[9px] font-bold text-slate-400 mt-1">The user must already exist in the system. Ask them to register first.</p>
+            </div>
           </div>
         </div>
 
+        {/* Personal Information */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
           <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Personal Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -156,6 +221,7 @@ const CreateEmployee = () => {
           </div>
         </div>
 
+        {/* Government IDs */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
           <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Government IDs</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -166,6 +232,7 @@ const CreateEmployee = () => {
           </div>
         </div>
 
+        {/* Employment Details */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
           <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Employment Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -187,25 +254,89 @@ const CreateEmployee = () => {
               <p className={labelClass}>Category</p>
               <select name="employment_type" value={form.employment_type} onChange={handleChange} className={inputClass}>
                 <option value="teaching">Teaching</option>
-                <option value="non-teaching">Non-Teaching</option>
+                <option value="non_teaching">Non-Teaching</option>
                 <option value="teaching_related">Teaching-Related</option>
               </select>
             </div>
+            <div>
+              <p className={labelClass}>Job Status</p>
+              <select name="job_status" value={form.job_status} onChange={handleChange} className={inputClass}>
+                <option value="active">Active</option>
+                <option value="on_leave">On Leave</option>
+                <option value="suspended">Suspended</option>
+                <option value="resigned">Resigned</option>
+                <option value="retired">Retired</option>
+                <option value="terminated">Terminated</option>
+              </select>
+            </div>
+            <div>
+              <p className={labelClass}>Eligibility</p>
+              <input type="text" name="eligibility" value={form.eligibility} onChange={handleChange} className={inputClass} placeholder="e.g. Career Service Professional" />
+            </div>
+            <div>
+              <p className={labelClass}>Employee No. *</p>
+              <input type="text" name="employee_no" value={form.employee_no} onChange={handleChange} required className={inputClass} placeholder="e.g. 2026-00123" />
+            </div>
+          </div>
+        </div>
+
+        {/* Salary & Station */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
+          <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Salary & Station</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className={labelClass}>Salary Grade</p>
               <input type="text" name="salary_grade" value={form.salary_grade} onChange={handleChange} className={inputClass} />
             </div>
             <div>
-              <p className={labelClass}>Monthly Salary</p>
-              <input type="number" name="monthly_salary" value={form.monthly_salary} onChange={handleChange} className={inputClass} />
+              <p className={labelClass}>Salary Step</p>
+              <select name="salary_step" value={form.salary_step} onChange={handleChange} className={inputClass}>
+                <option value="">Select</option>
+                <option value="1">Step 1</option>
+                <option value="2">Step 2</option>
+                <option value="3">Step 3</option>
+                <option value="4">Step 4</option>
+                <option value="5">Step 5</option>
+                <option value="6">Step 6</option>
+                <option value="7">Step 7</option>
+                <option value="8">Step 8</option>
+              </select>
             </div>
             <div>
               <p className={labelClass}>Item Number</p>
               <input type="text" name="item_number" value={form.item_number} onChange={handleChange} className={inputClass} />
             </div>
             <div>
-              <p className={labelClass}>Assigned School</p>
-              <input type="text" name="assigned_school" value={form.assigned_school} onChange={handleChange} className={inputClass} />
+              <p className={labelClass}>Authorized Salary</p>
+              <input type="number" step="0.01" name="authorized_salary" value={form.authorized_salary} onChange={handleChange} className={inputClass} placeholder="Budgeted rate" />
+            </div>
+            <div>
+              <p className={labelClass}>Actual Salary</p>
+              <input type="number" step="0.01" name="actual_salary" value={form.actual_salary} onChange={handleChange} className={inputClass} placeholder="Current rate" />
+            </div>
+            <div>
+              <p className={labelClass}>Monthly Salary (Legacy)</p>
+              <input type="number" step="0.01" name="monthly_salary" value={form.monthly_salary} onChange={handleChange} className={inputClass} placeholder="For backward compat" />
+            </div>
+            <div className="md:col-span-2">
+              <p className={labelClass}>School / Office</p>
+              <select name="school_office_id" value={form.school_office_id} onChange={handleChange} className={inputClass}>
+                <option value="">Select location...</option>
+                {locations.filter(l => l.type === 'school').length > 0 && (
+                  <optgroup label="Schools">
+                    {locations.filter(l => l.type === 'school').map(l => (
+                      <option key={l.id} value={l.id}>{l.name}{l.district ? ` — ${l.district}` : ''}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {locations.filter(l => l.type === 'office').length > 0 && (
+                  <optgroup label="Offices">
+                    {locations.filter(l => l.type === 'office').map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
             </div>
             <div>
               <p className={labelClass}>Date Hired</p>
@@ -214,10 +345,6 @@ const CreateEmployee = () => {
             <div>
               <p className={labelClass}>Original Appointment Date</p>
               <input type="date" name="date_original_appointment" value={form.date_original_appointment} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <p className={labelClass}>Employee No.</p>
-              <input type="text" value={generatedEmployeeNo || ''} disabled className={`${inputClass} bg-slate-50 text-slate-400 cursor-not-allowed`} placeholder="Auto-generated on save" />
             </div>
           </div>
         </div>

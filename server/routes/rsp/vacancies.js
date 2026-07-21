@@ -6,7 +6,9 @@ const {
     getVacancyById,
     updateVacancy,
     deleteVacancy,
-    advanceStage
+    advanceStage,
+    restoreVacancy,
+    permanentDeleteVacancy
 } = require('../../controllers/rsp/vacancyController');
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware');
 const { uploadMemo } = require('../../middleware/uploadMiddleware');
@@ -15,7 +17,7 @@ const { uploadMemo } = require('../../middleware/uploadMiddleware');
 
 router.get('/',
     verifyToken,
-    requireRole('admin', 'hr_staff', 'hrmpsb', 'appointing_authority'),
+    requireRole('admin', 'hr_staff', 'hrmpsb', 'appointing_authority', 'staff'),
     getVacancies
 );
 
@@ -44,10 +46,22 @@ router.patch('/:id/advance',
     advanceStage
 );
 
+router.patch('/:id/restore',
+    verifyToken,
+    requireRole('admin', 'hr_staff'),
+    restoreVacancy
+);
+
 router.delete('/:id',
     verifyToken,
     requireRole('admin', 'hr_staff'),
     deleteVacancy
+);
+
+router.delete('/:id/permanent',
+    verifyToken,
+    requireRole('admin'),
+    permanentDeleteVacancy
 );
 
 module.exports = router;

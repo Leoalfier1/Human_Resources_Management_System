@@ -8,6 +8,7 @@ const guard = [verifyToken, requireRole('admin', 'hr_staff', 'hrmpsb')];
 router.get('/criteria',  ...guard, caController.getCriteria);
 router.get('/rankings',  ...guard, caController.getRankings);
 router.get('/scores',    ...guard, caController.getScores);
+router.get('/ies/:applicantId', ...guard, caController.generateIES);
 router.put('/score',     ...guard, caController.updateScore);
 router.post('/submit',   ...guard, caController.submitAssessment);
 router.post('/reset',    ...guard, caController.resetScores);   // clears stale inflated scores

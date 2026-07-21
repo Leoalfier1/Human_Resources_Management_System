@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../utils/api';
+import { usePersonnelRealtime } from './usePersonnelRealtime';
 
 export const useLeave = () => {
   const [credits, setCredits] = useState(null);
@@ -7,7 +8,8 @@ export const useLeave = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -21,7 +23,7 @@ export const useLeave = () => {
       if (appsRes.ok) setApplications(await appsRes.json());
       setError(null);
     } catch (err) {
-      setError('Cannot reach the server.');
+      if (!isSilent) setError('Cannot reach the server.');
     } finally {
       setLoading(false);
     }
@@ -29,12 +31,25 @@ export const useLeave = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  usePersonnelRealtime(['personnel:update', 'personnel:leave:update'], () => {
+    fetchData(true);
+  });
+
   const submitLeave = async (data) => {
     const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}/api/personnel/leave`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        leave_type: data.leave_type,
+        date_from: data.date_from,
+        date_to: data.date_to,
+        num_days: data.num_days,
+        reason: data.reason,
+        leave_details: data.leave_details || null,
+        commutation: data.commutation || 'not_requested',
+        esignature_consented: data.esignature_consented || 0,
+      })
     });
     if (res.ok) { await fetchData(); return { success: true }; }
     const err = await res.json();
@@ -78,26 +93,38 @@ export const useHRLeave = () => {
     }
   }, []);
 
-  const approveLeave = async (id) => {
+  const recommendLeave = async (id, recommendation, remark) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_BASE}/api/personnel/leave/${id}/approve`, {
+    const res = await fetch(`${API_BASE}/api/personnel/leave/${id}/recommend`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ recommendation, remark })
     });
     if (res.ok) { await fetchApplications(); return true; }
     return false;
   };
 
-  const rejectLeave = async (id, rejection_reason) => {
+  const finalApproveLeave = async (id, payload) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/personnel/leave/${id}/final-approve`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) { await fetchApplications(); return true; }
+    return false;
+  };
+
+  const rejectLeave = async (id, stage, rejection_reason) => {
     const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}/api/personnel/leave/${id}/reject`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ rejection_reason })
+      body: JSON.stringify({ stage, rejection_reason })
     });
     if (res.ok) { await fetchApplications(); return true; }
     return false;
   };
 
-  return { data, loading, error, fetchApplications, approveLeave, rejectLeave };
+  return { data, loading, error, fetchApplications, recommendLeave, finalApproveLeave, rejectLeave };
 };

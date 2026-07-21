@@ -12,4 +12,9 @@ router.get('/',        ctrl.getMyPDS);       // full PDS payload for the form
 router.patch('/',      ctrl.updateMyPDS);    // save draft progress
 router.post('/submit', ctrl.submitMyPDS);    // lock the PDS
 
+// Image uploads (separate endpoints — multer middleware, not JSON body)
+router.post('/photo',     ctrl.uploadPhoto,     ctrl.uploadMyPhoto);
+router.post('/signature', ctrl.uploadSignature, ctrl.uploadMySignature);
+router.post('/thumbmark', ctrl.uploadThumbmark, ctrl.uploadMyThumbmark);
+
 module.exports = router;

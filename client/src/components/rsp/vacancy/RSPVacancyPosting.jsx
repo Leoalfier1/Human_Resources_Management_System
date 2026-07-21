@@ -7,12 +7,20 @@ import {
 } from 'lucide-react';
 import { FileDropzone, PublishToggles } from './FormExtras';
 import { API_BASE, SERVER_BASE } from '../../../utils/api';
+import DeleteVacancyModal from './DeleteVacancyModal';
+import RecentlyDeletedTable from './RecentlyDeletedTable';
 
 const API = `${API_BASE}/api/rsp/vacancies`;
 const SERVER = SERVER_BASE;
 
+const DEFAULT_SALARY_GRADE = {
+    teaching: 'SG-11',
+    teaching_related: 'SG-11',
+    non_teaching: 'SG-1',
+};
+
 const EMPTY_FORM = {
-    position_title: '', item_number: '', salary_grade: 'SG-1',
+    position_title: '', item_number: '', salary_grade: DEFAULT_SALARY_GRADE.teaching,
     assigned_school: '', no_of_vacancies: 1,
     position_type: 'teaching',
     posting_date: new Date().toISOString().split('T')[0],
@@ -172,6 +180,7 @@ const VacancyViewModal = ({ vacancy, onClose, onEdit }) => {
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
 const RSPVacancyPosting = () => {
     const [view, setView] = useState('list');         // 'list' | 'form' | 'edit'
+    const [activeTab, setActiveTab] = useState('posted'); // 'posted' | 'deleted'
     const [vacancies, setVacancies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -181,6 +190,11 @@ const RSPVacancyPosting = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [memoFile, setMemoFile] = useState(null);
     const [errors, setErrors] = useState({});
+
+    // Delete state
+    const [deletingVacancy, setDeletingVacancy] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deletedCount, setDeletedCount] = useState(0);
 
     // ── Fetch list ──────────────────────────────────────────────────────────────
     const fetchVacancies = async () => {
@@ -195,6 +209,7 @@ const RSPVacancyPosting = () => {
     };
 
     useEffect(() => { fetchVacancies(); }, []);
+    useEffect(() => { if (activeTab === 'posted' && view === 'list') fetchVacancies(); }, [activeTab]);
 
     // ── Open Edit ────────────────────────────────────────────────────────────────
     const openEdit = (v) => {
@@ -224,6 +239,14 @@ const RSPVacancyPosting = () => {
         setMemoFile(null);
         setErrors({});
         setView('form');
+    };
+
+    const handlePositionTypeChange = (position_type) => {
+        setFormData(prev => ({
+            ...prev,
+            position_type,
+            salary_grade: DEFAULT_SALARY_GRADE[position_type] || prev.salary_grade,
+        }));
     };
 
     // ── Publish (POST) ───────────────────────────────────────────────────────────
@@ -289,6 +312,30 @@ const RSPVacancyPosting = () => {
         finally { setSubmitting(false); }
     };
 
+    // ── Soft Delete Vacancy ──────────────────────────────────────────────────────
+    const handleSoftDelete = async () => {
+        if (!deletingVacancy) return;
+        setDeleteLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API}/${deletingVacancy.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await res.json();
+            if (res.ok) {
+                setDeletingVacancy(null);
+                fetchVacancies();
+            } else {
+                alert(result.message || 'Failed to delete vacancy.');
+            }
+        } catch (e) {
+            alert('Connection error.');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     // ── Shared form fields ───────────────────────────────────────────────────────
     const renderForm = (onSubmit, isEdit = false) => (
         <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -315,7 +362,7 @@ const RSPVacancyPosting = () => {
                                         <button
                                             key={type}
                                             type="button"
-                                            onClick={() => setFormData({...formData, position_type: type})}
+                                            onClick={() => handlePositionTypeChange(type)}
                                             className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${
                                                 formData.position_type === type
                                                     ? type === 'teaching'
@@ -460,13 +507,26 @@ const RSPVacancyPosting = () => {
                 )}
             </AnimatePresence>
 
+            {/* Delete Vacancy Modal */}
+            <AnimatePresence>
+                {deletingVacancy && (
+                    <DeleteVacancyModal
+                        isOpen={!!deletingVacancy}
+                        onClose={() => setDeletingVacancy(null)}
+                        onConfirm={handleSoftDelete}
+                        vacancy={deletingVacancy}
+                        loading={deleteLoading}
+                    />
+                )}
+            </AnimatePresence>
+
             {/* Page Header */}
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Vacancy Posting</h2>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Stage 1 of RSP — 10 calendar day application window</p>
                 </div>
-                {view === 'list' && (
+                {view === 'list' && activeTab === 'posted' && (
                     <button
                         onClick={openNew}
                         className="bg-[#1B3A6B] text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-[#D6402F] transition-all"
@@ -484,94 +544,140 @@ const RSPVacancyPosting = () => {
                     <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden"
                     >
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="text-xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Posted Vacancies</h3>
-                            <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em]">
-                                {vacancies.length} total
-                            </span>
+                        {/* Tab Toggle */}
+                        <div className="p-8 border-b border-slate-100">
+                            <div className="flex items-center justify-between">
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setActiveTab('posted')}
+                                        className={`text-[10px] font-black uppercase px-6 py-3 rounded-xl transition-all ${
+                                            activeTab === 'posted'
+                                                ? 'bg-[#D6402F] text-white'
+                                                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Posted Vacancies
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('deleted')}
+                                        className={`text-[10px] font-black uppercase px-6 py-3 rounded-xl transition-all flex items-center gap-2 ${
+                                            activeTab === 'deleted'
+                                                ? 'bg-[#D6402F] text-white'
+                                                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Recently Deleted
+                                        {deletedCount > 0 && (
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                                                activeTab === 'deleted' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {deletedCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {activeTab === 'posted' && (
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em]">
+                                        {vacancies.length} total
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="overflow-x-auto">
-                            {loading ? (
-                                <div className="p-20 text-center">
-                                    <Loader2 className="animate-spin text-slate-300 mx-auto" size={32} />
-                                </div>
-                            ) : vacancies.length === 0 ? (
-                                <div className="p-20 text-center flex flex-col items-center">
-                                    <div className="w-16 h-16 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center mb-4">
-                                        <Clock size={32} />
+                        {/* Tab Content */}
+                        {activeTab === 'posted' ? (
+                            <div className="overflow-x-auto">
+                                {loading ? (
+                                    <div className="p-20 text-center">
+                                        <Loader2 className="animate-spin text-slate-300 mx-auto" size={32} />
                                     </div>
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No vacancies posted yet</p>
-                                </div>
-                            ) : (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                        <tr>
-                                            <th className="px-8 py-4">Ref No.</th>
-                                            <th className="px-4 py-4">Position Title</th>
-                                            <th className="px-4 py-4">Type</th>
-                                            <th className="px-4 py-4">School / Office</th>
-                                            <th className="px-4 py-4">No. Vacan.</th>
-                                            <th className="px-4 py-4">Deadline</th>
-                                            <th className="px-4 py-4">Status</th>
-                                            <th className="px-8 py-4 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {vacancies.map((v) => (
-                                            <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="px-8 py-5 font-black text-[#1B3A6B] text-sm">{v.ref_no}</td>
-                                                <td className="px-4 py-5 font-black text-[#1B3A6B] text-sm">{v.position_title}</td>
-                                                <td className="px-4 py-5">
-                                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${
-                                                        v.position_type === 'non_teaching'
-                                                            ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                                                            : v.position_type === 'teaching_related'
-                                                                ? 'bg-violet-50 text-violet-600 border border-violet-200'
-                                                                : 'bg-blue-50 text-blue-600 border border-blue-200'
-                                                    }`}>
-                                                        {v.position_type === 'non_teaching' ? 'Non-Tch' : v.position_type === 'teaching_related' ? 'Tch-Rel' : 'Teaching'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold">{v.assigned_school}</td>
-                                                <td className="px-4 py-5 font-bold text-slate-500 text-sm">{v.no_of_vacancies}</td>
-                                                <td className="px-4 py-5">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-slate-600">{new Date(v.deadline_date).toLocaleDateString()}</span>
-                                                        <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${v.days_left < 0 ? 'text-slate-400' : v.days_left <= 4 ? 'text-red-500' : 'text-slate-400'}`}>
-                                                            <Clock size={10} /> {v.days_left < 0 ? 'Closed' : `${v.days_left}d left`}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-5">
-                                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${v.computed_status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                        {v.computed_status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-8 py-5 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => setViewingVacancy(v)}
-                                                            title="View details"
-                                                            className="p-2 text-slate-300 hover:bg-[#1B3A6B] hover:text-white rounded-lg transition-all shadow-sm"
-                                                        >
-                                                            <Eye size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openEdit(v)}
-                                                            title="Edit vacancy"
-                                                            className="p-2 text-slate-300 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm"
-                                                        >
-                                                            <Pencil size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
+                                ) : vacancies.length === 0 ? (
+                                    <div className="p-20 text-center flex flex-col items-center">
+                                        <div className="w-16 h-16 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center mb-4">
+                                            <Clock size={32} />
+                                        </div>
+                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No vacancies posted yet</p>
+                                    </div>
+                                ) : (
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                            <tr>
+                                                <th className="px-8 py-4">Ref No.</th>
+                                                <th className="px-4 py-4">Position Title</th>
+                                                <th className="px-4 py-4">Type</th>
+                                                <th className="px-4 py-4">School / Office</th>
+                                                <th className="px-4 py-4">No. Vacan.</th>
+                                                <th className="px-4 py-4">Deadline</th>
+                                                <th className="px-4 py-4">Status</th>
+                                                <th className="px-8 py-4 text-right">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {vacancies.map((v) => (
+                                                <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-8 py-5 font-black text-[#1B3A6B] text-sm">{v.ref_no}</td>
+                                                    <td className="px-4 py-5 font-black text-[#1B3A6B] text-sm">{v.position_title}</td>
+                                                    <td className="px-4 py-5">
+                                                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${
+                                                            v.position_type === 'non_teaching'
+                                                                ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                                                : v.position_type === 'teaching_related'
+                                                                    ? 'bg-violet-50 text-violet-600 border border-violet-200'
+                                                                    : 'bg-blue-50 text-blue-600 border border-blue-200'
+                                                        }`}>
+                                                            {v.position_type === 'non_teaching' ? 'Non-Tch' : v.position_type === 'teaching_related' ? 'Tch-Rel' : 'Teaching'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-5 text-[#1B3A6B] text-xs font-bold">{v.assigned_school}</td>
+                                                    <td className="px-4 py-5 font-bold text-slate-500 text-sm">{v.no_of_vacancies}</td>
+                                                    <td className="px-4 py-5">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-slate-600">{new Date(v.deadline_date).toLocaleDateString()}</span>
+                                                            <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${v.days_left < 0 ? 'text-slate-400' : v.days_left <= 4 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                                <Clock size={10} /> {v.days_left < 0 ? 'Closed' : `${v.days_left}d left`}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-5">
+                                                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full tracking-widest ${v.computed_status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                            {v.computed_status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-8 py-5 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => setViewingVacancy(v)}
+                                                                title="View details"
+                                                                className="p-2 text-slate-300 hover:bg-[#1B3A6B] hover:text-white rounded-lg transition-all shadow-sm"
+                                                            >
+                                                                <Eye size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openEdit(v)}
+                                                                title="Edit vacancy"
+                                                                className="p-2 text-slate-300 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm"
+                                                            >
+                                                                <Pencil size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setDeletingVacancy(v)}
+                                                                title="Delete vacancy"
+                                                                className="p-2 text-slate-300 hover:bg-[#D6402F] hover:text-white rounded-lg transition-all shadow-sm"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        ) : (
+                            <RecentlyDeletedTable onCountChange={setDeletedCount} />
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Award, Star, Download, CheckCircle, Clock, AlertCircle, Loader2, Upload, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../utils/api';
+import { API_BASE, downloadFile } from '../../utils/api';
 import io from 'socket.io-client';
 
 const token = () => localStorage.getItem('token');
@@ -113,8 +113,8 @@ const MyAwards = () => {
         finally { setSubmitting(false); }
     };
 
-    const handleDownloadCert = (awardId) => {
-        window.open(`${API_BASE}/api/rr/awards/${awardId}/certificate/download`, '_blank');
+    const handleDownloadCert = async (awardId) => {
+        await downloadFile(`/api/rr/awards/${awardId}/certificate/download`, 'award_certificate.pdf');
     };
 
     if (loading) return <Skeleton />;

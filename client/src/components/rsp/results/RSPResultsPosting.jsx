@@ -33,7 +33,7 @@ const RSPResultsPosting = () => {
         fetchVacancies();
     }, []);
 
-    const { data, loading, publish, isPublishing } = useResultsPosting(vacancyId);
+    const { data, loading, error, publish, isPublishing, refresh } = useResultsPosting(vacancyId);
 
     const handlePublishClick = () => setConfirming(true);
 
@@ -77,7 +77,16 @@ const RSPResultsPosting = () => {
                 </select>
             </div>
 
-            {loading || !data ? (
+            {error ? (
+                <div className="p-20 text-center bg-white rounded-[2.5rem] shadow-sm border border-red-200">
+                    <AlertTriangle className="mx-auto text-red-400 mb-4" size={48} />
+                    <h2 className="text-xl font-black text-red-600 uppercase italic mb-2">Failed to Load</h2>
+                    <p className="text-red-400 text-sm mb-4">{error}</p>
+                    <button onClick={refresh} className="px-6 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                        Retry
+                    </button>
+                </div>
+            ) : loading || !data ? (
                 <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">
                     Preparing Results Preview...
                 </div>

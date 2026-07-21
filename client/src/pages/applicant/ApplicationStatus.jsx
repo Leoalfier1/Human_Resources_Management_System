@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import io from 'socket.io-client';
-import { Check, Clock, Bell, Trophy, ChevronRight, XCircle, AlertTriangle, Send, MessageSquare } from 'lucide-react';
+import { Check, Clock, Bell, Trophy, ChevronRight, XCircle, AlertTriangle, Send, FileText, Upload, Loader2 } from 'lucide-react';
 import { API_BASE, SERVER_BASE } from '../../utils/api';
+import StatusBadge from '../../components/shared/StatusBadge';
 
 // 11-Stage RSP Process labels, matching the PRIME-HRM workflow used elsewhere in the system
 const STAGE_LABELS = [
@@ -31,38 +32,41 @@ const ApplicationStatus = () => {
     const [submittingAppeal, setSubmittingAppeal] = useState(false);
     const [appealSubmitted, setAppealSubmitted] = useState(false);
     const [actionMessage, setActionMessage] = useState(null);
+    const [reuploadingType, setReuploadingType] = useState(null);
+    const reuploadRef = React.useRef(null);
 
     const token = () => localStorage.getItem('token');
 
-    useEffect(() => {
-        const fetchStatus = async (isSilent = false) => {   // ← MODIFIED: accept silent flag
+    const fetchStatus = React.useCallback(async (isSilent = false) => {
         if (!isSilent) setLoading(true);
-            try {
-                const token = localStorage.getItem('token');
+        try {
+            const t = localStorage.getItem('token');
 
-                // Resolve the applicant's latest non-draft application ID first
-                const latestRes = await fetch(`${API_BASE}/api/applications/my-latest`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!latestRes.ok) { setLoading(false); return; }
-                const latest = await latestRes.json();
-                setApplicationId(latest.applicationId);
+            // Resolve the applicant's latest non-draft application ID first
+            const latestRes = await fetch(`${API_BASE}/api/applications/my-latest`, {
+                headers: { 'Authorization': `Bearer ${t}` }
+            });
+            if (!latestRes.ok) { setLoading(false); return; }
+            const latest = await latestRes.json();
+            setApplicationId(latest.applicationId);
 
-                const res = await fetch(`${API_BASE}/api/applications/${latest.applicationId}/status`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const json = await res.json();
-                    setData(json);
-                }
-            } catch (err) {
-                console.error('Failed to load application status:', err);
-            } finally {
-                setLoading(false);
+            const res = await fetch(`${API_BASE}/api/applications/${latest.applicationId}/status`, {
+                headers: { 'Authorization': `Bearer ${t}` }
+            });
+            if (res.ok) {
+                const json = await res.json();
+                setData(json);
             }
-        };
-        fetchStatus();
+        } catch (err) {
+            console.error('Failed to load application status:', err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchStatus();
+    }, [fetchStatus]);
 
     useEffect(() => {
         if (!applicationId) return;
@@ -77,7 +81,7 @@ const ApplicationStatus = () => {
         socket.on('application:document-update', silentRefresh);
 
         return () => socket.disconnect();
-    }, [applicationId]);
+    }, [applicationId, fetchStatus]);
 
     const handleWithdraw = async () => {
         setWithdrawing(true);
@@ -124,6 +128,49 @@ const ApplicationStatus = () => {
         }
     };
 
+    const triggerReupload = (docType) => {
+        setReuploadingType(docType);
+        reuploadRef.current.click();
+    };
+
+    const handleReuploadFile = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !reuploadingType) return;
+
+        const allowedExt = ['.pdf', '.jpg', '.jpeg', '.png'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!allowedExt.includes(ext)) {
+            setActionMessage({ type: 'error', text: 'Only PDF, JPG, or PNG files are allowed.' });
+            e.target.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('document_type', reuploadingType);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${applicationId}/documents`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token()}` },
+                body: formData
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setActionMessage({ type: 'success', text: 'Document re-uploaded successfully. It will be reviewed by HR.' });
+                // Refresh data to show updated status
+                fetchStatus(true);
+            } else {
+                setActionMessage({ type: 'error', text: json.message || 'Upload failed' });
+            }
+        } catch {
+            setActionMessage({ type: 'error', text: 'Server error during upload.' });
+        } finally {
+            setReuploadingType(null);
+            e.target.value = '';
+        }
+    };
+
     if (loading) {
         return <div className="min-h-screen flex justify-center pt-32"><div className="w-8 h-8 border-4 border-[#1B3A6B] border-t-transparent rounded-full animate-spin"/></div>;
     }
@@ -139,11 +186,14 @@ const ApplicationStatus = () => {
 
     const { application, stageHistory, notifications, score } = data;
     const currentStage = application.current_stage || 1;
+    const isDisqualified = application.status === 'disqualified';
+    const disqualifiedAtStage = isDisqualified ? currentStage : null;
 
     const getStageStatus = (stageNum) => {
+        if (isDisqualified && stageNum === disqualifiedAtStage) return 'disqualified';
         const found = stageHistory?.find(s => s.stage_number === stageNum);
         if (found?.status === 'completed') return 'completed';
-        if (stageNum === currentStage) return 'active';
+        if (!isDisqualified && stageNum === currentStage) return 'active';
         if (stageNum < currentStage) return 'completed';
         return 'upcoming';
     };
@@ -159,6 +209,7 @@ const ApplicationStatus = () => {
 
     return (
         <div className="min-h-screen bg-[#F1F3F6] pb-16">
+            <input ref={reuploadRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={handleReuploadFile} />
             {/* HEADER BANNER */}
             <div className="bg-[#1B3A6B] text-white">
                 <div className="max-w-6xl mx-auto px-6 py-6">
@@ -180,7 +231,7 @@ const ApplicationStatus = () => {
                         </div>
                         <div>
                             <p className="text-[9px] font-bold text-blue-300 uppercase">Overall Status</p>
-                            <p className="font-black text-yellow-400 uppercase">{application.status?.replace('_', ' ')}</p>
+                            <StatusBadge status={application.status} dark />
                         </div>
                     </div>
                 </div>
@@ -206,34 +257,52 @@ const ApplicationStatus = () => {
                                     <div className="flex flex-col items-center">
                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border-2 shrink-0
                                             ${status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white'
+                                            : status === 'disqualified' ? 'bg-red-500 border-red-500 text-white'
                                             : status === 'active' ? 'bg-[#1B3A6B] border-[#1B3A6B] text-white'
                                             : 'bg-white border-slate-200 text-slate-300'}`}>
-                                            {status === 'completed' ? <Check size={14} strokeWidth={3} /> : s.stage}
+                                            {status === 'completed' ? <Check size={14} strokeWidth={3} />
+                                            : status === 'disqualified' ? <XCircle size={14} strokeWidth={3} />
+                                            : s.stage}
                                         </div>
                                         {!isLast && (
-                                            <div className={`w-0.5 flex-1 my-1 ${status === 'completed' ? 'bg-emerald-300' : 'bg-slate-100'}`} style={{ minHeight: '28px' }} />
+                                            <div className={`w-0.5 flex-1 my-1 ${
+                                                status === 'completed' ? 'bg-emerald-300'
+                                                : status === 'disqualified' ? 'bg-red-200'
+                                                : 'bg-slate-100'
+                                            }`} style={{ minHeight: '28px' }} />
                                         )}
                                     </div>
 
                                     {/* Content column */}
-                                    <div className={`flex-1 pb-5 ${status === 'active' ? 'bg-blue-50/50 -mx-3 px-3 rounded-xl border border-blue-100' : ''}`}>
+                                    <div className={`flex-1 pb-5 ${
+                                        status === 'active' ? 'bg-blue-50/50 -mx-3 px-3 rounded-xl border border-blue-100'
+                                        : status === 'disqualified' ? 'bg-red-50/50 -mx-3 px-3 rounded-xl border border-red-100'
+                                        : ''}`}>
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <p className={`text-xs font-black uppercase ${
-                                                    status === 'upcoming' ? 'text-slate-300' : 'text-[#1B3A6B]'
+                                                    status === 'upcoming' ? 'text-slate-300'
+                                                    : status === 'disqualified' ? 'text-red-600'
+                                                    : 'text-[#1B3A6B]'
                                                 }`}>
                                                     Stage {s.stage}: {s.title}
                                                 </p>
-                                                <p className={`text-[11px] mt-0.5 ${status === 'upcoming' ? 'text-slate-300' : 'text-slate-400 font-medium'}`}>
+                                                <p className={`text-[11px] mt-0.5 ${
+                                                    status === 'upcoming' ? 'text-slate-300'
+                                                    : status === 'disqualified' ? 'text-red-400 font-medium'
+                                                    : 'text-slate-400 font-medium'
+                                                }`}>
                                                     {s.desc}
                                                 </p>
                                             </div>
                                             <span className={`text-[10px] font-bold whitespace-nowrap ml-4 ${
                                                 status === 'completed' ? 'text-emerald-600'
+                                                : status === 'disqualified' ? 'text-red-500'
                                                 : status === 'active' ? 'text-[#1B3A6B]'
                                                 : 'text-slate-300'
                                             }`}>
                                                 {status === 'completed' && dateStr}
+                                                {status === 'disqualified' && 'Stopped Here'}
                                                 {status === 'active' && 'In Progress'}
                                                 {status === 'upcoming' && 'Pending'}
                                             </span>
@@ -247,6 +316,27 @@ const ApplicationStatus = () => {
 
                 {/* RIGHT: SIDEBAR */}
                 <div className="space-y-6">
+                    {/* DISQUALIFICATION REASON BANNER */}
+                    {isDisqualified && application.initial_evaluation_remarks && (
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                            <div className="flex items-center gap-2 mb-2">
+                                <XCircle size={16} className="text-red-500" />
+                                <p className="text-[10px] font-black text-red-700 uppercase tracking-widest">
+                                    Disqualified at Stage {disqualifiedAtStage}
+                                </p>
+                            </div>
+                            <p className="text-xs font-bold text-red-800 leading-relaxed mb-1">
+                                Your application did not meet the minimum qualification standards.
+                            </p>
+                            <div className="bg-white/60 rounded-xl px-3 py-2 mt-2 border border-red-100">
+                                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Reason</p>
+                                <p className="text-[11px] font-semibold text-red-700 leading-relaxed">
+                                    {application.initial_evaluation_remarks}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* STAGE 9 BANNER — only shows when relevant */}
                     {currentStage === 9 && (
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
@@ -321,6 +411,54 @@ const ApplicationStatus = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* DOCUMENT STATUS — shows needs_revision docs with re-upload */}
+                    {data.documents && data.documents.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <FileText size={14} /> Document Status
+                            </p>
+                            <div className="space-y-2.5">
+                                {data.documents.map(doc => {
+                                    const isVerified = doc.verification_status === 'verified';
+                                    const isNeedsRevision = doc.verification_status === 'needs_revision';
+                                    return (
+                                        <div key={doc.id} className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border ${
+                                            isVerified ? 'bg-emerald-50/60 border-emerald-100'
+                                            : isNeedsRevision ? 'bg-amber-50/60 border-amber-200'
+                                            : 'bg-slate-50 border-slate-100'
+                                        }`}>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[11px] font-bold text-[#1B3A6B] leading-tight truncate">{doc.document_type}</p>
+                                                {isNeedsRevision && doc.revision_note && (
+                                                    <p className="text-[10px] font-semibold text-amber-700 mt-0.5 leading-tight line-clamp-2">
+                                                        {doc.revision_note}
+                                                    </p>
+                                                )}
+                                                {isVerified && (
+                                                    <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">Verified</p>
+                                                )}
+                                            </div>
+                                            {isNeedsRevision && (
+                                                <button
+                                                    onClick={() => triggerReupload(doc.document_type)}
+                                                    disabled={reuploadingType === doc.document_type}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[9px] font-bold transition-all shrink-0 disabled:opacity-50"
+                                                >
+                                                    {reuploadingType === doc.document_type ? (
+                                                        <Loader2 size={11} className="animate-spin" />
+                                                    ) : (
+                                                        <Upload size={11} />
+                                                    )}
+                                                    Re-upload
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* CONGRATULATORY ADVICE CTA — only shows once status reaches that point */}
                     {['selected', 'appointed'].includes(application.status) && (

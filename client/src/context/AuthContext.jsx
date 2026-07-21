@@ -21,25 +21,27 @@ const decodeToken = (token) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
+  const [loading, setLoading] = useState(true);
 
   // Connect Socket.IO and join user-specific rooms for real-time notifications
   const connectSocket = (currentUser, currentToken) => {
     if (socketRef.current) socketRef.current.disconnect();
 
-    const socket = io(SERVER_BASE, {
+    const s = io(SERVER_BASE, {
       auth: { token: currentToken }
     });
 
-    socket.on('connect', () => {
+    s.on('connect', () => {
       // Join user-specific room for targeted notifications (e.g. R&R awards)
       if (currentUser?.id) {
-        socket.emit('join-user-room', `rr-user-${currentUser.id}`);
+        s.emit('join-user-room', `rr-user-${currentUser.id}`);
       }
     });
 
-    socketRef.current = socket;
+    socketRef.current = s;
+    setSocket(s);
   };
 
   const disconnectSocket = () => {
@@ -47,6 +49,7 @@ export const AuthProvider = ({ children }) => {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
+    setSocket(null);
   };
 
   // 1. PERSISTENCE: Check localStorage when the app first loads
@@ -106,19 +109,20 @@ export const AuthProvider = ({ children }) => {
   const isHRAdmin = user && ['admin', 'hr_staff'].includes(user.role);
   const isAuthenticated = !!token;
 
-  // Values exposed to the rest of the app
-  const value = {
-    user,
-    token,
-    isAuthenticated,
-    isAdmin,
-    isApplicant,
-    isEmployee,
-    isHRAdmin,
-    login,
-    logout,
-    loading
-  };
+    // Values exposed to the rest of the app
+    const value = {
+        user,
+        token,
+        socket,
+        isAuthenticated,
+        isAdmin,
+        isApplicant,
+        isEmployee,
+        isHRAdmin,
+        login,
+        logout,
+        loading
+    };
 
   return (
     <AuthContext.Provider value={value}>

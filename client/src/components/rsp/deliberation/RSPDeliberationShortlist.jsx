@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Award, AlertTriangle, Send, Loader2, Lock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Star, Award, AlertTriangle, Send, Loader2, Lock, CheckCircle2, ShieldCheck, ArrowRight, Users, BarChart3 } from 'lucide-react';
 import { useDeliberation } from '../../../hooks/useDeliberation';
+import EmptyStagePanel from '../../shared/EmptyStagePanel';
 import { API_BASE } from '../../../utils/api';
 
 const API = API_BASE;
@@ -50,6 +51,7 @@ const RSPDeliberationShortlist = () => {
     const [vacLoading, setVacLoading] = useState(true);
     const [confirming, setConfirming] = useState(false);
     const [toast, setToast] = useState(null);
+    const [qualifiedCount, setQualifiedCount] = useState(null);
 
     useEffect(() => {
         const fetchVacancies = async () => {
@@ -71,7 +73,29 @@ const RSPDeliberationShortlist = () => {
         fetchVacancies();
     }, []);
 
-    const { data, loading, updateBI, recommend, endorse, isEndorsing } = useDeliberation(vacancyId);
+    const { data, loading, error, updateBI, recommend, endorse, isEndorsing, refresh } = useDeliberation(vacancyId);
+
+    useEffect(() => {
+        if (!vacancyId) { setQualifiedCount(null); return; }
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API}/api/rsp/deliberation/qualified-count?vacancy_id=${vacancyId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (!cancelled) setQualifiedCount(json.count ?? 0);
+                } else {
+                    if (!cancelled) setQualifiedCount(null);
+                }
+            } catch {
+                if (!cancelled) setQualifiedCount(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [vacancyId]);
 
     const recommendedCount = data.filter(d => d.is_recommended).length;
     const isAlreadyEndorsed = data.length > 0 && data[0].current_stage >= 9;
@@ -162,16 +186,32 @@ const RSPDeliberationShortlist = () => {
 
             {/* TABLE */}
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                {loading ? (
+                {error ? (
+                    <div className="p-20 text-center bg-white rounded-[2.5rem] shadow-sm border border-red-200">
+                        <AlertTriangle className="mx-auto text-red-400 mb-4" size={48} />
+                        <h2 className="text-xl font-black text-red-600 uppercase italic mb-2">Failed to Load</h2>
+                        <p className="text-red-400 text-sm mb-4">{error}</p>
+                        <button onClick={refresh} className="px-6 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                            Retry
+                        </button>
+                    </div>
+                ) : loading ? (
                     <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">
                         Loading Ranked Candidates...
                     </div>
                 ) : data.length === 0 ? (
-                    <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">
-                        No assessed candidates yet for this vacancy.
-                        <p className="text-[10px] font-bold text-slate-300 mt-2 normal-case">
-                            Candidates must complete Comparative Assessment before appearing here.
-                        </p>
+                    <div className="p-8">
+                        <EmptyStagePanel
+                            icon={BarChart3}
+                            title="No Assessed Candidates Yet"
+                            message={
+                                qualifiedCount != null && qualifiedCount > 0
+                                    ? `${qualifiedCount} qualified applicant${qualifiedCount !== 1 ? 's' : ''} · 0 of ${qualifiedCount} scored in Comparative Assessment`
+                                    : 'Candidates must complete Comparative Assessment before appearing here.'
+                            }
+                            actionLabel="Go to Comparative Assessment"
+                            onAction={() => { window.location.href = '/rsp/comparative-assessment'; }}
+                        />
                     </div>
                 ) : (
                     <div className="overflow-x-auto">

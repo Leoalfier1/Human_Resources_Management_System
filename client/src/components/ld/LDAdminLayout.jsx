@@ -54,8 +54,8 @@ const LDAdminLayout = () => {
                 className="bg-emerald-900 text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-[100] overflow-hidden"
             >
                 <div className="p-5 flex items-center gap-3 border-b border-white/10">
-                    <div className="bg-emerald-500 p-2 rounded-xl shrink-0">
-                        <GraduationCap size={22} />
+                    <div className="bg-emerald-500 p-2 rounded-xl shrink-0 overflow-hidden">
+                        <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
                     </div>
                     {!isCollapsed && (
                         <div className="overflow-hidden">

@@ -4,6 +4,7 @@ import { API_BASE } from '../utils/api';
 export const useResultsPosting = (vacancyId) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isPublishing, setIsPublishing] = useState(false);
 
     const fetchData = async () => {
@@ -14,7 +15,11 @@ export const useResultsPosting = (vacancyId) => {
             });
             const json = await res.json();
             setData(json);
-        } catch (e) { console.error(e); }
+            setError(null);
+        } catch (e) {
+            console.error(e);
+            setError(e.message || 'Failed to fetch results');
+        }
         finally { setLoading(false); }
     };
 
@@ -34,5 +39,5 @@ export const useResultsPosting = (vacancyId) => {
 
     useEffect(() => { if (vacancyId) fetchData(); }, [vacancyId]);
 
-    return { data, loading, publish, isPublishing };
+    return { data, loading, error, publish, isPublishing, refresh: fetchData };
 };
