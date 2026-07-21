@@ -3,8 +3,20 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+app.use(cors({
+  origin: process.env.CLIENT_URL, // e.g. https://prime-hrm.vercel.app
+  credentials: true
+}));
 const path = require('path');
-const db = require('./db');
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  connectTimeout: 30000,
+  ssl: { rejectUnauthorized: false }
+});
 
 const app = express();
 app.set('trust proxy', 1);
@@ -12,12 +24,12 @@ const server = http.createServer(app);
 
 // 1. SOCKET.IO SETUP
 const io = new Server(server, {
-    cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174"],
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        credentials: true
-    }
+  cors: {
+    origin: process.env.CLIENT_URL,
+    credentials: true
+  }
 });
+
 
 app.set('socketio', io);
 
