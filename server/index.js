@@ -24,7 +24,8 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000
+  keepAliveInitialDelay: 10000,
+  family: 4
 });
 
 // ── DYNAMIC CORS ORIGIN CHECK ──────────────────────────────
