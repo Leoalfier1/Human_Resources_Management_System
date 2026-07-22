@@ -2,33 +2,45 @@ const nodemailer = require('nodemailer');
 const dns = require('dns');
 require('dotenv').config();
 
-// Force ALL DNS lookups in this process to resolve IPv4 only.
-// Railway containers have no IPv6 route to Gmail's SMTP servers, and
-// nodemailer does not forward the `family` transport option down to
-// the underlying socket — so we patch dns.lookup itself instead.
-const originalLookup = dns.lookup;
-dns.lookup = (hostname, options, callback) => {
-    if (typeof options === 'function') {
-        callback = options;
-        options = {};
-    }
-    return originalLookup(hostname, { ...options, family: 4 }, callback);
-};
+// Node's built-in `net` module captures a LOCAL reference to dns.lookup
+// the moment it first loads — before any app code runs. Patching
+// dns.lookup afterward (as we tried before) has no effect on that
+// internal reference, which is why Railway's container kept trying to
+// connect over IPv6 despite every previous fix.
+//
+// The reliable fix: resolve smtp.gmail.com to a real IPv4 address
+// ourselves, and connect directly to that IP instead of the hostname.
+// TLS servername is set separately so certificate validation still
+// works correctly against the real hostname.
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+let transporter;
 
-// Prevent unhandled 'error' events on the transporter EventEmitter from crashing the Node process
-transporter.on('error', (err) => {
-    console.error('⚠️ Nodemailer Transporter Error:', err.message || err);
-});
+async function getTransporter() {
+    if (transporter) return transporter;
+
+    const addresses = await dns.promises.resolve4('smtp.gmail.com');
+    const ipv4Address = addresses[0];
+
+    transporter = nodemailer.createTransport({
+        host: ipv4Address,
+        port: 465,
+        secure: true,
+        tls: {
+            servername: 'smtp.gmail.com'
+        },
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+
+    // Prevent unhandled 'error' events on the transporter EventEmitter from crashing the Node process
+    transporter.on('error', (err) => {
+        console.error('⚠️ Nodemailer Transporter Error:', err.message || err);
+    });
+
+    return transporter;
+}
 
 const sendVerificationEmail = async (email, token) => {
     try {
@@ -71,7 +83,8 @@ const sendVerificationEmail = async (email, token) => {
             `
         };
 
-        return await transporter.sendMail(mailOptions);
+        const t = await getTransporter();
+        return await t.sendMail(mailOptions);
     } catch (err) {
         console.error('❌ Failed to send verification email:', err.message || err);
         return null;
@@ -100,7 +113,8 @@ const sendResetPasswordEmail = async (email, token) => {
             `
         };
 
-        return await transporter.sendMail(mailOptions);
+        const t = await getTransporter();
+        return await t.sendMail(mailOptions);
     } catch (err) {
         console.error('❌ Failed to send reset password email:', err.message || err);
         return null;
@@ -150,7 +164,8 @@ const sendAnnexEEmail = async (email, applicantName, positionTitle, letterType, 
             }] : []
         };
 
-        return await transporter.sendMail(mailOptions);
+        const t = await getTransporter();
+        return await t.sendMail(mailOptions);
     } catch (err) {
         console.error('❌ Failed to send Annex E email:', err.message || err);
         return null;
