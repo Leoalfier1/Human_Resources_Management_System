@@ -4,9 +4,9 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const mysql = require('mysql2/promise'); // ← was missing entirely
+const mysql = require('mysql2/promise');
 
-const app = express();          // ← must be declared before any app.use()
+const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 
@@ -27,11 +27,32 @@ const db = mysql.createPool({
   keepAliveInitialDelay: 10000
 });
 
+// ── DYNAMIC CORS ORIGIN CHECK ──────────────────────────────
+// Allows your stable production domain (CLIENT_URL), any Vercel
+// preview/deploy hash for this project, and local dev ports.
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  /^https:\/\/human-resources-management-system.*\.vercel\.app$/,
+  "http://localhost:5173",
+  "http://localhost:5174"
+];
+
+function corsOriginCheck(origin, callback) {
+  if (!origin) return callback(null, true); // non-browser requests (Postman, curl, health checks)
+  const isAllowed = allowedOrigins.some(allowed =>
+    allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+  );
+  if (isAllowed) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+}
 
 // 1. SOCKET.IO SETUP
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: corsOriginCheck,
     credentials: true
   }
 });
@@ -40,7 +61,7 @@ app.set('socketio', io);
 
 // 2. MIDDLEWARE
 app.use(cors({
-    origin: [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5174"],
+    origin: corsOriginCheck,
     credentials: true
 }));
 app.use(express.json());
