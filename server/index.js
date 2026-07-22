@@ -25,7 +25,13 @@ const db = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  family: 4
+  idleTimeout: 60000,      // close connections idle >60s so they're refreshed before Railway drops them
+  maxIdle: 5                // cap how many idle connections stay in the pool
+});
+
+// Catch and log any pool-level connection errors instead of letting them crash silently
+db.on('error', (err) => {
+  console.error('⚠️ MySQL pool error:', err.code);
 });
 
 // ── DYNAMIC CORS ORIGIN CHECK ──────────────────────────────
