@@ -871,7 +871,11 @@ exports.sendAnnexEAdvice = async (req, res) => {
         const applicantEmail = userRows[0].email;
         const pdfBuffer = await generateAnnexEBuffer(data);
 
-        await sendAnnexEEmail(applicantEmail, recipientName, vacancy.position_title, letterType, pdfBuffer, applicant.ref_no);
+        try {
+            await sendAnnexEEmail(applicantEmail, recipientName, vacancy.position_title, letterType, pdfBuffer, applicant.ref_no);
+        } catch (emailErr) {
+            console.error('⚠️ Could not send Annex E email:', emailErr.message);
+        }
         await db.query('UPDATE applications SET advice_sent_at = NOW() WHERE id = ?', [applicationId]);
         await db.query(
             `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,

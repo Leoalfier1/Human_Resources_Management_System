@@ -59,8 +59,6 @@ const sendVerificationEmail = async (email, token) => {
     return transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendVerificationEmail };
-
 const sendResetPasswordEmail = async (email, token) => {
     // Link directs to the React reset-password page
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
