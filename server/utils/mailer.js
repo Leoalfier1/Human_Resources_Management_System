@@ -2,20 +2,27 @@ const nodemailer = require('nodemailer');
 const dns = require('dns');
 require('dotenv').config();
 
-// Ensure Node defaults to IPv4 first across all DNS lookups
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-}
+// Force ALL DNS lookups in this process to resolve IPv4 only.
+// Railway containers have no IPv6 route to Gmail's SMTP servers, and
+// nodemailer does not forward the `family` transport option down to
+// the underlying socket — so we patch dns.lookup itself instead.
+const originalLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+    if (typeof options === 'function') {
+        callback = options;
+        options = {};
+    }
+    return originalLookup(hostname, { ...options, family: 4 }, callback);
+};
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  family: 4
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
 });
 
 // Prevent unhandled 'error' events on the transporter EventEmitter from crashing the Node process
