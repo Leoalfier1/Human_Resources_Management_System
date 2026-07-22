@@ -4,35 +4,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const mysql = require('mysql2/promise');
+const db = require('./db');
 
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
-
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  connectTimeout: 30000,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-  idleTimeout: 60000,      // close connections idle >60s so they're refreshed before Railway drops them
-  maxIdle: 5                // cap how many idle connections stay in the pool
-});
-
-// Catch and log any pool-level connection errors instead of letting them crash silently
-db.on('error', (err) => {
-  console.error('⚠️ MySQL pool error:', err.code);
-});
 
 // ── DYNAMIC CORS ORIGIN CHECK ──────────────────────────────
 // Allows your stable production domain (CLIENT_URL), any Vercel

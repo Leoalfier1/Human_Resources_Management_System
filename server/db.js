@@ -1,32 +1,44 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // We use a "Pool" because it is better for handling multiple users
-const pool = mysql.createPool({
+const db = mysql.createPool({
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
     user: process.env.DB_USER,
-    password: process.env.DB_PASS,
+    password: process.env.DB_PASSWORD || process.env.DB_PASS,
     database: process.env.DB_NAME,
+    connectTimeout: 30000,
+    ssl: {
+        rejectUnauthorized: false
+    },
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    idleTimeout: 60000,
+    maxIdle: 5
+});
+
+db.on('error', (err) => {
+    console.error('⚠️ MySQL pool error:', err.code);
 });
 
 // Test the connection and run self-healing schema patch
-pool.getConnection((err, connection) => {
-    if (err) {
+async function initDb() {
+    try {
+        await db.query('SELECT 1');
+        console.log('✅ Connected to MySQL Database!');
+        await patchDatabase();
+    } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-    } else {
-        console.log('✅ Connected to Laragon MySQL Database!');
-        connection.release();
-        patchDatabase();
     }
-});
+}
 
 // Self-healing database initialization / patch
 async function patchDatabase() {
     try {
-        const db = pool.promise();
         console.log('📡 Running database self-healing check...');
 
         // 1. Check and alter ld_attendance if columns are missing
@@ -131,4 +143,6 @@ async function patchDatabase() {
     }
 }
 
-module.exports = pool.promise();
+initDb();
+
+module.exports = db;
