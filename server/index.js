@@ -215,13 +215,22 @@ io.on('connection', (socket) => {
     });
 });
 
+// Process-wide safety handlers to prevent unhandled promise rejections or uncaught exceptions from terminating the server container
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ Unhandled Promise Rejection (non-fatal):', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ Uncaught Exception (non-fatal):', err);
+});
+
 // 6. START SERVER
 const PORT = process.env.PORT || 5000;
 
 async function start() {
     try {
         await db.query('SELECT 1');
-        console.log('✅ MySQL Connected (Laragon)');
+        console.log(`✅ MySQL Connected (${process.env.DB_HOST || 'localhost'})`);
         server.listen(PORT, () => {
             console.log(`🚀 Server running on http://localhost:${PORT}`);
         });
