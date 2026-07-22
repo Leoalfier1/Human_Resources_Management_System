@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { API_BASE } from '../../utils/api';
 import AuthLayout from './AuthLayout';
 
 const ResetPasswordPage = () => {
@@ -26,7 +27,7 @@ const ResetPasswordPage = () => {
     setMessage('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/auth/update-password`, {
+      const response = await fetch(`${API_BASE}/api/auth/update-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword })
