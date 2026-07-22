@@ -19,8 +19,14 @@ const db = mysql.createPool({
   connectTimeout: 30000,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
 });
+
 
 // 1. SOCKET.IO SETUP
 const io = new Server(server, {
