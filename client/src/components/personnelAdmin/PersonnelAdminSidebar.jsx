@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutGrid, Users, UserPlus, CalendarCheck, FileText, ClipboardCheck,
-  BarChart3, LogOut, ChevronLeft, ScrollText, UserCheck, Wrench, MapPin, UserCog
+  BarChart3, LogOut, ChevronLeft, ScrollText, UserCheck, Wrench, MapPin, UserCog, X
 } from 'lucide-react';
 import { usePersonnelDashboard } from '../../hooks/usePersonnelDashboard';
 
@@ -34,31 +34,46 @@ const NAV_ITEMS = [
   ]},
 ];
 
-const PersonnelAdminSidebar = ({ userName, userRole, onBack }) => {
+const PersonnelAdminSidebar = ({ userName, userRole, onBack, isMobileOpen, setIsMobileOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { badgeCounts } = usePersonnelDashboard();
 
   return (
-    <motion.div
-      initial={false}
-      animate={{ width: isCollapsed ? 80 : 280 }}
-      className="h-screen bg-[#1B3A6B] text-white flex flex-col sticky top-0 left-0 z-[100] shadow-2xl select-none"
+    <aside
+      className={`
+        fixed lg:sticky top-0 left-0 h-screen bg-[#1B3A6B] text-white flex flex-col z-[100] shadow-2xl select-none transition-all duration-300
+        ${isMobileOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full lg:translate-x-0'}
+        ${isCollapsed ? 'lg:w-[80px]' : 'lg:w-[280px]'}
+      `}
     >
       <div className="p-4 flex items-center justify-between border-b border-white/5 h-[72px] bg-[#162E55] shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0 overflow-hidden">
             <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
           </div>
-          {!isCollapsed && (
+          {(!isCollapsed || isMobileOpen) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="whitespace-nowrap">
               <p className="font-black text-sm uppercase tracking-tighter leading-tight">Personnel</p>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest opacity-70">HR Admin</p>
             </motion.div>
           )}
         </div>
-        <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-slate-500 hover:text-white transition-colors p-1">
-          <ChevronLeft className={`transition-transform duration-500 ${isCollapsed ? 'rotate-180' : ''}`} size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Close button on mobile */}
+          {setIsMobileOpen && (
+            <button
+              onClick={() => setIsMobileOpen(false)}
+              className="lg:hidden text-slate-400 hover:text-white p-1 transition-colors"
+              title="Close menu"
+            >
+              <X size={20} />
+            </button>
+          )}
+          {/* Collapse button on desktop */}
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="hidden lg:block text-slate-500 hover:text-white transition-colors p-1">
+            <ChevronLeft className={`transition-transform duration-500 ${isCollapsed ? 'rotate-180' : ''}`} size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto sidebar-scroll px-3 py-6">
@@ -132,7 +147,7 @@ const PersonnelAdminSidebar = ({ userName, userRole, onBack }) => {
           {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-[0.2em]">Back to Pillars</span>}
         </button>
       </div>
-    </motion.div>
+    </aside>
   );
 };
 

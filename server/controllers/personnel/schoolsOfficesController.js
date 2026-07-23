@@ -55,7 +55,10 @@ exports.create = async (req, res) => {
             [name.trim(), type, districtVal]
         );
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:schools-offices:update');
+        }
         res.status(201).json({ message: 'Created.', id: result.insertId });
     } catch (error) {
         if (error.code === 'ER_DUP_ENTRY') {
@@ -82,7 +85,10 @@ exports.update = async (req, res) => {
             [name.trim(), type, districtVal, id]
         );
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:schools-offices:update');
+        }
         res.json({ message: 'Updated.' });
     } catch (error) {
         if (error.code === 'ER_DUP_ENTRY') {
@@ -115,7 +121,10 @@ exports.toggleActive = async (req, res) => {
 
         await db.query('UPDATE schools_offices SET is_active = ? WHERE id = ?', [currentActive ? 0 : 1, id]);
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:schools-offices:update');
+        }
         res.json({ message: currentActive ? 'Deactivated.' : 'Reactivated.', is_active: currentActive ? 0 : 1 });
     } catch (error) {
         console.error('schoolsOffices.toggleActive Error:', error);

@@ -1,150 +1,159 @@
-import React, { useState } from 'react';
-import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { X, Bell, GraduationCap, UserCheck, LayoutDashboard, ClipboardList, Target, BarChart3, Award, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ClipboardList, Users, BookOpen, Award, Settings, ArrowLeft, 
+  ChevronLeft, ChevronDown, Bell, FileText, FileCheck, BarChart3, Shield, LogOut 
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useAdminNotifications } from '../../hooks/useAdminNotifications';
+import { apiGet } from '../../utils/api';
+import PMHeader from './PMHeader';
+
+const NAV_ITEMS = [
+  { section: 'PERFORMANCE MANAGEMENT', items: [
+    { key: 'dashboard', label: 'PM Dashboard', icon: BarChart3, path: '/pm/dashboard' },
+    { key: 'planning', label: 'Planning & Commitment', icon: FileCheck, path: '/pm/planning' },
+    { key: 'monitoring', label: 'Monitoring & Coaching', icon: ClipboardList, path: '/pm/monitoring' },
+    { key: 'review', label: 'Review & Evaluation', icon: FileText, path: '/pm/review', badge: true },
+    { key: 'rewarding', label: 'Rewarding & Dev Planning', icon: Award, path: '/pm/rewarding' },
+    { key: 'form-config', label: 'Form Configuration', icon: Settings, path: '/pm/form-config' },
+  ]}
+];
 
 const PMAdminLayout = () => {
-    const { isAuthenticated, isAdmin, user } = useAuth();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { toasts, dismissToast } = useAdminNotifications();
-    const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(3);
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
 
-    if (!isAuthenticated || !isAdmin) {
-        return <Navigate to="/" replace />;
-    }
+  useEffect(() => {
+    if (!token) return;
+    apiGet('/pm/dashboard/stats')
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.stats) {
+        setPendingReviewsCount(data.stats.pendingReviews || 0);
+      }
+    })
+    .catch(err => console.error("Layout stats fetch error:", err));
+  }, [token]);
 
-    const ROLE_LABELS = {
-        admin: 'HR Administrator',
-        hr_staff: 'HR Staff',
-        hrmpsb: 'HRMPSB Secretariat',
-        appointing_authority: 'Appointing Authority',
-    };
+  const handleBackToPillars = () => {
+    navigate('/pillars');
+  };
 
-    const navItems = [
-        { path: '/pm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { path: '/pm/planning', label: 'Phase 1\nPlanning', icon: ClipboardList },
-        { path: '/pm/monitoring', label: 'Phase 2\nMonitoring', icon: Target },
-        { path: '/pm/evaluation', label: 'Phase 3\nEvaluation', icon: BarChart3 },
-        { path: '/pm/rewards', label: 'Phase 4\nRewards', icon: Award },
-    ];
-
-    const notificationIcons = {
-        rsp: <UserCheck size={16} />,
-        ld: <GraduationCap size={16} />,
-        pm: <ClipboardList size={16} />,
-    };
-    const notificationColors = {
-        rsp: 'bg-blue-600',
-        ld: 'bg-emerald-600',
-        pm: 'bg-purple-600',
-    };
-
-    return (
-        <div className="flex bg-[#F1F3F6] min-h-screen">
-            <motion.div
-                animate={{ width: isCollapsed ? 80 : 260 }}
-                className="bg-[#1B3A6B] text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-[100] overflow-hidden"
-            >
-                <div className="p-5 flex items-center gap-3 border-b border-white/10">
-                    <div className="bg-[#D6402F] p-2 rounded-xl shrink-0 overflow-hidden">
-                        <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
-                    </div>
-                    {!isCollapsed && (
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-black uppercase tracking-tight leading-tight">Performance</p>
-                            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">Management</p>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-                    {navItems.map(item => {
-                        const isActive = location.pathname.startsWith(item.path);
-                        const lines = item.label.split('\n');
-                        return (
-                            <button
-                                key={item.path}
-                                onClick={() => navigate(item.path)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left
-                                    ${isActive ? 'bg-white/20 text-white shadow-lg' : 'text-blue-200 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <item.icon size={20} className="shrink-0" />
-                                {!isCollapsed && (
-                                    <div className="overflow-hidden">
-                                        <span className="text-xs font-black uppercase leading-tight block">{lines[0]}</span>
-                                        {lines[1] && <span className="text-[9px] text-blue-300 uppercase tracking-wider">{lines[1]}</span>}
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="p-4 border-t border-white/10">
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="w-full text-xs text-blue-300 hover:text-white transition-colors font-bold uppercase tracking-wider"
-                    >
-                        {isCollapsed ? '>>' : 'Collapse'}
-                    </button>
-                    {!isCollapsed && (
-                        <div className="mt-3">
-                            <p className="text-xs font-bold text-white">{user?.fullName}</p>
-                            <p className="text-[9px] text-blue-300 uppercase tracking-widest">{ROLE_LABELS[user?.role] || 'Staff'}</p>
-                            <button onClick={() => navigate('/pillars')} className="mt-2 text-[10px] text-blue-300 hover:text-white underline underline-offset-2">
-                                Back to Pillars
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-
-            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-                <header className="h-[72px] bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
-                    <div>
-                        <h1 className="text-xl font-bold text-[#1B3A6B] leading-tight">
-                            {navItems.find(n => location.pathname.startsWith(n.path))?.label.split('\n')[0] || 'Performance Management'}
-                        </h1>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                            PM Module · PRIME-HRM · SDO Dapitan City
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 bg-[#1B3A6B] rounded-full flex items-center justify-center text-white font-bold text-xs">
-                            {user?.fullName?.charAt(0) || 'HR'}
-                        </div>
-                    </div>
-                </header>
-
-                <main className="flex-1 overflow-y-auto p-8 relative">
-                    <div className="fixed top-4 right-4 z-[999] flex flex-col gap-2 max-w-sm">
-                        <AnimatePresence>
-                            {toasts.map(toast => (
-                                <motion.div
-                                    key={toast.id}
-                                    initial={{ opacity: 0, x: 300, scale: 0.9 }}
-                                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                                    exit={{ opacity: 0, x: 300, scale: 0.9 }}
-                                    className={`${notificationColors[toast.type] || 'bg-gray-700'} text-white px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3 cursor-pointer`}
-                                    onClick={() => dismissToast(toast.id)}
-                                >
-                                    <span className="mt-0.5 shrink-0">{notificationIcons[toast.type] || <Bell size={16} />}</span>
-                                    <p className="text-sm font-medium leading-snug flex-1">{toast.message}</p>
-                                    <X size={14} className="shrink-0 mt-0.5 opacity-70 hover:opacity-100" />
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                    <div className="max-w-[1600px] mx-auto">
-                        <Outlet />
-                    </div>
-                </main>
+  return (
+    <div className="flex bg-[#F1F3F6] min-h-screen">
+      
+      {/* LEFT SIDEBAR */}
+      <motion.div 
+        initial={false}
+        animate={{ width: collapsed ? 80 : 280 }}
+        className="h-screen bg-[#1B3A6B] text-white flex flex-col sticky top-0 left-0 z-[100] shadow-2xl select-none"
+      >
+        {/* 1. BRAND HEADER */}
+        <div className="p-4 flex items-center justify-between border-b border-white/5 h-[72px] bg-[#162E55]">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="bg-[#D6402F] p-2.5 rounded-xl shadow-lg shrink-0">
+              <Shield size={20} className="text-white" fill="currentColor" />
             </div>
+            {!collapsed && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="whitespace-nowrap">
+                <p className="font-black text-sm uppercase tracking-tighter leading-tight">DepEd Division</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest opacity-70">Dapitan City</p>
+              </motion.div>
+            )}
+          </div>
+          <button 
+            onClick={() => setCollapsed(!collapsed)} 
+            className="text-slate-500 hover:text-white transition-colors p-1"
+          >
+            <ChevronLeft className={`transition-transform duration-500 ${collapsed ? 'rotate-180' : ''}`} size={20} />
+          </button>
         </div>
-    );
+
+        {/* 2. SCROLLABLE NAVIGATION */}
+        <div className="flex-1 overflow-y-auto sidebar-scroll px-3 py-6">
+          {NAV_ITEMS.map((section) => (
+            <div key={section.section} className="mb-8">
+              {!collapsed && (
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] px-3 mb-3 opacity-60">
+                  {section.section}
+                </p>
+              )}
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.key}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all mb-1 group
+                    ${isActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}
+                  `}
+                >
+                  {/* Red Active Indicator Background */}
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.div 
+                          layoutId="nav-active-pm" 
+                          className="absolute inset-0 bg-[#D6402F] rounded-xl shadow-lg"
+                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        />
+                      )}
+                      <div className="relative z-10 flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'group-hover:scale-110 transition-transform'}`} />
+                          {!collapsed && (
+                            <span className={`text-sm tracking-wide ${isActive ? 'font-black' : 'font-semibold'}`}>
+                              {item.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* 3. FOOTER SECTION (PAGES BACK) */}
+        <div className="p-4 border-t border-white/5 bg-[#162E55]">
+          {!collapsed && (
+            <div className="mb-4 px-3 text-center">
+              <p className="text-xs font-black text-white uppercase tracking-tight truncate">{user?.fullName || "PM Administrator"}</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest truncate opacity-70">
+                {user?.role === 'admin' ? 'PM Administrator' : 'PM Supervisor'}
+              </p>
+            </div>
+          )}
+          <button 
+            onClick={handleBackToPillars} 
+            className="w-full flex items-center justify-center gap-3 px-3 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group"
+          >
+            <LogOut size={18} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+            {!collapsed && <span className="text-[10px] font-black uppercase tracking-[0.2em]">Back to Pillars</span>}
+          </button>
+        </div>
+      </motion.div>
+
+      {/* RIGHT CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        
+        {/* TOP HEADER */}
+        <PMHeader />
+
+        {/* DYNAMIC PAGE CONTENT */}
+        <main className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-[1600px] mx-auto">
+            <Outlet />
+          </div>
+        </main>
+
+      </div>
+    </div>
+  );
 };
 
 export default PMAdminLayout;

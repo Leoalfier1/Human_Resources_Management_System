@@ -94,13 +94,22 @@ import AdviceNextSteps from './pages/applicant/AdviceNextSteps';
 
 // --- PERFORMANCE MANAGEMENT (PM) MODULE ---
 import PMAdminLayout from './components/pm/PMAdminLayout';
-import PMDashboard from './components/pm/dashboard/PMDashboard';
-import PMPlanningPhase from './components/pm/planning/PMPlanningPhase';
-import PMMonitoringPhase from './components/pm/monitoring/PMMonitoringPhase';
-import PMEvaluationPhase from './components/pm/evaluation/PMEvaluationPhase';
-import PMRewardsPhase from './components/pm/rewards/PMRewardsPhase';
-import MyPerformance from './pages/applicant/MyPerformance';
+import PMDashboard from './pages/PMDashboard';
+import PlanningCommitment from './pages/PlanningCommitment';
+import MonitoringCoaching from './pages/MonitoringCoaching';
+import ReviewEvaluation from './pages/ReviewEvaluation';
+import RewardingDevPlanning from './pages/RewardingDevPlanning';
+import FormConfiguration from './pages/FormConfiguration';
+import PerformanceEvaluationList from './pages/PerformanceEvaluationList';
+import PerformanceEvaluationForm from './pages/PerformanceEvaluationForm';
 
+import EmployeeTopNav from './components/employee/EmployeeTopNav';
+import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import MyIPCRF from './pages/employee/MyIPCRF';
+import MyProgress from './pages/employee/MyProgress';
+import MyReview from './pages/employee/MyReview';
+import RecognitionDevPlan from './pages/employee/RecognitionDevPlan';
+import PerformanceHistory from './pages/employee/PerformanceHistory';
 function App() {
   const { isAuthenticated, isAdmin, isApplicant, isHRAdmin, loading, user } = useAuth();
 
@@ -203,23 +212,35 @@ function App() {
         />
 
         {/* 4c. PM MODULE — admin layout with collapsible sidebar */}
-        <Route 
-          path="/pm" 
-          element={(isAuthenticated && isAdmin) ? <PMAdminLayout /> : <Navigate to="/" replace />}
-        >
-          <Route index element={<Navigate to="/pm/dashboard" replace />} />
-          <Route path="dashboard" element={<PMDashboard />} />
-          <Route path="planning" element={<PMPlanningPhase />} />
-          <Route path="monitoring" element={<PMMonitoringPhase />} />
-          <Route path="evaluation" element={<PMEvaluationPhase />} />
-          <Route path="rewards" element={<PMRewardsPhase />} />
-        </Route>
+        {/* PM MODULE — Admin */}
+<Route 
+  path="/pm" 
+  element={(isAuthenticated && isAdmin) ? <PMAdminLayout /> : <Navigate to="/" replace />}
+>
+  <Route index element={<Navigate to="/pm/dashboard" replace />} />
+  <Route path="dashboard" element={<PMDashboard />} />
+  <Route path="planning" element={<PlanningCommitment />} />
+  <Route path="monitoring" element={<MonitoringCoaching />} />
+  <Route path="review" element={<ReviewEvaluation />} />
+  <Route path="rewarding" element={<RewardingDevPlanning />} />
+  <Route path="form-config" element={<FormConfiguration />} />
+  <Route path="evaluate-staff" element={<PerformanceEvaluationList />} />
+  <Route path="evaluate/:employeeId" element={<PerformanceEvaluationForm />} />
+</Route>
 
-        {/* 4d. PM — applicant My Performance page */}
-        <Route 
-          path="/jobs/my-performance" 
-          element={(isAuthenticated && isApplicant) ? <MyPerformance /> : <Navigate to="/" replace />} 
-        />
+{/* PM MODULE — Employee self-service view */}
+<Route
+  path="/pm/employee"
+  element={isAuthenticated && isApplicant ? <EmployeeTopNav /> : <Navigate to="/" replace />}
+>
+  <Route index element={<Navigate to="/pm/employee/dashboard" replace />} />
+  <Route path="dashboard" element={<EmployeeDashboard />} />
+  <Route path="ipcrf" element={<MyIPCRF />} />
+  <Route path="progress" element={<MyProgress />} />
+  <Route path="review" element={<MyReview />} />
+  <Route path="recognition-dev-plan" element={<RecognitionDevPlan />} />
+  <Route path="performance-history" element={<PerformanceHistory />} />
+</Route>
 
         {/* 4e. R&R MODULE — admin layout with amber/gold sidebar */}
         <Route

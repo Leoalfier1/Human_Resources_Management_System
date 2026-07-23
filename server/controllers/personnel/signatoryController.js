@@ -62,7 +62,10 @@ exports.create = async (req, res) => {
         );
 
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:signatory:update');
+        }
         res.status(201).json({ message: 'Signatory created.', id: result.insertId });
     } catch (error) {
         console.error('signatoryController.create Error:', error);
@@ -98,7 +101,10 @@ exports.update = async (req, res) => {
         );
 
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:signatory:update');
+        }
         res.json({ message: 'Signatory updated.' });
     } catch (error) {
         console.error('signatoryController.update Error:', error);
@@ -120,7 +126,10 @@ exports.remove = async (req, res) => {
         await db.query('DELETE FROM signatories WHERE id = ?', [req.params.id]);
 
         const io = req.app.get('socketio');
-        if (io) io.emit('personnel:update');
+        if (io) {
+            io.emit('personnel:update');
+            io.emit('personnel:signatory:update');
+        }
         res.json({ message: 'Signatory deleted.' });
     } catch (error) {
         console.error('signatoryController.remove Error:', error);
