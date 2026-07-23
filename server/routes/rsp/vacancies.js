@@ -1,29 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { getQueue, getApplicantDetails, finalizeDecision } = require('../../controllers/rsp/evaluationController');
+const { getVacancies, createVacancy } = require('../../controllers/rsp/vacancyController');
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware');
-
-// Ensure these match the frontend fetch calls
-router.get('/queue', verifyToken, requireRole('admin', 'hr_staff'), getQueue);
-router.get('/applicant/:applicantId', verifyToken, requireRole('admin', 'hr_staff'), getApplicantDetails);
-router.patch('/applicant/:applicantId/decision', verifyToken, requireRole('admin', 'hr_staff'), finalizeDecision);
-
-// Temporary fix for missing routes in previous step:
+const { uploadMemo } = require('../../middleware/uploadMiddleware');
 const db = require('../../db');
-router.patch('/applicant/:applicantId/criterion/:criterionId', verifyToken, async (req, res) => {
-    const { applicantId, criterionId } = req.params;
-    const { passed } = req.body;
-    await db.query(
-        'INSERT INTO applicant_qualification_results (applicant_id, criterion_id, passed) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE passed = ?',
-        [applicantId, criterionId, passed, passed]
-    );
-    res.json({ message: "Updated" });
-});
 
-router.patch('/document/:documentId/verify', verifyToken, async (req, res) => {
-    const { documentId } = req.params;
-    await db.query('UPDATE applicant_documents SET verification_status = "verified" WHERE id = ?', [documentId]);
-    res.json({ message: "Verified" });
+router.get('/', verifyToken, getVacancies);
+router.post('/', verifyToken, requireRole('admin', 'hr_staff'), uploadMemo.single('division_memorandum'), createVacancy);
+
+// New endpoint to fetch minimum qualifications checklist for a vacancy
+router.get('/:id/checklist', verifyToken, async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT id, criterion_label, is_required FROM minimum_qualifications_checklist WHERE vacancy_id = ?',
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
 });
 
 module.exports = router;

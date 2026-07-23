@@ -37,9 +37,9 @@ const AuthLayout = ({ children }) => {
           
           <div className="h-px bg-white/20 w-full mb-8"></div>
 
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
+          <div className="text-3xl md:text-4xl font-bold mb-4 leading-tight text-white">
             Human Resource Management Information System
-          </h1>
+          </div>
 
           <div className="inline-flex items-center gap-2 bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold mb-6">
             <CheckCircle size={14} />

@@ -72,8 +72,8 @@ const RSPApplicantManagement = () => {
             {/* HEADER */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Applicant Management</h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Manage and track all RSP applicants per position</p>
+                    <h2 className="text-2xl font-black text-black uppercase tracking-tight italic">Applicant Management</h2>
+                    <p className="text-xs font-bold text-slate-600 uppercase tracking-widest mt-0.5">Manage and track all RSP applicants per position</p>
                 </div>
                 <button 
                     onClick={handleExport}
@@ -96,8 +96,8 @@ const RSPApplicantManagement = () => {
                     <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-5 relative overflow-hidden">
                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.color}`} />
                         <div>
-                            <p className="text-3xl font-black text-[#1B3A6B]">{s.value}</p>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{s.label}</p>
+                            <p className="text-3xl font-black text-black">{s.value}</p>
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">{s.label}</p>
                         </div>
                     </div>
                 ))}
@@ -106,7 +106,7 @@ const RSPApplicantManagement = () => {
             {/* FILTERS */}
             <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 flex flex-wrap gap-4 items-center">
                 <div className="flex-1 min-w-[300px] relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                     <input 
                         type="text" 
                         placeholder="Search by name or ID..."
@@ -116,7 +116,7 @@ const RSPApplicantManagement = () => {
                     />
                 </div>
                 <select 
-                    className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-600 outline-none"
+                    className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-black outline-none"
                     value={filters.status}
                     onChange={e => setFilters({...filters, status: e.target.value, page: 1})}
                 >
@@ -127,7 +127,7 @@ const RSPApplicantManagement = () => {
                     <option value="disqualified">Disqualified</option>
                 </select>
                 <select 
-                    className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-600 outline-none max-w-[250px]"
+                    className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-black outline-none max-w-[250px]"
                     value={filters.vacancy_id}
                     onChange={e => setFilters({...filters, vacancy_id: e.target.value, page: 1})}
                 >
@@ -141,7 +141,7 @@ const RSPApplicantManagement = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                            <tr className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">
                                 <th className="px-8 py-5">ID</th>
                                 <th className="px-4 py-5">Applicant</th>
                                 <th className="px-4 py-5">Position</th>
@@ -153,16 +153,16 @@ const RSPApplicantManagement = () => {
                         <tbody className="divide-y divide-slate-50">
                             {applicants.applicants?.map((app) => (
                                 <tr key={app.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-5 text-xs font-bold text-slate-400">{app.applicant_code}</td>
+                                    <td className="px-8 py-5 text-xs font-bold text-slate-600">{app.applicant_code}</td>
                                     <td className="px-4 py-5">
-                                        <p className="font-black text-[#1B3A6B] text-sm uppercase">{app.full_name}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 tracking-widest">{app.id_number}</p>
+                                        <p className="font-black text-black text-sm uppercase">{app.full_name}</p>
+                                        <p className="text-[10px] font-bold text-slate-600 tracking-widest">{app.id_number}</p>
                                     </td>
                                     <td className="px-4 py-5">
-                                        <p className="font-bold text-[#1B3A6B] text-xs">{app.position_title}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase">{app.school_abbreviation}</p>
+                                        <p className="font-bold text-black text-xs">{app.position_title}</p>
+                                        <p className="text-[10px] font-bold text-slate-600 uppercase">{app.school_abbreviation}</p>
                                     </td>
-                                    <td className="px-4 py-5 text-center font-black text-slate-600 text-sm">
+                                    <td className="px-4 py-5 text-center font-black text-black text-sm">
                                         {app.ca_score || '—'}
                                     </td>
                                     <td className="px-4 py-5">
@@ -183,14 +183,14 @@ const RSPApplicantManagement = () => {
 
                 {/* PAGINATION */}
                 <div className="p-6 border-t border-slate-50 flex justify-between items-center bg-slate-50/30">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">
                         Showing {applicants.applicants?.length} of {applicants.pagination?.total_count} applicants
                     </p>
                     <div className="flex gap-2">
                         <button 
                             disabled={filters.page === 1}
                             onClick={() => setFilters({...filters, page: filters.page - 1})}
-                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#1B3A6B] disabled:opacity-30"
+                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-black disabled:opacity-30"
                         >
                             <ChevronLeft size={18}/>
                         </button>
@@ -198,7 +198,7 @@ const RSPApplicantManagement = () => {
                             <button 
                                 key={i}
                                 onClick={() => setFilters({...filters, page: i + 1})}
-                                className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${filters.page === i + 1 ? 'bg-[#1B3A6B] text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                                className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${filters.page === i + 1 ? 'bg-[#1B3A6B] text-white shadow-lg' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
                             >
                                 {i + 1}
                             </button>
@@ -206,7 +206,7 @@ const RSPApplicantManagement = () => {
                         <button 
                             disabled={filters.page === applicants.pagination?.total_pages}
                             onClick={() => setFilters({...filters, page: filters.page + 1})}
-                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#1B3A6B] disabled:opacity-30"
+                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-black disabled:opacity-30"
                         >
                             <ChevronRight size={18}/>
                         </button>

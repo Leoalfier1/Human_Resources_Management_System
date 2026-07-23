@@ -12,7 +12,7 @@ const StatusBadge = ({ status }) => {
   };
 
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${config[status] || "bg-slate-50 text-slate-500"}`}>
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${config[status] || "bg-slate-50 text-slate-800"}`}>
       {status?.replace('_', ' ')}
     </span>
   );

@@ -89,14 +89,14 @@ const RSPInitialEvaluation = () => {
     if (!selectedVacId) return (
         <div className="p-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
             <Loader2 className="animate-spin mx-auto text-slate-300 mb-4" size={40} />
-            <p className="text-slate-400 font-black uppercase tracking-widest">Searching for active vacancies...</p>
+            <p className="text-slate-600 font-black uppercase tracking-widest">Searching for active vacancies...</p>
         </div>
     );
 
     if (!queueData) return (
         <div className="p-20 text-center">
-            <Loader2 className="animate-spin mx-auto text-[#1B3A6B] mb-4" size={40} />
-            <p className="text-[#1B3A6B] font-bold">Loading Applicant Queue...</p>
+            <Loader2 className="animate-spin mx-auto text-black mb-4" size={40} />
+            <p className="text-black font-bold">Loading Applicant Queue...</p>
         </div>
     );
 
@@ -106,10 +106,10 @@ const RSPInitialEvaluation = () => {
             {/* 1. HEADER SECTION WITH VACANCY PICKER */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
                 <div className="relative">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Currently Evaluating:</p>
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Currently Evaluating:</p>
                     <button 
                         onClick={() => setIsVacDropdownOpen(!isVacDropdownOpen)}
-                        className="flex items-center gap-3 text-lg font-black text-[#1B3A6B] uppercase italic hover:opacity-70 transition-opacity"
+                        className="flex items-center gap-3 text-lg font-black text-black uppercase italic hover:opacity-70 transition-opacity"
                     >
                         {queueData.vacancy?.position_title} ({queueData.vacancy?.ref_no})
                         <ChevronDown size={20} className={`transition-transform ${isVacDropdownOpen ? 'rotate-180' : ''}`} />
@@ -128,8 +128,8 @@ const RSPInitialEvaluation = () => {
                                         onClick={() => { setSelectedVacId(v.id); setIsVacDropdownOpen(false); }}
                                         className="w-full text-left px-6 py-4 hover:bg-slate-50 transition-colors border-b last:border-0"
                                     >
-                                        <p className="text-xs font-black text-[#1B3A6B] uppercase">{v.position_title}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{v.ref_no} · {v.assigned_school}</p>
+                                        <p className="text-xs font-black text-black uppercase">{v.position_title}</p>
+                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">{v.ref_no} · {v.assigned_school}</p>
                                     </button>
                                 ))}
                             </motion.div>
@@ -138,10 +138,10 @@ const RSPInitialEvaluation = () => {
                 </div>
 
                 <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-200 flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg shadow-sm text-[#1B3A6B]"><Clock size={20} /></div>
+                    <div className="p-2 bg-white rounded-lg shadow-sm text-black"><Clock size={20} /></div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Processing Time</p>
-                        <p className="text-sm font-black text-[#1B3A6B] mt-0.5">{queueData.processing_time_label}</p>
+                        <p className="text-[10px] font-black text-slate-600 uppercase leading-none">Processing Time</p>
+                        <p className="text-sm font-black text-black mt-0.5">{queueData.processing_time_label}</p>
                     </div>
                 </div>
             </div>
@@ -153,8 +153,8 @@ const RSPInitialEvaluation = () => {
                 <div className="w-full lg:w-[350px] shrink-0">
                     <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="text-xs font-black text-[#1B3A6B] uppercase tracking-widest">Applicant Queue</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">{queueData.queue.length} Total Applicants</p>
+                            <h3 className="text-xs font-black text-black uppercase tracking-widest">Applicant Queue</h3>
+                            <p className="text-[10px] text-slate-600 font-bold uppercase">{queueData.queue.length} Total Applicants</p>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 sidebar-scroll">
                             {queueData.queue.length === 0 ? (
@@ -168,17 +168,17 @@ const RSPInitialEvaluation = () => {
                                         <button 
                                             key={app.id} 
                                             onClick={() => { setSelectedApplicant(app); setServerError(""); }}
-                                            className={`w-full text-left p-4 rounded-2xl transition-all mb-1 flex items-center justify-between ${isSelected ? 'bg-[#1B3A6B] text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}
+                                            className={`w-full text-left p-4 rounded-2xl transition-all mb-1 flex items-center justify-between ${isSelected ? 'bg-[#1B3A6B] text-white shadow-lg' : 'hover:bg-slate-50 text-black'}`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-2.5 h-2.5 rounded-full ${dotColor} ${app.status === 'submitted' ? 'animate-pulse' : ''}`} />
                                                 <div>
                                                     <p className="text-sm font-black uppercase leading-tight">{app.full_name}</p>
-                                                    <p className={`text-[10px] font-bold ${isSelected ? 'text-blue-200' : 'text-slate-400'}`}>{app.applicant_code}</p>
+                                                    <p className={`text-[10px] font-bold ${isSelected ? 'text-blue-200' : 'text-slate-600'}`}>{app.applicant_code}</p>
                                                 </div>
                                             </div>
                                             {['qualified', 'disqualified'].includes(app.status) && (
-                                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
                                                     {app.status}
                                                 </span>
                                             )}
@@ -197,14 +197,14 @@ const RSPInitialEvaluation = () => {
                         {/* A. STANDARDS CARD */}
                         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                                <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Minimum Qualification Standards</h3>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DepEd-CSC Standards</span>
+                                <h3 className="text-lg font-black text-black uppercase italic">Minimum Qualification Standards</h3>
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">DepEd-CSC Standards</span>
                             </div>
                             <div className="p-8 space-y-4">
                                 {details.criteria.map(c => (
                                     <div key={c.criterion_id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                         <div>
-                                            <p className="text-sm font-black text-[#1B3A6B] uppercase leading-tight">{c.criterion_label}</p>
+                                            <p className="text-sm font-black text-black uppercase leading-tight">{c.criterion_label}</p>
                                             {c.is_required && <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mt-1">Required</p>}
                                         </div>
                                         <div className="flex gap-2">
@@ -229,8 +229,8 @@ const RSPInitialEvaluation = () => {
                         {/* B. DOCUMENTS CARD */}
                         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                                <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Required Documents</h3>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <h3 className="text-lg font-black text-black uppercase italic">Required Documents</h3>
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
                                     {details.documents.filter(d => d.verification_status === 'verified').length}/{details.documents.length} Verified
                                 </span>
                             </div>
@@ -250,7 +250,7 @@ const RSPInitialEvaluation = () => {
                                                     <FileText size={20} />
                                                 </div>
                                                 <div>
-                                                    <p className={`text-sm font-black uppercase ${isVerified ? 'text-emerald-700' : (isPending ? 'text-blue-700' : 'text-slate-400')}`}>{doc.document_type}</p>
+                                                    <p className={`text-sm font-black uppercase ${isVerified ? 'text-emerald-700' : (isPending ? 'text-blue-700' : 'text-slate-600')}`}>{doc.document_type}</p>
                                                     <p className="text-[10px] font-bold opacity-50 tracking-tighter">Click to View File</p>
                                                 </div>
                                             </div>
@@ -299,7 +299,7 @@ const RSPInitialEvaluation = () => {
                     </div>
                 ) : (
                     <div className="flex-1 bg-white rounded-[2rem] flex items-center justify-center border border-dashed border-slate-200">
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm italic">Select an applicant from the queue to start screening</p>
+                        <p className="text-slate-600 font-bold uppercase tracking-widest text-sm italic">Select an applicant from the queue to start screening</p>
                     </div>
                 )}
             </div>

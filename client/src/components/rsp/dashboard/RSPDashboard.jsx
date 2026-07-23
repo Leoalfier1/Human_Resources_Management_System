@@ -30,8 +30,8 @@ const RSPDashboard = () => {
       {/* HEADER ROW */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight">RSP Module Overview</h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+          <h2 className="text-2xl font-black text-black uppercase tracking-tight">RSP Module Overview</h2>
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mt-0.5">
             SY {schoolYear} · As of {formattedDate}
           </p>
         </div>

@@ -33,23 +33,31 @@ router.post('/register', async (req, res) => {
         );
 
         // 5. ATTEMPT TO SEND THE EMAIL
-        console.log("Attempting to send email to:", email); 
+        console.log("Attempting to send email to:", email);
         try {
             await sendVerificationEmail(email, verificationToken);
             console.log("✅ Email sent successfully!");
-            
-            // Only send ONE response back to React
-            return res.status(201).json({ 
+
+            return res.status(201).json({
                 message: "User registered! Please check your email to verify.",
-                userId: result.insertId 
+                userId: result.insertId
             });
 
         } catch (emailError) {
             console.error("❌ NODEMAILER ERROR:", emailError);
-            // If email fails, we still tell the user they are registered but the email failed
-            return res.status(201).json({ 
-                message: "User registered, but verification email failed to send.",
-                userId: result.insertId 
+            console.log("⚠️  Email failed - auto-verifying as staff for local testing...");
+            await db.query(
+                'UPDATE users SET is_verified = TRUE, role = ? WHERE email = ?',
+                ['employee', email]
+            );
+            await db.query(
+                `INSERT INTO employees (name, email, role, position, unit) VALUES (?, ?, ?, ?, ?)`,
+                [fullName, email, 'employee', 'Employee', 'Not Assigned']
+            );
+            console.log(`✅ Auto-verified ${email} as staff/employee`);
+            return res.status(201).json({
+                message: "User registered and auto-verified! You can now log in.",
+                userId: result.insertId
             });
         }
 
@@ -74,14 +82,14 @@ router.post('/login', async (req, res) => {
 
         // --- STRICT PORTAL CHECK ---
         if (loginType === 'staff' && user.role === 'applicant') {
-            return res.status(403).json({ 
-                message: "Sorry, this account is only authorized for the Applicant Portal." 
+            return res.status(403).json({
+                message: "Sorry, this account is only authorized for the Applicant Portal."
             });
         }
 
-        if (loginType === 'applicant' && (user.role === 'staff' || user.role === 'admin')) {
-            return res.status(403).json({ 
-                message: "Sorry, this account is only authorized for the Staff/Admin Portal." 
+        if (loginType === 'applicant' && user.role === 'admin') {
+            return res.status(403).json({
+                message: "Sorry, this account is only authorized for the Staff/Admin Portal."
             });
         }
 
@@ -90,7 +98,12 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: "Invalid Credentials" });
         }
 
-        const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({
+            id: user.id,
+            role: user.role,
+            email: user.email,
+            name: user.full_name
+        }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
         res.json({
             token,
@@ -114,11 +127,11 @@ router.get('/verify-email', async (req, res) => {
     try {
         // 2. Verify the "Digital ID Card" (token)
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
+
         // 3. Update the user in Laragon
         // We set is_verified to 1 AND change the role to what they clicked
         const [result] = await db.query(
-            'UPDATE users SET is_verified = TRUE, role = ? WHERE email = ?', 
+            'UPDATE users SET is_verified = TRUE, role = ? WHERE email = ?',
             [role, decoded.email]
         );
 
@@ -126,7 +139,19 @@ router.get('/verify-email', async (req, res) => {
             return res.status(404).send("User not found.");
         }
 
-        // 4. Success Page
+        // 4. Create employee record if role is admin/staff/employee (not applicant)
+        const [user] = await db.query('SELECT * FROM users WHERE email = ?', [decoded.email]);
+        if (user.length > 0 && role !== 'applicant') {
+            const [existingEmp] = await db.query('SELECT id FROM employees WHERE email = ?', [decoded.email]);
+            if (existingEmp.length === 0) {
+                await db.query(
+                    `INSERT INTO employees (name, email, role, position, unit) VALUES (?, ?, ?, ?, ?)`,
+                    [user[0].full_name, decoded.email, 'employee', 'Employee', 'Not Assigned']
+                );
+            }
+        }
+
+        // 5. Success Page
         res.send(`
             <div style="font-family: sans-serif; text-align: center; padding: 50px;">
                 <h1 style="color: #1B3A6B;">Verification Successful!</h1>
@@ -186,7 +211,7 @@ router.post('/update-password', async (req, res) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 

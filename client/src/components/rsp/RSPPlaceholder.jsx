@@ -17,8 +17,8 @@ const RSPPlaceholder = ({ title }) => {
             <Activity size={18} />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Module Status</p>
-            <p className="text-sm font-bold text-slate-700 leading-none uppercase tracking-tight">Phase 0: Infrastructure Active</p>
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Module Status</p>
+            <p className="text-sm font-bold text-black leading-none uppercase tracking-tight">Phase 0: Infrastructure Active</p>
           </div>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full">
@@ -41,19 +41,19 @@ const RSPPlaceholder = ({ title }) => {
             <Construction size={64} strokeWidth={1.5} className="animate-bounce duration-[2000ms]" />
           </div>
           
-          <h2 className="text-4xl font-black text-[#1B3A6B] uppercase italic tracking-tighter mb-4">
+          <h2 className="text-4xl font-black text-black uppercase italic tracking-tighter mb-4">
             {title}
           </h2>
           
           <div className="max-w-md mx-auto space-y-4">
-            <p className="text-slate-500 font-medium leading-relaxed">
-              This workspace is part of the <span className="text-[#1B3A6B] font-bold">11-Stage RSP Workflow</span>. 
+            <p className="text-slate-800 font-medium leading-relaxed">
+              This workspace is part of the <span className="text-black font-bold">11-Stage RSP Workflow</span>. 
               The backend infrastructure and database schema are currently connected.
             </p>
             
             <div className="flex flex-wrap justify-center gap-2 pt-4">
               {['MySQL Connected', 'JWT Auth Active', 'RBAC Secured', 'File Upload Ready'].map((tag) => (
-                <span key={tag} className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                <span key={tag} className="px-3 py-1 bg-slate-100 text-slate-800 text-[10px] font-bold rounded-md uppercase tracking-wider">
                   {tag}
                 </span>
               ))}
@@ -63,8 +63,8 @@ const RSPPlaceholder = ({ title }) => {
 
         {/* Info Box Footer */}
         <div className="mt-12 flex items-center gap-3 bg-blue-50/50 border border-blue-100 p-4 rounded-2xl max-w-lg mx-auto">
-          <Info size={20} className="text-[#1B3A6B] shrink-0" />
-          <p className="text-xs text-[#1B3A6B] leading-relaxed text-left">
+          <Info size={20} className="text-black shrink-0" />
+          <p className="text-xs text-black leading-relaxed text-left">
             <strong>System Developer Note:</strong> Access to this screen is restricted to authorized HR Personnel. 
             Detailed UI for <span className="font-bold">"{title}"</span> will be implemented in the next development sprint.
           </p>
@@ -72,7 +72,7 @@ const RSPPlaceholder = ({ title }) => {
       </div>
 
       {/* 3. Small Footer Label */}
-      <p className="mt-6 text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em]">
+      <p className="mt-6 text-center text-[10px] text-slate-600 font-bold uppercase tracking-[0.3em]">
         DepEd SDO Dapitan City · PRIME-HRM Compliant System
       </p>
     </motion.div>

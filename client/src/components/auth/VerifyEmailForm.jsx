@@ -35,7 +35,7 @@ const VerifyEmailForm = ({ onSwitchTab }) => {
 
       <h3 className="font-bold text-lg mb-2">Check your inbox</h3>
       <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-        A verification link has been sent to your email address. Click the link to activate your account and start applying for teaching positions.
+        A verification link has been sent to your email address. Click the link to activate your account and start applying for teaching and non-teaching positions.
       </p>
 
       <div className="bg-amber-50 p-4 rounded-xl text-xs text-amber-800 text-left mb-8">
@@ -56,7 +56,7 @@ const VerifyEmailForm = ({ onSwitchTab }) => {
         </button>
       )}
 
-      <button 
+      <button
         onClick={() => onSwitchTab('login')}
         className="mt-6 flex items-center justify-center gap-2 text-slate-500 text-xs font-bold hover:text-[#1B3A6B] transition-colors mx-auto"
       >
