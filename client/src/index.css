@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+/* ─── Reset ──────────────────────────────────────────────────────── */
+body {
+  margin: 0;
+  background-color: #F1F3F6;
+}
+
+/* ─── Root container ─────────────────────────────────────────────── */
+/* Removed the Vite starter's 1126px cap, center-align, and border —
+   your RSP/applicant layouts manage their own max-width and alignment. */
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: #F1F3F6;
+}
+
+/* ─── Typography reset ───────────────────────────────────────────── */
+/* The Vite starter set h1 to 56px / 32px margin and h2 to 24px,
+   which overrode every Tailwind heading class in your components
+   (text-xl, text-2xl, italic, font-black, etc.) because plain
+   unlayered CSS always beats Tailwind's utility layer.
+   Zeroing these out here lets your components own their own sizing. */
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+/* ─── Sidebar scrollbar ──────────────────────────────────────────── */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── DepEd Official Print Styles ────────────────────────────────── */
+@media print {
+  @page {
+    size: portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  body, #root {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  aside, header, nav, button, select, input, .no-print, [class*="print:hidden"], [class*="print-hidden"],
+  [role="dialog"] button, .toast, [class*="fixed"] {
+    display: none !important;
+  }
+
+  /* Source text spans that replace hidden buttons in print view */
+  .print-source-text {
+    display: inline !important;
+    font-weight: 600 !important;
+    color: #2563EB !important;
+    font-size: 9.5pt !important;
+  }
+
+  .deped-print-header {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 16px !important;
+  }
+
+  .deped-print-signatures {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 60px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .deped-print-signatures > div {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 40px !important;
+    width: 100% !important;
+  }
+
+  .deped-print-signatures > div > div {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    text-align: center !important;
+  }
+
+  /* Strip card containers of rounded borders, background fills, and shadows for printing */
+  div[class*="rounded-2xl"], div[class*="rounded-xl"], div[class*="border"] {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 10px !important;
+    margin-bottom: 15px !important;
+    font-size: 9.5pt !important;
+  }
+
+  th, td {
+    border: 1px solid #000000 !important;
+    padding: 5px 8px !important;
+    color: #000000 !important;
+  }
+
+  /* Preserve signature name colors inside td — must override the rule above */
+  .deped-sig-name-black  { color: #111111 !important; }
+  .deped-sig-name-navy   { color: #1B2A50 !important; }
+  .deped-sig-name-orange { color: #C2410C !important; }
+  .deped-sig-label       { color: #6B7280 !important; }
+
+  th {
+    background-color: #f3f4f6 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+}

@@ -1,0 +1,62 @@
+◇ injected env (9) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+📦 Registering routes...
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+  ✅ /api/auth
+  ✅ /api/branding
+  ✅ /api/admin
+  ✅ /api/profile
+  ✅ /api/vacancies
+  ✅ /api/applications
+  ✅ /api/applicant/pds
+  ✅ /api/rsp/dashboard
+  ✅ /api/rsp/vacancies
+  ✅ /api/rsp/applicants
+  ✅ /api/rsp/evaluation
+  ✅ /api/rsp/comparative-assessment
+  ✅ /api/rsp/results
+  ✅ /api/rsp/deliberation
+  ✅ /api/rsp/congratulatory-advice
+  ✅ /api/rsp/appointment
+  ✅ /api/rsp/notice-of-appointment
+  ✅ /api/rsp/eligibility
+  ✅ /api/rsp/appeals
+  ✅ /api/ld/tna
+  ✅ /api/ld/objectives
+  ✅ /api/ld/plans
+  ✅ /api/ld/programs
+  ✅ /api/ld/evaluation
+  ✅ /api/ld
+  ✅ /api/ld/reports
+  ✅ /api/pm/periods
+  ✅ /api/pm/commitments
+  ✅ /api/pm/coaching
+  ✅ /api/pm/ratings
+  ✅ /api/pm/rewards
+  ✅ /api/rr/searches
+  ✅ /api/rr/nominations
+  ✅ /api/rr/evaluation
+  ✅ /api/rr/deliberation
+  ✅ /api/rr/awards
+  ✅ /api/rr/ceremony
+  ✅ /api/rr/reports
+  ✅ /api/personnel/employees
+  ✅ /api/personnel/documents
+  ✅ /api/personnel/leave
+  ✅ /api/personnel/travel
+  ✅ /api/personnel/certificates
+  ✅ /api/personnel/notifications
+  ✅ /api/personnel/reports
+✅ All routes registered successfully
+✅ Connected to Laragon MySQL Database!
+📡 Running database self-healing check...
+✅ MySQL Connected (Laragon)
+🚀 Server running on http://localhost:5000
+✅ Database self-healing check completed successfully.
+📡 A user connected: Hu85zPhZxyW2HyjwAAAB
+📡 Hu85zPhZxyW2HyjwAAAB joined user room: rr-user-4
+📡 A user connected: ZKV-CcCyXQ2pUDV0AAAE
+📡 ZKV-CcCyXQ2pUDV0AAAE joined user room: rr-user-20
+📡 User disconnected
+📡 A user connected: Xb9rseqpHvULuYawAAAH
+📡 Xb9rseqpHvULuYawAAAH joined user room: rr-user-20
