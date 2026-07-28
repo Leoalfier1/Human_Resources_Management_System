@@ -169,12 +169,28 @@ const Step3Review = ({ applicationId, onNext, onPrev }) => {
                                 </div>
                             </div>
                             <div className="flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Award size={14}/></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Training (Most Recent Title)</p>
+                                    <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_training_title || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-start">
                                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Briefcase size={14}/></div>
                                 <div>
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Years of Experience</p>
                                     <p className="text-sm font-bold text-[#1B3A6B]">{application.years_experience} years</p>
                                 </div>
                             </div>
+                            {application.snap_experience_details && (
+                                <div className="flex gap-4 items-start">
+                                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><Briefcase size={14}/></div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Experience (Key Roles)</p>
+                                        <p className="text-sm font-bold text-[#1B3A6B]">{application.snap_experience_details}</p>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex gap-4 items-start">
                                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-1 text-slate-400"><ShieldCheck size={14}/></div>
                                 <div>

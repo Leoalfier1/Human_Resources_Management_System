@@ -12,7 +12,7 @@ const getAssignedEmployees = async (req, res) => {
         if (periodRows.length === 0) {
             // No active period, return assigned employees with Not Started status
             const [empRows] = await db.query(
-                "SELECT id, name, position, unit, employee_type FROM employees WHERE supervisor_id = ? AND employee_type = 'non-teaching' ORDER BY name ASC",
+                "SELECT id, name, position, unit, employee_type FROM v_appointed_employees WHERE supervisor_id = ? AND employee_type = 'non-teaching' ORDER BY name ASC",
                 [supervisor.id]
             );
             return res.json({ 
@@ -26,7 +26,7 @@ const getAssignedEmployees = async (req, res) => {
         const [empRows] = await db.query(
             `SELECT e.id, e.name, e.position, e.unit, e.employee_type, 
                     pe.id as evaluation_id, pe.status as evaluation_status, pe.overall_score
-             FROM employees e
+             FROM v_appointed_employees e
              LEFT JOIN performance_evaluations pe ON pe.employee_id = e.id AND pe.performance_period_id = ?
              WHERE e.supervisor_id = ? AND e.employee_type = 'non-teaching'
              ORDER BY e.name ASC`,

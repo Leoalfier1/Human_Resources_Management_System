@@ -52,6 +52,7 @@ const EmployeeDetail = () => {
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [photoError, setPhotoError] = useState(false);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -80,6 +81,8 @@ const EmployeeDetail = () => {
     });
     return () => socket.disconnect();
   }, [fetchData]);
+
+  useEffect(() => { setPhotoError(false); }, [employee?.photo_path]);
 
   const handleVerify = async (docId) => {
     setActionLoading(docId);
@@ -133,11 +136,12 @@ const EmployeeDetail = () => {
         <Link to="/personnel-admin/employees" className="text-slate-400 hover:text-[#1B3A6B] transition-colors">
           <ArrowLeft size={24} />
         </Link>
-        {employee.photo_path ? (
+        {employee.photo_path && !photoError ? (
           <img
             src={`${SERVER_BASE}${employee.photo_path}`}
             alt={`${employee.first_name} ${employee.last_name}`}
             className="w-16 h-16 rounded-2xl object-cover border-2 border-[#1B3A6B]/20 shadow-sm bg-slate-50"
+            onError={() => setPhotoError(true)}
           />
         ) : (
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
@@ -166,6 +170,11 @@ const EmployeeDetail = () => {
           <Field label="Sex" value={employee.sex} />
           <Field label="Civil Status" value={employee.civil_status} />
           <Field label="Blood Type" value={employee.blood_type} />
+          <Field label="Height (m)" value={employee.height_m} />
+          <Field label="Weight (kg)" value={employee.weight_kg} />
+          <Field label="Religion" value={employee.religion} />
+          <Field label="Disability" value={employee.disability || 'None'} />
+          <Field label="Ethnic Group" value={employee.ethnic_group} />
           <Field label="Mobile No." value={employee.mobile_no} />
           <Field label="Email" value={employee.email || employee.user_email} />
           <Field label="Address" value={employee.address} />
@@ -179,6 +188,8 @@ const EmployeeDetail = () => {
           <Field label="PAG-IBIG ID" value={employee.pagibig_id} />
           <Field label="PhilHealth" value={employee.philhealth_no} />
           <Field label="TIN" value={employee.tin_no} />
+          <Field label="SSS No." value={employee.sss_no} />
+          <Field label="Agency Employee No." value={employee.agency_employee_no} />
         </div>
       </div>
 
@@ -190,9 +201,42 @@ const EmployeeDetail = () => {
           <Field label="Category" value={employee.employment_type} />
           <Field label="Job Status" value={employee.job_status ? employee.job_status.replace(/_/g, ' ') : '—'} />
           <Field label="Eligibility" value={employee.eligibility} />
+          <Field label="Highest Education" value={employee.highest_education} />
           <Field label="Employee No." value={employee.employee_no} />
         </div>
       </div>
+
+      {employee.eligibility_details && employee.eligibility_details.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
+          <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Eligibility Details (from PDS)</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                  <th className="pb-3 pr-4">Eligibility</th>
+                  <th className="pb-3 pr-4">Rating</th>
+                  <th className="pb-3 pr-4">Exam Date</th>
+                  <th className="pb-3 pr-4">Exam Place</th>
+                  <th className="pb-3 pr-4">License No.</th>
+                  <th className="pb-3 pr-4">License Validity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employee.eligibility_details.map((e, i) => (
+                  <tr key={i} className="border-b border-slate-50 text-sm">
+                    <td className="py-3 pr-4 font-bold text-slate-700">{e.eligibility_name || '—'}</td>
+                    <td className="py-3 pr-4 text-slate-600">{e.rating || '—'}</td>
+                    <td className="py-3 pr-4 text-slate-600">{e.exam_date || '—'}</td>
+                    <td className="py-3 pr-4 text-slate-600">{e.exam_place || '—'}</td>
+                    <td className="py-3 pr-4 text-slate-600">{e.license_number || '—'}</td>
+                    <td className="py-3 pr-4 text-slate-600">{e.license_validity || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
         <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Salary & Station</h3>
@@ -205,8 +249,8 @@ const EmployeeDetail = () => {
           <Field label="Monthly Salary" value={employee.monthly_salary ? `₱${parseFloat(employee.monthly_salary).toLocaleString()}` : '—'} />
           <Field label="School / Office" value={employee.location_name || employee.assigned_school || employee.office} />
           {employee.location_district && <Field label="District" value={employee.location_district} />}
-          <Field label="Date Hired" value={employee.date_hired} />
-          <Field label="Original Appointment" value={employee.date_original_appointment} />
+          <Field label="Date Hired" value={employee.date_hired ? new Date(employee.date_hired).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null} />
+          <Field label="Original Appointment" value={employee.date_original_appointment ? new Date(employee.date_original_appointment).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null} />
         </div>
       </div>
 

@@ -83,7 +83,7 @@ const publishResults = async (req, res) => {
         // 1. Validate Stage
         const [vac] = await db.query('SELECT current_stage, ref_no FROM vacancies WHERE id = ?', [vacancy_id]);
         if (vac.length === 0) return res.status(404).json({ message: "Vacancy not found." });
-        if (vac[0].current_stage < 6) {
+        if (vac[0].current_stage < 7) {
             return res.status(400).json({ message: "Comparative assessment must be completed first." });
         }
 
@@ -102,10 +102,10 @@ const publishResults = async (req, res) => {
             [vacancy_id, now, now, now, userId]
         );
 
-        // 4. Advance Stage to 8 (Deliberation) — only if not already past it
-        if (vac[0].current_stage < 8) {
-            await db.query('UPDATE vacancies SET current_stage = 8 WHERE id = ?', [vacancy_id]);
-            await syncApplicationsStage(vacancy_id, 8, req.app.get('socketio'));
+        // 4. Advance Stage to 9 (Congratulatory Advice) — only if not already past it
+        if (vac[0].current_stage < 9) {
+            await db.query('UPDATE vacancies SET current_stage = 9 WHERE id = ?', [vacancy_id]);
+            await syncApplicationsStage(vacancy_id, 9, req.app.get('socketio'));
         }
 
         // 5. Activity Log & Socket
@@ -144,10 +144,10 @@ const publishResults = async (req, res) => {
     // ADD THIS BLOCK:
     await db.query(
         `INSERT INTO stage_history (application_id, stage_number, status, completed_at)
-         VALUES (?, 7, 'completed', NOW()) ON DUPLICATE KEY UPDATE status='completed', completed_at=NOW()`,
+         VALUES (?, 8, 'completed', NOW()) ON DUPLICATE KEY UPDATE status='completed', completed_at=NOW()`,
         [applicant.id]
     );
-    await db.query(`UPDATE applications SET current_stage = 7 WHERE id = ?`, [applicant.id]);
+    await db.query(`UPDATE applications SET current_stage = 8 WHERE id = ?`, [applicant.id]);
 
     if (io) {
         io.to(`application-${applicant.id}`).emit('application:notification', {

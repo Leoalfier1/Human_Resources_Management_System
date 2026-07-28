@@ -96,12 +96,10 @@ registerRoute('/api/rsp/comparative-assessment', './routes/rsp/comparative-asses
 registerRoute('/api/rsp/ca-workspace', './routes/rsp/ca-workspace');
 registerRoute('/api/rsp/ies', './routes/rsp/ies');
 registerRoute('/api/rsp/results', './routes/rsp/results');
-registerRoute('/api/rsp/deliberation', './routes/rsp/deliberation');
 registerRoute('/api/rsp/congratulatory-advice', './routes/rsp/advice');
 registerRoute('/api/rsp/appointment', './routes/rsp/appointment');
-registerRoute('/api/rsp/notice-of-appointment', './routes/rsp/notice');
 registerRoute('/api/rsp/eligibility', './routes/rsp/eligibility');
-registerRoute('/api/rsp/appeals', './routes/rsp/appeals');
+registerRoute('/api/rsp/notifications', './routes/rsp/notifications');
 
 // L&D routes
 registerRoute('/api/ld/tna', './routes/ld/tna');

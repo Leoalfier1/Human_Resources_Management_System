@@ -6,7 +6,7 @@ import { Check, Clock, Bell, Trophy, ChevronRight, XCircle, AlertTriangle, Send,
 import { API_BASE, SERVER_BASE } from '../../utils/api';
 import StatusBadge from '../../components/shared/StatusBadge';
 
-// 11-Stage RSP Process labels, matching the PRIME-HRM workflow used elsewhere in the system
+// 9-Stage RSP Process labels — applicant-facing tracker (backend still uses 11 stages internally)
 const STAGE_LABELS = [
     { stage: 1,  title: 'Publication and Posting',           desc: 'Vacancy published with application guidelines' },
     { stage: 2,  title: 'Submission of Requirements',         desc: 'Submit mandatory documents via digital folder' },
@@ -17,8 +17,6 @@ const STAGE_LABELS = [
     { stage: 7,  title: 'Posting of CA Results',               desc: 'Comparative assessment results posted publicly' },
     { stage: 8,  title: 'HRMPSB Deliberation',                 desc: 'Shortlist and background check deliberated' },
     { stage: 9,  title: 'Selection and Congratulatory Advice', desc: 'Appointing authority selects and notifies appointee' },
-    { stage: 10, title: 'Document Submission',                 desc: 'Submit pertinent documents for appointment processing' },
-    { stage: 11, title: 'Issuance of Appointment',              desc: 'Appointment paper issued and posted' },
 ];
 
 const ApplicationStatus = () => {
@@ -227,7 +225,7 @@ const ApplicationStatus = () => {
                         </div>
                         <div>
                             <p className="text-[9px] font-bold text-blue-300 uppercase">Current Stage</p>
-                            <p className="font-black">Stage {currentStage} of 11</p>
+                            <p className="font-black">Stage {Math.min(currentStage, 9)} of 9</p>
                         </div>
                         <div>
                             <p className="text-[9px] font-bold text-blue-300 uppercase">Overall Status</p>
@@ -241,7 +239,7 @@ const ApplicationStatus = () => {
                 {/* LEFT: TIMELINE */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-sm font-black text-[#1B3A6B] uppercase">11-Stage RSP Process</h3>
+                        <h3 className="text-sm font-black text-[#1B3A6B] uppercase">9-Stage RSP Process</h3>
                         <span className="text-[10px] font-bold text-emerald-600">{completedCount} completed</span>
                     </div>
 

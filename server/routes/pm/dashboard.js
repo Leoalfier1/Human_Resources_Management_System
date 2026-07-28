@@ -71,7 +71,7 @@ router.get('/stats', async (req, res) => {
                 COUNT(CASE WHEN CAST(i.status AS CHAR) IN ('submitted', 'under_review', 'needs_revision', 'reviewed') AND pc.final_rating_submitted_at IS NULL THEN 1 END) as pendingReviews,
                 COUNT(CASE WHEN pc.final_rating_submitted_at IS NOT NULL OR CAST(i.status AS CHAR) IN ('reviewed', 'finalized') THEN 1 END) as finalizedAppraisals,
                 COUNT(*) as totalPersonnel
-            FROM employees e
+            FROM v_appointed_employees e
             LEFT JOIN ipcrf i ON e.id = i.employee_id AND i.rating_period_id = ?
             LEFT JOIN performance_commitments pc ON e.id = pc.employee_id AND pc.rating_period_id = ?
             WHERE e.role = 'employee'
@@ -107,7 +107,7 @@ router.get('/personnel-status', async (req, res) => {
                    pc.overall_weighted_score as rating, 
                    pc.id as commitment_id,
                    i.id as ipcrf_id
-            FROM employees e
+            FROM v_appointed_employees e
         `;
         const params = [];
         if (periodId) {
@@ -147,7 +147,7 @@ router.get('/unit-completion', async (req, res) => {
                 e.unit as name,
                 COUNT(*) as total,
                 SUM(CASE WHEN pc.final_rating_submitted_at IS NOT NULL THEN 1 ELSE 0 END) as completed
-            FROM employees e
+            FROM v_appointed_employees e
         `;
         const params = [];
         if (periodId) {
@@ -195,7 +195,7 @@ router.get('/ratings-distribution', async (req, res) => {
                 COALESCE(SUM(CASE WHEN pc.adjectival_rating = 'Unsatisfactory' THEN 1 ELSE 0 END), 0) as unsatisfactory,
                 COALESCE(SUM(CASE WHEN pc.adjectival_rating = 'Poor' THEN 1 ELSE 0 END), 0) as poor
             FROM performance_commitments pc
-            JOIN employees e ON pc.employee_id = e.id
+            JOIN v_appointed_employees e ON pc.employee_id = e.id
             WHERE pc.final_rating_submitted_at IS NOT NULL
         `;
         const params = [];

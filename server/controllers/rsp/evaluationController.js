@@ -3,6 +3,64 @@ const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 const MIN_REVISION_REASON_LENGTH = 10;
 
+// ─── IES auto-fill helpers ─────────────────────────────────────────────────
+// Maps a document_type string to the criteria_key(s) it should auto-fill.
+// Returns an array because Performance Evaluation Reports maps to two keys for teaching.
+async function resolveCriteriaKeysFromDocument(documentType, applicationId) {
+    const dt = (documentType || '').toLowerCase();
+
+    // Performance Evaluation Reports → depends on position_category
+    if (dt.includes('performance evaluation')) {
+        const [appRows] = await db.query(
+            `SELECT v.position_type
+             FROM applications a JOIN vacancies v ON a.vacancy_id = v.id
+             WHERE a.id = ? LIMIT 1`,
+            [applicationId]
+        );
+        const posType = appRows[0]?.position_type || 'teaching';
+        if (posType === 'teaching') return ['ppst_coi', 'ppst_ncoi'];
+        return ['performance'];
+    }
+
+    if (dt.includes('transcript of records') || dt.includes('diploma'))    return ['education'];
+    if (dt.includes('certificates of training') || dt.includes('training')) return ['training'];
+    if (dt.includes('service record'))                                     return ['experience'];
+    if (dt.includes('let certificate') || dt.includes('prc id'))          return ['pbet_let_lept_rating'];
+
+    return []; // unmapped document type → no auto-fill
+}
+
+// Appends a verification note to ies_criterion_scores.qualification_notes
+// for the given applicant's IES evaluation, for each criteria_key in the array.
+// Skips silently if no IES evaluation exists or no criteria row exists.
+async function appendNotesToIesCriteria(applicationId, criteriaKeys, note) {
+    const [iesRows] = await db.query(
+        'SELECT id FROM ies_evaluations WHERE applicant_id = ? LIMIT 1',
+        [applicationId]
+    );
+    if (iesRows.length === 0) return; // IES not started yet — skip silently
+    const iesId = iesRows[0].id;
+
+    const timestamp = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+    const divider  = `\n\n— Verified (${timestamp}):\n`;
+
+    for (const key of criteriaKeys) {
+        const [scoreRows] = await db.query(
+            'SELECT id, qualification_notes FROM ies_criterion_scores WHERE ies_evaluation_id = ? AND criteria_key = ? LIMIT 1',
+            [iesId, key]
+        );
+        if (scoreRows.length === 0) continue; // criteria row doesn't exist — skip
+
+        const existing = (scoreRows[0].qualification_notes || '').trim();
+        const updated = existing ? existing + divider + note : `Verified (${timestamp}):\n${note}`;
+
+        await db.query(
+            'UPDATE ies_criterion_scores SET qualification_notes = ? WHERE id = ?',
+            [updated, scoreRows[0].id]
+        );
+    }
+}
+
 /**
  * 1. GET EVALUATION QUEUE
  * Fetches all applicants for a vacancy who need screening.
@@ -177,6 +235,20 @@ exports.verifyDocument = async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: `No document found with id ${docId}` });
+        }
+
+        // ── Auto-fill IES qualification_notes from verification note ──
+        if (note && note.trim()) {
+            try {
+                // Resolve which criteria_key(s) this document maps to
+                const mappedKeys = await resolveCriteriaKeysFromDocument(doc.document_type, doc.application_id);
+                if (mappedKeys.length > 0) {
+                    await appendNotesToIesCriteria(doc.application_id, mappedKeys, note.trim());
+                }
+            } catch (fillErr) {
+                // Non-fatal: log but don't fail the verify
+                console.error('⚠️ IES auto-fill from verification note failed:', fillErr.message);
+            }
         }
 
         // Notify the applicant
@@ -406,7 +478,33 @@ exports.submitDecision = async (req, res) => {
             [id, notifMessage]
         );
 
+        // ── Part 1: Persistent admin alert when applicant is qualified ──
+        // Insert into personnel_notifications for every admin/hr_staff user
+        // so the RSP header bell shows a real unread count.
+        // Uses findOrCreateEmployee to ensure each admin has an employee row.
         const io = req.app.get('socketio');
+
+        if (decision === 'qualified') {
+            const { findOrCreateEmployee } = require('../../utils/employeeHelper');
+            const adminMessage = `New qualified applicant: ${appFullName} for ${posTitle}`;
+            const [adminUsers] = await db.query(
+                `SELECT id FROM users WHERE role IN ('admin', 'hr_staff')`
+            );
+            for (const u of adminUsers) {
+                const emp = await findOrCreateEmployee(u.id);
+                if (emp && emp.id) {
+                    await db.query(
+                        `INSERT INTO personnel_notifications (employee_id, type, application_id, message)
+                         VALUES (?, 'rsp_qualified', ?, ?)`,
+                        [emp.id, id, adminMessage]
+                    );
+                }
+            }
+            if (adminUsers.length > 0 && io) {
+                io.emit('personnel:notification:update');
+            }
+        }
+
         if (io) {
             io.to(`application-${id}`).emit('application:stage-update', { status: decision });
             io.to(`application-${id}`).emit('application:notification', {

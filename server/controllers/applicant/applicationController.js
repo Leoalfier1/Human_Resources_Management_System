@@ -90,7 +90,8 @@ exports.updateApplication = async (req, res) => {
         const {
             full_name, email, phone, current_school, years_experience, status,
             snap_address, snap_age, snap_sex, snap_civil_status, snap_religion,
-            snap_disability, snap_ethnic_group, snap_education, snap_training_hours, snap_eligibility
+            snap_disability, snap_ethnic_group, snap_education, snap_training_hours, snap_eligibility,
+            snap_training_title, snap_experience_details
         } = req.body;
         const applicant_id = req.user.id;
 
@@ -105,12 +106,14 @@ exports.updateApplication = async (req, res) => {
             await db.query(
                 `UPDATE applications SET full_name=?, email=?, phone=?, current_school=?, years_experience=?,
                  snap_address=?, snap_age=?, snap_sex=?, snap_civil_status=?, snap_religion=?,
-                 snap_disability=?, snap_ethnic_group=?, snap_education=?, snap_training_hours=?, snap_eligibility=?
+                 snap_disability=?, snap_ethnic_group=?, snap_education=?, snap_training_hours=?, snap_eligibility=?,
+                 snap_training_title=?, snap_experience_details=?
                  WHERE id=?`,
                 [
                     full_name, email, phone, current_school, years_experience || 0,
                     snap_address || null, snap_age || null, snap_sex || null, snap_civil_status || null, snap_religion || null,
                     snap_disability || null, snap_ethnic_group || null, snap_education || null, snap_training_hours || null, snap_eligibility || null,
+                    snap_training_title || null, snap_experience_details || null,
                     id
                 ]
             );

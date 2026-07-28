@@ -16,12 +16,7 @@ import RSPInitialEvaluation from './components/rsp/evaluation/RSPInitialEvaluati
 import RSPComparativeAssessment from './components/rsp/assessment/RSPComparativeAssessment';
 import IndividualEvaluationPage from './components/rsp/assessment/IndividualEvaluationPage';
 import RSPResultsPosting from './components/rsp/results/RSPResultsPosting';
-import RSPDeliberationShortlist from './components/rsp/deliberation/RSPDeliberationShortlist';
 import RSPCongratulatoryAdvice from './components/rsp/advice/RSPCongratulatoryAdvice';
-import RSPAppointmentProcessing from './components/rsp/appointment/RSPAppointmentProcessing';
-import RSPNoticeOfAppointment from './components/rsp/appointment/RSPNoticeOfAppointment';
-import UserManagement from './components/rsp/admin/UserManagement';
-import AppealManagement from './components/rsp/admin/AppealManagement';
 
 // --- L&D MODULE ---
 import LDAdminLayout from './components/ld/LDAdminLayout';
@@ -41,8 +36,6 @@ import ApplicationStatus from './pages/applicant/ApplicationStatus';
 
 import ApplicationWizard from './pages/applicant/ApplicationWizard';
 import ResultsNotices from './pages/applicant/ResultsNotices';
-
-import AppointmentNotice from './pages/applicant/AppointmentNotice';
 
 // --- R&R MODULE ---
 import RRAdminLayout from './components/rr/RRAdminLayout';
@@ -147,18 +140,7 @@ function App() {
           <Route path="comparative-assessment" element={<RSPComparativeAssessment />} />
           <Route path="individual-evaluation" element={<IndividualEvaluationPage />} />
           <Route path="results-posting" element={<RSPResultsPosting />} />
-          <Route path="deliberation" element={<RSPDeliberationShortlist />} />
           <Route path="congratulatory-advice" element={<RSPCongratulatoryAdvice />} />
-          <Route path="appointment-processing" element={<RSPAppointmentProcessing />} />
-          <Route path="notice-of-appointment" element={<RSPNoticeOfAppointment />} />
-          <Route 
-            path="user-management" 
-            element={user?.role === 'admin' ? <UserManagement /> : <Navigate to="/rsp/dashboard" replace />} 
-          />
-          <Route 
-            path="appeals" 
-            element={['admin', 'hr_staff', 'hrmpsb'].includes(user?.role) ? <AppealManagement /> : <Navigate to="/rsp/dashboard" replace />} 
-          />
         </Route>
 
         {/* 4. APPLICANT PORTAL ROUTES (Top-Tab Layout) */}
@@ -170,7 +152,6 @@ function App() {
           <Route path="my-application" element={<ApplicationStatus />} />
           <Route path="results" element={<ResultsNotices />} />
           <Route path="advice" element={<AdviceNextSteps />} />
-          <Route path="appointment" element={<AppointmentNotice />} />
           <Route path="profile" element={<ProfileSettings />} />
           {/* Dynamic catch-alls LAST */}
           <Route path=":id" element={<JobDetail />} />

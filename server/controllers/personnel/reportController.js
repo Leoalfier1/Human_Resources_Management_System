@@ -15,10 +15,10 @@ exports.personnelSummary = async (req, res) => {
         };
 
         await Promise.all([
-            run('total', 'SELECT COUNT(*) as count FROM employees WHERE is_active = 1'),
-            run('byType', 'SELECT employment_type, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_type'),
-            run('byStatus', 'SELECT employment_status, COUNT(*) as count FROM employees WHERE is_active = 1 GROUP BY employment_status'),
-            run('bySchool', 'SELECT assigned_school, COUNT(*) as count FROM employees WHERE is_active = 1 AND assigned_school IS NOT NULL GROUP BY assigned_school ORDER BY count DESC LIMIT 10'),
+            run('total', 'SELECT COUNT(*) as count FROM v_appointed_employees WHERE is_active = 1'),
+            run('byType', 'SELECT employment_type, COUNT(*) as count FROM v_appointed_employees WHERE is_active = 1 GROUP BY employment_type'),
+            run('byStatus', 'SELECT employment_status, COUNT(*) as count FROM v_appointed_employees WHERE is_active = 1 GROUP BY employment_status'),
+            run('bySchool', 'SELECT assigned_school, COUNT(*) as count FROM v_appointed_employees WHERE is_active = 1 AND assigned_school IS NOT NULL GROUP BY assigned_school ORDER BY count DESC LIMIT 10'),
             run('pendingLeave', "SELECT COUNT(*) as count FROM leave_applications WHERE status IN ('pending', 'recommended')"),
             run('pendingDocs', "SELECT COUNT(*) as count FROM document_requests WHERE status = 'pending'"),
             run('recentActivity',
@@ -31,7 +31,7 @@ exports.personnelSummary = async (req, res) => {
             run('docSummary',
                 `SELECT e.id AS employee_id,
                         ed.document_type, ed.status, ed.is_verified
-                 FROM employees e
+                 FROM v_appointed_employees e
                  LEFT JOIN employee_documents ed
                     ON ed.employee_id = e.id
                     AND ed.document_type IN (
@@ -109,7 +109,7 @@ exports.leaveUtilization = async (req, res) => {
                     lc.sick_leave_balance, lc.vacation_leave_balance, lc.forced_leave_balance, lc.special_privilege_balance,
                     (SELECT SUM(num_days) FROM leave_applications WHERE employee_id = e.id AND leave_type = 'sick' AND YEAR(date_from) = ? AND status = 'approved') as sick_used,
                     (SELECT SUM(num_days) FROM leave_applications WHERE employee_id = e.id AND leave_type = 'vacation' AND YEAR(date_from) = ? AND status = 'approved') as vacation_used
-             FROM employees e
+             FROM v_appointed_employees e
              LEFT JOIN leave_credits lc ON lc.employee_id = e.id
              WHERE e.is_active = 1
              ORDER BY e.last_name ASC`,
@@ -128,12 +128,12 @@ exports.employeeMovement = async (req, res) => {
         const { days = 90 } = req.query;
 
         const [recentHires] = await db.query(
-            'SELECT id, first_name, last_name, position_title, assigned_school, date_hired, created_at FROM employees WHERE date_hired >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date_hired DESC',
+            'SELECT id, first_name, last_name, position_title, assigned_school, date_hired, created_at FROM v_appointed_employees WHERE date_hired >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date_hired DESC',
             [parseInt(days)]
         );
 
         const [archived] = await db.query(
-            'SELECT id, first_name, last_name, position_title, assigned_school, updated_at as action_date FROM employees WHERE is_active = 0 AND updated_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY updated_at DESC',
+            'SELECT id, first_name, last_name, position_title, assigned_school, updated_at as action_date FROM v_appointed_employees WHERE is_active = 0 AND updated_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY updated_at DESC',
             [parseInt(days)]
         );
 

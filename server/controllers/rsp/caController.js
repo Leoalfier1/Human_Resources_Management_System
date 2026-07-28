@@ -386,16 +386,16 @@ const submitAssessment = async (req, res) => {
     try {
         const { vacancy_id } = req.body;
 
-        // Advance Vacancy to Stage 7 (Results Posting)
-        await db.query('UPDATE vacancies SET current_stage = 7, assessment_submitted_at = CURRENT_TIMESTAMP WHERE id = ?', [vacancy_id]);
-        await syncApplicationsStage(vacancy_id, 7, req.app.get('socketio'));
+        // Advance Vacancy to Stage 8 (Results Posting)
+        await db.query('UPDATE vacancies SET current_stage = 8, assessment_submitted_at = CURRENT_TIMESTAMP WHERE id = ?', [vacancy_id]);
+        await syncApplicationsStage(vacancy_id, 8, req.app.get('socketio'));
 
         // Log Activity
         await db.query('INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)', 
             [vacancy_id, req.user.id, `Comparative Assessment finalized and submitted to SDS.`]);
 
         // Per-applicant stage tracking: every non-draft, non-disqualified applicant under
-        // this vacancy has now completed Stage 6 (Comparative Assessment)
+        // this vacancy has now completed Stage 7 (Comparative Assessment)
         const [apps] = await db.query(
             `SELECT id FROM applications WHERE vacancy_id = ? AND status NOT IN ('draft','disqualified')`,
             [vacancy_id]
@@ -403,11 +403,11 @@ const submitAssessment = async (req, res) => {
         for (const app of apps) {
             await db.query(
                 `INSERT INTO stage_history (application_id, stage_number, status, completed_at)
-                 VALUES (?, 6, 'completed', NOW())
+                 VALUES (?, 7, 'completed', NOW())
                  ON DUPLICATE KEY UPDATE status='completed', completed_at=NOW()`,
                 [app.id]
             );
-            await db.query(`UPDATE applications SET current_stage = 6 WHERE id = ?`, [app.id]);
+            await db.query(`UPDATE applications SET current_stage = 7 WHERE id = ?`, [app.id]);
         }
 
         // Notify Dashboard and Admin
@@ -561,12 +561,10 @@ const generateIES = async (req, res) => {
                 v.position_title,
                 v.assigned_school,
                 v.salary_grade,
-                dn.background_investigation_notes,
                 IFNULL(r.total_score, 0) AS total_score
             FROM applications a
             JOIN vacancies v ON a.vacancy_id = v.id
             LEFT JOIN users u ON a.applicant_id = u.id
-            LEFT JOIN deliberation_notes dn ON dn.applicant_id = a.id
             LEFT JOIN comparative_assessment_results r ON r.applicant_id = a.id
             WHERE a.id = ?
             LIMIT 1
@@ -663,7 +661,7 @@ if (info.length === 0) return res.status(404).json({ message: 'Applicant not fou
             drawIESRow(doc, columns, [
                 c.sub_criterion_label,
                 weight.toFixed(2),
-                getRelevantQualificationDetails(c.sub_criterion_label, documents, d.background_investigation_notes),
+                getRelevantQualificationDetails(c.sub_criterion_label, documents, null),
                 `${score.toFixed(2)} / ${max.toFixed(2)} x ${weight.toFixed(2)}`,
                 actual.toFixed(2)
             ]);

@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
     ArrowLeft, MapPin, Users, Calendar, Clock,
     CheckCircle2, Dot, FileText, AlertCircle,
-    BookOpen, Briefcase, X
+    BookOpen, Briefcase
 } from 'lucide-react';
-import { PDSGateBanner, usePDSGate } from '../../components/applicant/PDSGate';
+
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
 // ─── CALENDAR COUNTDOWN WIDGET (Detail version) ───────────────────────────────
-const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
-    const TOTAL = 10;
+const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate, totalDays = 10 }) => {
+    const TOTAL = totalDays;
     const elapsed = Math.min(TOTAL, Math.max(0, daysElapsed));
     const pct = (elapsed / TOTAL) * 100;
     const isUrgent = daysLeft <= 3 && daysLeft >= 0;
@@ -24,7 +24,7 @@ const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Calendar Days</span>
                 <span className={`text-xl font-black ${isClosed ? 'text-slate-400' : isUrgent ? 'text-[#D6402F]' : 'text-[#1B3A6B]'}`}>
                     {isClosed ? '—' : `${elapsed}`}
-                    <span className="text-sm font-bold text-slate-300">/10</span>
+                    <span className="text-sm font-bold text-slate-300">/{TOTAL}</span>
                 </span>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
@@ -56,8 +56,6 @@ const JobDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isAuthenticated, isApplicant } = useAuth();
-    const { checking: pdsChecking, isPdsComplete, requireCompletePDS } = usePDSGate();
-    const [showPDSModal, setShowPDSModal] = useState(false);
 
     const [vacancy, setVacancy] = useState(null);
     const [hasApplied, setHasApplied] = useState(false);
@@ -181,6 +179,7 @@ const JobDetail = () => {
                             daysLeft={vacancy.days_left}
                             daysElapsed={vacancy.days_elapsed}
                             deadlineDate={vacancy.deadline_date}
+                            totalDays={vacancy.total_days}
                         />
                     </div>
                 </div>
@@ -221,13 +220,6 @@ const JobDetail = () => {
                 </div>
             </div>
 
-            {/* PDS Pre-flight Banner */}
-            {isAuthenticated && isApplicant && (
-                <div className="max-w-6xl mx-auto px-6">
-                    <PDSGateBanner />
-                </div>
-            )}
-
             {/* ── CONTENT COLUMNS ───────────────────────────────────────── */}
             <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -249,32 +241,62 @@ const JobDetail = () => {
                             </h2>
                         </div>
 
-                        {vacancy.qualification_standards && vacancy.qualification_standards.length > 0 ? (
-                            <ul className="space-y-3">
-                                {vacancy.qualification_standards.map(q => (
-                                    <li key={q.id} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
-                                        <CheckCircle2 size={16} className="text-[#1B3A6B] flex-shrink-0 mt-0.5" />
-                                        {q.label}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : vacancy.minimum_qualifications ? (
-                            // Fallback: render the text blob as a list
-                            <ul className="space-y-3">
-                                {vacancy.minimum_qualifications
-                                    .split(/[;\n]/)
-                                    .map(s => s.trim())
-                                    .filter(Boolean)
-                                    .map((q, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
-                                            <CheckCircle2 size={16} className="text-[#1B3A6B] flex-shrink-0 mt-0.5" />
-                                            {q}
-                                        </li>
-                                    ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-slate-400 italic">No qualification standards listed.</p>
-                        )}
+                        {(() => {
+                            const QS_FIELDS = [
+                                { key: 'education',   label: 'Education' },
+                                { key: 'training',    label: 'Training' },
+                                { key: 'experience',  label: 'Experience' },
+                                { key: 'eligibility', label: 'Eligibility' },
+                            ];
+
+                            const mqs = vacancy.mqs_criteria;
+                            const hasStructured = mqs && QS_FIELDS.some(f => mqs[f.key]);
+
+                            if (hasStructured) {
+                                return (
+                                    <ul className="space-y-3">
+                                        {QS_FIELDS.filter(f => mqs[f.key]).map(f => (
+                                            <li key={f.key} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                                                <CheckCircle2 size={16} className="text-[#1B3A6B] flex-shrink-0 mt-0.5" />
+                                                <span><span className="font-bold">{f.label}:</span> {mqs[f.key]}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            }
+
+                            if (vacancy.qualification_standards && vacancy.qualification_standards.length > 0) {
+                                return (
+                                    <ul className="space-y-3">
+                                        {vacancy.qualification_standards.map(q => (
+                                            <li key={q.id} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                                                <CheckCircle2 size={16} className="text-[#1B3A6B] flex-shrink-0 mt-0.5" />
+                                                {q.label}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            }
+
+                            if (vacancy.minimum_qualifications) {
+                                return (
+                                    <ul className="space-y-3">
+                                        {vacancy.minimum_qualifications
+                                            .split(/[;\n]/)
+                                            .map(s => s.trim())
+                                            .filter(Boolean)
+                                            .map((q, i) => (
+                                                <li key={i} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                                                    <CheckCircle2 size={16} className="text-[#1B3A6B] flex-shrink-0 mt-0.5" />
+                                                    {q}
+                                                </li>
+                                            ))}
+                                    </ul>
+                                );
+                            }
+
+                            return <p className="text-sm text-slate-400 italic">No qualification standards listed.</p>;
+                        })()}
                     </motion.div>
 
                     {/* Duties & Responsibilities */}
@@ -361,15 +383,8 @@ const JobDetail = () => {
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => {
-                                            if (isPdsComplete) {
-                                                navigate(`/jobs/${id}/apply`);
-                                            } else {
-                                                setShowPDSModal(true);
-                                            }
-                                        }}
-                                        disabled={pdsChecking}
-                                        className={`block w-full text-center bg-[#D6402F] hover:bg-[#b53526] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-900/30 ${pdsChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        onClick={() => navigate(`/jobs/${id}/apply`)}
+                                        className="block w-full text-center bg-[#D6402F] hover:bg-[#b53526] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-900/30"
                                     >
                                         Apply Now →
                                     </button>
@@ -411,73 +426,6 @@ const JobDetail = () => {
                 </div>
             </div>
 
-            {/* PDS Required Modal */}
-            <AnimatePresence>
-                {showPDSModal && (
-                    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                            onClick={() => setShowPDSModal(false)}
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <button
-                                onClick={() => setShowPDSModal(false)}
-                                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
-                            >
-                                <X size={20} />
-                            </button>
-
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
-                                    <AlertCircle size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">
-                                        PDS Completion Required
-                                    </h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                        Personal Data Sheet
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-8">
-                                <p className="text-sm font-semibold text-slate-600 leading-relaxed">
-                                    Please complete and submit your Personal Data Sheet (PDS) before applying for a position.
-                                </p>
-                                <div className="bg-slate-50 rounded-2xl p-4 text-[11px] font-medium text-slate-500 leading-relaxed">
-                                    Note: Your Personal Data Sheet (PDS) is a separate, more detailed form than your basic profile, required by CSC (Form 212) for all applications.
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => setShowPDSModal(false)}
-                                    className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex-1"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setShowPDSModal(false);
-                                        navigate('/personnel/pds');
-                                    }}
-                                    className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#1B3A6B] hover:bg-[#162E55] text-white shadow-lg transition-all flex-1 flex items-center justify-center gap-1.5"
-                                >
-                                    <FileText size={14} /> Go to PDS
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

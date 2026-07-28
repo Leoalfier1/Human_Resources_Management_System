@@ -50,6 +50,8 @@ const RSPInitialEvaluation = () => {
     const [showDisqualifyReadOnly, setShowDisqualifyReadOnly] = useState(false);
     const [revisionDocTarget, setRevisionDocTarget] = useState(null);
     const [docActionLoading, setDocActionLoading] = useState(false);
+    const [verifyDocTarget, setVerifyDocTarget] = useState(null);
+    const [verifyNoteText, setVerifyNoteText] = useState('');
     const handleCriteriaToggle = async (criterionId, passed) => {
         let reason = null;
         if (!passed) {
@@ -75,6 +77,8 @@ const RSPInitialEvaluation = () => {
             body: JSON.stringify({ note })
         });
         setDocActionLoading(false);
+        setVerifyDocTarget(null);
+        setVerifyNoteText('');
         setDetails(prev => ({
             ...prev,
             documents: prev.documents.map(d =>
@@ -82,6 +86,11 @@ const RSPInitialEvaluation = () => {
             )
         }));
         silentFetchDetails(selectedApplicant.id);
+    };
+
+    const handleVerifyDocFromModal = () => {
+        if (!verifyDocTarget) return;
+        handleVerifyDoc(verifyDocTarget.id, verifyNoteText.trim() || null);
     };
 
     const handleRequestRevision = async (docId, reason) => {
@@ -416,7 +425,7 @@ const RSPInitialEvaluation = () => {
                                                         </button>
                                                         {!isVerified && (
                                                             <button
-                                                                onClick={() => handleVerifyDoc(doc.id, null)}
+                                                                onClick={() => { setVerifyDocTarget(doc); setVerifyNoteText(''); }}
                                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[9px] font-bold text-white transition-all"
                                                             >
                                                                 <CheckCircle2 size={12} /> Verify
@@ -581,6 +590,66 @@ const RSPInitialEvaluation = () => {
                 onCancel={() => setRevisionDocTarget(null)}
                 loading={docActionLoading}
             />
+
+            <AnimatePresence>
+                {verifyDocTarget && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6"
+                        onClick={() => setVerifyDocTarget(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white rounded-2xl w-full max-w-lg shadow-2xl"
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <CheckCircle2 size={16} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-[#1B3A6B]">Verify Document</p>
+                                    <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[280px]">
+                                        {verifyDocTarget.document_type}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="px-6 py-4">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Verification note <span className="text-slate-400 normal-case">(optional)</span>
+                                </label>
+                                <textarea
+                                    value={verifyNoteText}
+                                    onChange={(e) => setVerifyNoteText(e.target.value)}
+                                    rows={4}
+                                    className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600 outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] placeholder:text-slate-300 transition-all"
+                                    placeholder="e.g. Bachelor's degree in Education, graduated 2015, CSC-recognized institution"
+                                    autoFocus
+                                />
+                                <p className="mt-1.5 text-[10px] text-slate-400 font-semibold">
+                                    This note will be saved on the document and auto-filled into the corresponding Individual Evaluation scoring criteria.
+                                </p>
+                            </div>
+                            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+                                <button
+                                    onClick={() => setVerifyDocTarget(null)}
+                                    className="px-4 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleVerifyDocFromModal}
+                                    disabled={docActionLoading}
+                                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                                >
+                                    {docActionLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                    Verify Document
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
         </div>
     );

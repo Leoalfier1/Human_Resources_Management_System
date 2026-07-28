@@ -24,10 +24,9 @@ const ApplicationWizard = () => {
     const [error, setError] = useState(null);
 
     // ── SINGLE COORDINATED INITIALISATION ───────────────────────────────────
-    // Runs three checks in parallel via Promise.all:
-    //   1. PDS completeness   — route-level guard; cannot be bypassed by URL
-    //   2. Vacancy validity   — must exist and be open
-    //   3. Duplicate check    — redirect if already applied
+    // Runs two checks in parallel via Promise.all:
+    //   1. Vacancy validity   — must exist and be open
+    //   2. Duplicate check    — redirect if already applied
     //
     // Step 1 will not render until every promise has resolved (or one rejects).
     useEffect(() => {
@@ -38,40 +37,14 @@ const ApplicationWizard = () => {
             const authHeaders = { 'Authorization': `Bearer ${token}` };
 
             try {
-                const [pdsRes, vacancyRes, hasAppliedRes] = await Promise.all([
-                    fetch(`${API_BASE}/api/applicant/pds/status`, { headers: authHeaders }),
+                const [vacancyRes, hasAppliedRes] = await Promise.all([
                     fetch(`${API_BASE}/api/vacancies/${id}`),
                     fetch(`${API_BASE}/api/vacancies/${id}/has-applied`, { headers: authHeaders }),
                 ]);
 
                 if (cancelled) return;
 
-                // ── 1. PDS gate ──────────────────────────────────────────────
-                // A non-OK response (e.g. 500) is treated as incomplete to be safe.
-                let pdsComplete = false;
-                if (pdsRes.ok) {
-                    const pdsData = await pdsRes.json();
-                    pdsComplete = !!pdsData.isComplete;
-                }
-
-                if (!pdsComplete) {
-                    // Redirect to PDS form with a state message so the page
-                    // can display a contextual explanation to the applicant.
-                    navigate('/personnel/pds', {
-                        replace: true,
-                        state: {
-                            pdsRequired: true,
-                            returnTo: `/jobs/${id}/apply`,
-                            message:
-                                'You must complete and submit your Personal Data Sheet (PDS) ' +
-                                'before you can apply for a position. ' +
-                                'Please fill in all required sections and click "Submit PDS" to continue.'
-                        }
-                    });
-                    return;
-                }
-
-                // ── 2. Vacancy validity ──────────────────────────────────────
+                // ── 1. Vacancy validity ──────────────────────────────────────
                 if (!vacancyRes.ok) {
                     setError('Vacancy not found.');
                     setReady(true);
@@ -87,7 +60,7 @@ const ApplicationWizard = () => {
 
                 setVacancy(vacancyData);
 
-                // ── 3. Duplicate application check ───────────────────────────
+                // ── 2. Duplicate application check ───────────────────────────
                 if (hasAppliedRes.ok) {
                     const appliedData = await hasAppliedRes.json();
                     if (appliedData.hasApplied) {

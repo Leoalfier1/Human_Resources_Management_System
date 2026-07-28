@@ -60,7 +60,7 @@ const NEXT_STEPS = {
     disqualified: "Unfortunately, your application did not proceed past Initial Evaluation. Thank you for your interest in DepEd SDO Dapitan City.",
     shortlisted: "The HRMPSB has endorsed the shortlist to the appointing authority. A Congratulatory Advice will be issued within 1–2 working days.",
     selected: "Congratulations! A Congratulatory Advice has been issued. Check Advice & Next Steps for required documents and deadlines.",
-    appointed: "Your appointment has been issued. Check the Appointment tab for your official Notice of Appointment.",
+    appointed: "Your appointment has been officially issued. Congratulations!",
 };
 
 const ResultsNotices = () => {

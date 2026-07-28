@@ -19,6 +19,8 @@ router.patch('/change-requests/:id/review', verifyToken, requireRole('admin', 'h
 // HR admin routes
 router.get('/', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getAllEmployees);
 router.get('/filter-options', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getFilterOptions);
+router.get('/qualified-applicants', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getQualifiedApplicants);
+router.get('/prefill/:userId', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getPrefillData);
 router.get('/:id', verifyToken, requireRole('admin', 'hr_staff'), ctrl.getEmployeeById);
 router.post('/', verifyToken, requireRole('admin', 'hr_staff'), ctrl.uploadPhoto, ctrl.createEmployee);
 router.put('/:id', verifyToken, requireRole('admin', 'hr_staff'), ctrl.uploadPhoto, ctrl.updateEmployee);

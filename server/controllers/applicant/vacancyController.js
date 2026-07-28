@@ -3,14 +3,17 @@ const db = require('../../db');
 // ─────────────────────────────────────────────
 // HELPER: Compute days left & elapsed from deadline
 // ─────────────────────────────────────────────
-function computeDays(deadlineDate) {
+function computeDays(deadlineDate, postingDate) {
     const deadline = new Date(deadlineDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const diffMs = deadline - today;
     const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    const daysElapsed = Math.max(0, 10 - Math.max(0, daysLeft));
-    return { daysLeft, daysElapsed };
+    const totalDays = postingDate
+        ? Math.max(1, Math.ceil((deadline - new Date(postingDate)) / (1000 * 60 * 60 * 24)))
+        : 10;
+    const daysElapsed = Math.max(0, totalDays - Math.max(0, daysLeft));
+    return { daysLeft, daysElapsed, totalDays };
 }
 
 // ─────────────────────────────────────────────
@@ -95,12 +98,13 @@ exports.getVacancies = async (req, res) => {
         const [rows] = await db.query(query, params);
 
         const list = rows.map(v => {
-            const { daysLeft, daysElapsed } = computeDays(v.deadline_date);
+            const { daysLeft, daysElapsed, totalDays } = computeDays(v.deadline_date, v.posting_date);
             return {
                 ...v,
                 salary_grade: v.salary_grade ? `SG-${v.salary_grade}` : null,
                 days_left: daysLeft,
                 days_elapsed: daysElapsed,
+                total_days: totalDays,
                 computed_status: daysLeft < 0 || v.status === 'closed' ? 'closed'
                     : daysLeft <= 3 ? 'closing_soon' : 'open'
             };
@@ -167,7 +171,12 @@ exports.getVacancyById = async (req, res) => {
             [id]
         );
 
-        const { daysLeft, daysElapsed } = computeDays(vacancy.deadline_date);
+        const [mqsRow] = await db.query(
+            'SELECT education, training, experience, eligibility FROM rsp_mqs_criteria WHERE vacancy_id = ? LIMIT 1',
+            [id]
+        );
+
+        const { daysLeft, daysElapsed, totalDays } = computeDays(vacancy.deadline_date, vacancy.posting_date);
         const sgNum = vacancy.salary_grade_raw;
 
         res.json({
@@ -176,11 +185,13 @@ exports.getVacancyById = async (req, res) => {
             salary_grade_num: sgNum,
             days_left: daysLeft,
             days_elapsed: daysElapsed,
+            total_days: totalDays,
             computed_status: daysLeft < 0 || vacancy.status === 'closed' ? 'closed'
                 : daysLeft <= 3 ? 'closing_soon' : 'open',
             qualification_standards: quals,
             duties_responsibilities: duties,
-            required_documents: docs
+            required_documents: docs,
+            mqs_criteria: mqsRow.length > 0 ? mqsRow[0] : null
         });
     } catch (error) {
         console.error('❌ GET VACANCY DETAIL ERROR:', error);

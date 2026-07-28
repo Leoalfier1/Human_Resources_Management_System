@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Plus, Clock, Eye, Pencil, Info, Loader2, AlertCircle,
@@ -19,15 +19,25 @@ const DEFAULT_SALARY_GRADE = {
     non_teaching: 'SG-1',
 };
 
+const computeDeadline = (postingDate) => {
+    if (!postingDate) return '';
+    const d = new Date(postingDate);
+    d.setDate(d.getDate() + 10);
+    return d.toISOString().split('T')[0];
+};
+
 const EMPTY_FORM = {
     position_title: '', item_number: '', salary_grade: DEFAULT_SALARY_GRADE.teaching,
     assigned_school: '', no_of_vacancies: 1,
     position_type: 'teaching',
     posting_date: new Date().toISOString().split('T')[0],
-    minimum_qualifications: '',
+    deadline_date: computeDeadline(new Date().toISOString().split('T')[0]),
+    mqs_education: '', mqs_training: '', mqs_experience: '', mqs_eligibility: '',
     publish_division_website: false,
     publish_facebook: false, publish_bulletin: false
 };
+
+const MQS_API = `${API_BASE}/api/rsp/applicants`;
 
 // ─── VIEW MODAL ────────────────────────────────────────────────────────────────
 const VacancyViewModal = ({ vacancy, onClose, onEdit }) => {
@@ -190,6 +200,7 @@ const RSPVacancyPosting = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [memoFile, setMemoFile] = useState(null);
     const [errors, setErrors] = useState({});
+    const deadlineManuallyEdited = useRef(false);
 
     // Delete state
     const [deletingVacancy, setDeletingVacancy] = useState(null);
@@ -212,8 +223,29 @@ const RSPVacancyPosting = () => {
     useEffect(() => { if (activeTab === 'posted' && view === 'list') fetchVacancies(); }, [activeTab]);
 
     // ── Open Edit ────────────────────────────────────────────────────────────────
-    const openEdit = (v) => {
+    const openEdit = async (v) => {
         setEditingVacancy(v);
+        setMemoFile(null);
+        setErrors({});
+
+        // Fetch structured MQS criteria for this vacancy
+        let mqs = { education: '', training: '', experience: '', eligibility: '' };
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${MQS_API}/mqs-criteria?vacancy_id=${v.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.mqs) mqs = data.mqs;
+            }
+        } catch (_) { /* fall back to raw text below */ }
+
+        // If no structured MQS row exists, seed education from the raw text blob
+        if (!mqs.education && !mqs.training && !mqs.experience && !mqs.eligibility) {
+            mqs.education = v.minimum_qualifications || '';
+        }
+
         setFormData({
             position_title:           v.position_title || '',
             item_number:              v.item_number || '',
@@ -222,13 +254,16 @@ const RSPVacancyPosting = () => {
             no_of_vacancies:          v.no_of_vacancies || 1,
             position_type:            v.position_type || 'teaching',
             posting_date:             v.posting_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-            minimum_qualifications:   v.minimum_qualifications || '',
+            deadline_date:            v.deadline_date?.split('T')[0] || computeDeadline(v.posting_date?.split('T')[0]),
+            mqs_education:            mqs.education || '',
+            mqs_training:             mqs.training || '',
+            mqs_experience:           mqs.experience || '',
+            mqs_eligibility:          mqs.eligibility || '',
             publish_division_website: !!v.publish_division_website,
             publish_facebook:         !!v.publish_facebook,
             publish_bulletin:         !!v.publish_bulletin,
         });
-        setMemoFile(null);
-        setErrors({});
+        deadlineManuallyEdited.current = false;
         setView('edit');
     };
 
@@ -238,6 +273,7 @@ const RSPVacancyPosting = () => {
         setFormData(EMPTY_FORM);
         setMemoFile(null);
         setErrors({});
+        deadlineManuallyEdited.current = false;
         setView('form');
     };
 
@@ -247,6 +283,32 @@ const RSPVacancyPosting = () => {
             position_type,
             salary_grade: DEFAULT_SALARY_GRADE[position_type] || prev.salary_grade,
         }));
+    };
+
+    // ── Build raw text from 4 MQS fields (backward compat) ─────────────────────
+    const buildRawMqs = (fd) => {
+        const parts = [];
+        if (fd.mqs_education)   parts.push(`Education: ${fd.mqs_education}`);
+        if (fd.mqs_training)    parts.push(`Training: ${fd.mqs_training}`);
+        if (fd.mqs_experience)  parts.push(`Experience: ${fd.mqs_experience}`);
+        if (fd.mqs_eligibility) parts.push(`Eligibility: ${fd.mqs_eligibility}`);
+        return parts.join('\n');
+    };
+
+    // ── Upsert structured MQS criteria ────────────────────────────────────────
+    const upsertMqs = async (vacancyId, fd) => {
+        const token = localStorage.getItem('token');
+        await fetch(`${MQS_API}/mqs-criteria`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                vacancy_id: vacancyId,
+                education:   fd.mqs_education   || null,
+                training:    fd.mqs_training    || null,
+                experience:  fd.mqs_experience  || null,
+                eligibility: fd.mqs_eligibility || null,
+            })
+        });
     };
 
     // ── Publish (POST) ───────────────────────────────────────────────────────────
@@ -261,8 +323,10 @@ const RSPVacancyPosting = () => {
         const data = new FormData();
         Object.entries(formData).forEach(([k, v]) => {
             if (typeof v === 'boolean') data.append(k, v ? 'true' : 'false');
+            else if (k.startsWith('mqs_')) data.append(k, v); // pass through for backend validation only
             else data.append(k, v);
         });
+        data.set('minimum_qualifications', buildRawMqs(formData));
         if (memoFile) data.append('division_memorandum', memoFile);
 
         try {
@@ -273,6 +337,8 @@ const RSPVacancyPosting = () => {
             });
             const result = await res.json();
             if (res.ok) {
+                // Upsert structured MQS criteria (non-blocking — best effort)
+                if (result.id) upsertMqs(result.id, formData).catch(() => {});
                 alert(`Vacancy posted successfully! Ref: ${result.ref_no}`);
                 setView('list');
                 fetchVacancies();
@@ -291,16 +357,22 @@ const RSPVacancyPosting = () => {
 
         try {
             const token = localStorage.getItem('token');
+            const payload = {
+                ...formData,
+                minimum_qualifications: buildRawMqs(formData),
+            };
             const res = await fetch(`${API}/${editingVacancy.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
             const result = await res.json();
             if (res.ok) {
+                // Upsert structured MQS criteria (non-blocking)
+                upsertMqs(editingVacancy.id, formData).catch(() => {});
                 alert("Vacancy updated successfully.");
                 setView('list');
                 setEditingVacancy(null);
@@ -346,7 +418,7 @@ const RSPVacancyPosting = () => {
                             {isEdit ? `Edit Vacancy — ${editingVacancy?.ref_no}` : 'Post New Vacancy'}
                         </h3>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                            {isEdit ? 'Update vacancy details below' : 'Stage 1 of RSP — 10 calendar day application window'}
+                            {isEdit ? 'Update vacancy details below' : 'Stage 1 of RSP — configure application window'}
                         </p>
                     </div>
                 </div>
@@ -417,15 +489,59 @@ const RSPVacancyPosting = () => {
 
                             <div>
                                 <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Posting Date *</label>
-                                <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none" value={formData.posting_date} onChange={e => setFormData({...formData, posting_date: e.target.value})} />
+                                <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none" value={formData.posting_date} onChange={e => {
+                                    const newPostingDate = e.target.value;
+                                    const updates = { posting_date: newPostingDate };
+                                    if (!deadlineManuallyEdited.current) {
+                                        updates.deadline_date = computeDeadline(newPostingDate);
+                                    }
+                                    setFormData({...formData, ...updates});
+                                }} />
                             </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Application Deadline *</label>
+                                <input
+                                    type="date"
+                                    required
+                                    min={formData.posting_date ? new Date(new Date(formData.posting_date).getTime() + 86400000).toISOString().split('T')[0] : undefined}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] transition-all"
+                                    value={formData.deadline_date}
+                                    onChange={e => {
+                                        deadlineManuallyEdited.current = true;
+                                        setFormData({...formData, deadline_date: e.target.value});
+                                    }}
+                                />
+                                {formData.deadline_date && formData.posting_date && formData.deadline_date <= formData.posting_date && (
+                                    <p className="text-[10px] font-bold text-red-500 mt-1">Deadline must be after the posting date</p>
+                                )}
+                            </div>
+                            <p className="text-[9px] font-bold text-slate-400 -mt-1 uppercase tracking-widest">Default: posting date + 10 calendar days</p>
                         </div>
 
                         {/* Right Column */}
                         <div className="space-y-5">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Minimum Qualifications *</label>
-                                <textarea required rows="5" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B]" placeholder="List qualification standards..." value={formData.minimum_qualifications} onChange={e => setFormData({...formData, minimum_qualifications: e.target.value})} />
+                                <label className="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-3">Minimum Qualifications *</label>
+                                <div className="space-y-3">
+                                    {[
+                                        { key: 'mqs_education',   label: 'Education',   placeholder: 'e.g. Bachelor\'s degree in Education or relevant field' },
+                                        { key: 'mqs_training',    label: 'Training',     placeholder: 'e.g. Relevant training programs completed' },
+                                        { key: 'mqs_experience',  label: 'Experience',   placeholder: 'e.g. 2 years teaching experience' },
+                                        { key: 'mqs_eligibility', label: 'Eligibility',  placeholder: 'e.g. RA 1080 (Licensed Teacher)' },
+                                    ].map(field => (
+                                        <div key={field.key}>
+                                            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">{field.label}</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder={field.placeholder}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] transition-all"
+                                                value={formData[field.key]}
+                                                onChange={e => setFormData({...formData, [field.key]: e.target.value})}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Only show memo upload on new vacancy — editing doesn't replace the file */}
@@ -456,7 +572,7 @@ const RSPVacancyPosting = () => {
                         <div className="lg:col-span-2 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-2 text-slate-400">
                                 <Info size={16} />
-                                <p className="text-[10px] font-bold uppercase tracking-widest">Application window: 10 calendar days from posting date</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest">Application window defaults to 10 calendar days — adjust deadline as needed</p>
                             </div>
                             <div className="flex gap-3">
                                 <button
@@ -524,7 +640,7 @@ const RSPVacancyPosting = () => {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-black text-[#1B3A6B] uppercase tracking-tight italic">Vacancy Posting</h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Stage 1 of RSP — 10 calendar day application window</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Stage 1 of RSP — configure application window</p>
                 </div>
                 {view === 'list' && activeTab === 'posted' && (
                     <button

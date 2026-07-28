@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 // ─── CALENDAR COUNTDOWN WIDGET ────────────────────────────────────────────────
-const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
-    const TOTAL = 10;
+const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate, totalDays = 10 }) => {
+    const TOTAL = totalDays;
     const elapsed = Math.min(TOTAL, Math.max(0, daysElapsed));
     const pct = (elapsed / TOTAL) * 100;
     const isUrgent = daysLeft <= 3;
@@ -16,7 +16,7 @@ const CalendarWidget = ({ daysLeft, daysElapsed, deadlineDate }) => {
             <div className="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
                 <span className="text-slate-400">Calendar Days</span>
                 <span className={isClosed ? 'text-slate-400' : isUrgent ? 'text-[#D6402F]' : 'text-[#1B3A6B]'}>
-                    {isClosed ? 'Closed' : `${elapsed}/10`}
+                    {isClosed ? 'Closed' : `${elapsed}/${TOTAL}`}
                 </span>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -227,6 +227,7 @@ const JobCard = ({ job, index = 0 }) => {
                             daysLeft={daysLeft}
                             daysElapsed={daysElapsed}
                             deadlineDate={job.deadline_date}
+                            totalDays={job.total_days}
                         />
                         <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-tight">
                             Ref: {job.ref_no} · Posted: {new Date(job.posting_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}

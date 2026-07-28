@@ -9,5 +9,6 @@ router.get('/:vacancyId',           ...guard, ctrl.getWorkspace);
 router.put('/:vacancyId/scores',    ...guard, ctrl.bulkUpsertScores);
 router.post('/:vacancyId/submit',   ...guard, ctrl.submitToHRMPSB);
 router.get('/:vacancyId/export',    ...guard, ctrl.getExportCSV);
+router.get('/:vacancyId/export/pdf', ...guard, ctrl.generateCARPdf);
 
 module.exports = router;

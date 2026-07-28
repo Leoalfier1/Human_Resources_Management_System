@@ -4,14 +4,17 @@ const fs = require('fs');
 const syncApplicationsStage = require('../../utils/syncApplicationsStage');
 
 // Helper: compute days left & elapsed
-function computeDays(deadlineDate) {
+function computeDays(deadlineDate, postingDate) {
     const deadline = new Date(deadlineDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const diffTime = deadline - today;
     const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const daysElapsed = Math.max(0, 10 - Math.max(0, daysLeft));
-    return { daysLeft, daysElapsed };
+    const totalDays = postingDate
+        ? Math.max(1, Math.ceil((deadline - new Date(postingDate)) / (1000 * 60 * 60 * 24)))
+        : 10;
+    const daysElapsed = Math.max(0, totalDays - Math.max(0, daysLeft));
+    return { daysLeft, daysElapsed, totalDays };
 }
 
 // Helper: strip "SG-" prefix so we store only the number in DB
@@ -56,12 +59,14 @@ exports.getVacancies = async (req, res) => {
         `);
 
         const processed = rows.map(v => {
-            const { daysLeft } = computeDays(v.deadline_date);
+            const { daysLeft, daysElapsed, totalDays } = computeDays(v.deadline_date, v.posting_date);
             const sg = v.salary_grade ? `SG-${v.salary_grade}` : null;
             return {
                 ...v,
                 salary_grade:    sg,
                 days_left:       daysLeft,
+                days_elapsed:    daysElapsed,
+                total_days:      totalDays,
                 computed_status: (daysLeft < 0 || v.status === 'closed') ? 'closed' : 'active'
             };
         });
@@ -83,13 +88,14 @@ exports.getVacancyById = async (req, res) => {
         if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found' });
 
         const v = rows[0];
-        const { daysLeft, daysElapsed } = computeDays(v.deadline_date);
+        const { daysLeft, daysElapsed, totalDays } = computeDays(v.deadline_date, v.posting_date);
 
         res.json({
             ...v,
             salary_grade:  v.salary_grade ? `SG-${v.salary_grade}` : null,
             days_left:     daysLeft,
-            days_elapsed:  daysElapsed
+            days_elapsed:  daysElapsed,
+            total_days:    totalDays
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -102,6 +108,7 @@ exports.createVacancy = async (req, res) => {
         const {
             position_title, item_number, salary_grade, assigned_school,
             minimum_qualifications, no_of_vacancies, posting_date,
+            deadline_date: deadlineFromClient,
             publish_division_website, publish_facebook, publish_bulletin,
             position_type
         } = req.body;
@@ -141,10 +148,20 @@ exports.createVacancy = async (req, res) => {
         }
         const generatedRefNo = `V-${year}-${nextNum}`;
 
-        // E. Auto-calculate deadline (+10 calendar days)
-        const deadline = new Date(posting_date);
-        deadline.setDate(deadline.getDate() + 10);
-        const deadlineStr = deadline.toISOString().split('T')[0];
+        // E. Auto-calculate deadline (+10 calendar days) unless client provided one
+        let deadlineStr;
+        if (deadlineFromClient) {
+            deadlineStr = deadlineFromClient;
+        } else {
+            const deadline = new Date(posting_date);
+            deadline.setDate(deadline.getDate() + 10);
+            deadlineStr = deadline.toISOString().split('T')[0];
+        }
+
+        // E2. Validate deadline is after posting date
+        if (deadlineStr <= posting_date) {
+            return res.status(400).json({ message: 'Application deadline must be after the posting date.' });
+        }
 
         // F. File path from Multer (optional)
         let finalFilePath = null;
@@ -182,6 +199,7 @@ exports.createVacancy = async (req, res) => {
 
         res.status(201).json({
             message: 'Vacancy posted successfully',
+            id:      result.insertId,
             ref_no:  generatedRefNo
         });
 
@@ -200,7 +218,7 @@ exports.advanceStage = async (req, res) => {
         const { id } = req.params;
         const { next_stage } = req.body;
 
-        if (!next_stage || next_stage > 11) {
+        if (!next_stage || next_stage > 10) {
             return res.status(400).json({ message: 'Invalid stage transition.' });
         }
 
@@ -244,6 +262,19 @@ exports.updateVacancy = async (req, res) => {
         }
 
         await db.query('UPDATE vacancies SET ? WHERE id = ?', [updates, id]);
+
+        // If minimum_qualifications text changed, re-sync the checklist from rsp_mqs_criteria
+        if (updates.minimum_qualifications !== undefined) {
+            const [mqsRows] = await db.query(
+                'SELECT education, training, experience, eligibility FROM rsp_mqs_criteria WHERE vacancy_id = ? LIMIT 1',
+                [id]
+            );
+            if (mqsRows.length > 0) {
+                const { syncChecklistFromMqs } = require('./applicantController');
+                await syncChecklistFromMqs(id, mqsRows[0]);
+            }
+        }
+
         await db.query(
             `INSERT INTO activity_log (vacancy_id, actor_id, action_description) VALUES (?, ?, ?)`,
             [id, req.user.id, `Vacancy updated: ${id}`]
@@ -297,14 +328,14 @@ exports.restoreVacancy = async (req, res) => {
         const { id } = req.params;
 
         const [rows] = await db.query(
-            'SELECT ref_no, position_title, previous_status, deadline_date, is_deleted FROM vacancies WHERE id = ?', [id]
+            'SELECT ref_no, position_title, previous_status, deadline_date, posting_date, is_deleted FROM vacancies WHERE id = ?', [id]
         );
         if (rows.length === 0) return res.status(404).json({ message: 'Vacancy not found.' });
         if (!rows[0].is_deleted) return res.status(400).json({ message: 'Vacancy is not deleted.' });
 
         let restoredStatus = rows[0].previous_status || 'active';
 
-        const { daysLeft } = computeDays(rows[0].deadline_date);
+        const { daysLeft } = computeDays(rows[0].deadline_date, rows[0].posting_date);
         if (daysLeft < 0) {
             restoredStatus = 'closed';
         }

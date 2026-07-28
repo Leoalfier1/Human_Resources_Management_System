@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Briefcase, FileText, Bell, Star, UserCheck, Settings } from 'lucide-react';
+import { Briefcase, FileText, Bell, Star, Settings } from 'lucide-react';
 import ApplicantAccountBlock from '../shared/ApplicantAccountBlock';
 import PortalBackButton from '../shared/PortalBackButton';
 
@@ -10,7 +10,6 @@ const ApplicantPortalLayout = () => {
         { label: 'MY APPLICATION', path: '/jobs/my-application', icon: FileText },
         { label: 'RESULTS / NOTICES', path: '/jobs/results', icon: Bell },
         { label: 'ADVICE & NEXT STEPS', path: '/jobs/advice', icon: Star },
-        { label: 'APPOINTMENT', path: '/jobs/appointment', icon: UserCheck },
         { label: 'PROFILE', path: '/jobs/profile', icon: Settings },
     ];
 

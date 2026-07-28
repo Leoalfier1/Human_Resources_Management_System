@@ -19,10 +19,10 @@ exports.getApplicants = async (req, res) => {
                    COALESCE(a.snap_ethnic_group, ae.ethnic_group) AS ethnic_group,
                    COALESCE(a.phone, ae.contact_no) AS contact_no,
                    COALESCE(a.snap_education, ae.education) AS education,
-                   ae.training_title,
+                   COALESCE(a.snap_training_title, ae.training_title) AS training_title,
                    COALESCE(a.snap_training_hours, ae.training_hours) AS training_hours,
                    COALESCE(a.years_experience, ae.experience_years) AS experience_years,
-                   ae.experience_details,
+                   COALESCE(a.snap_experience_details, ae.experience_details) AS experience_details,
                    COALESCE(a.snap_eligibility, ae.eligibility) AS eligibility
             FROM applications a
             LEFT JOIN vacancies v ON a.vacancy_id = v.id
@@ -264,6 +264,51 @@ exports.getVacancyMqsCriteria = async (req, res) => {
     }
 };
 
+// ─── Sync minimum_qualifications_checklist from rsp_mqs_criteria ─────
+// Ensures 4 real rows exist so Initial Evaluation can display AND save pass/fail.
+// criterion_label = "Category: requirement text" (e.g. "Education: Bachelor's in Ed")
+const MQS_CATEGORIES = [
+    { key: 'education',   label: 'Education' },
+    { key: 'experience',  label: 'Experience' },
+    { key: 'training',    label: 'Training' },
+    { key: 'eligibility', label: 'Eligibility' }
+];
+
+async function syncChecklistFromMqs(vacancyId, mqs) {
+    const [existing] = await db.query(
+        'SELECT id, criterion_label FROM minimum_qualifications_checklist WHERE vacancy_id = ? ORDER BY id ASC',
+        [vacancyId]
+    );
+
+    const labels = MQS_CATEGORIES.map(cat => {
+        const val = (mqs[cat.key] || '').trim();
+        return val ? `${cat.label}: ${val}` : cat.label;
+    });
+
+    if (existing.length === 4) {
+        // UPDATE existing rows in order (id ASC matches insertion order)
+        for (let i = 0; i < 4; i++) {
+            await db.query(
+                'UPDATE minimum_qualifications_checklist SET criterion_label = ?, is_required = 1 WHERE id = ?',
+                [labels[i], existing[i].id]
+            );
+        }
+    } else {
+        // DELETE stale/partial rows and INSERT fresh 4
+        if (existing.length > 0) {
+            const ids = existing.map(r => r.id);
+            await db.query('DELETE FROM minimum_qualifications_checklist WHERE id IN (?)', [ids]);
+        }
+        for (const label of labels) {
+            await db.query(
+                'INSERT INTO minimum_qualifications_checklist (vacancy_id, criterion_label, is_required) VALUES (?, ?, 1)',
+                [vacancyId, label]
+            );
+        }
+    }
+}
+exports.syncChecklistFromMqs = syncChecklistFromMqs;
+
 // 5. PUT /api/rsp/applicants/mqs-criteria -> Upsert MQS criteria for a vacancy
 exports.upsertMqsCriteria = async (req, res) => {
     try {
@@ -280,6 +325,9 @@ exports.upsertMqsCriteria = async (req, res) => {
                 eligibility = VALUES(eligibility)`,
             [vacancy_id, education || null, training || null, experience || null, eligibility || null]
         );
+
+        // Sync minimum_qualifications_checklist so Initial Evaluation has real rows
+        await syncChecklistFromMqs(vacancy_id, { education, training, experience, eligibility });
 
         res.json({ message: 'MQS criteria updated successfully' });
     } catch (err) {

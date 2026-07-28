@@ -16,7 +16,7 @@ exports.getAll = async (req, res) => {
         const whereClause = where.join(' AND ');
         const [rows] = await db.query(
             `SELECT so.*,
-                (SELECT COUNT(*) FROM employees e WHERE e.school_office_id = so.id) as employee_count
+                (SELECT COUNT(*) FROM v_appointed_employees e WHERE e.school_office_id = so.id) as employee_count
              FROM schools_offices so
              WHERE ${whereClause}
              ORDER BY so.type ASC, so.district ASC, so.name ASC`,
@@ -109,7 +109,7 @@ exports.toggleActive = async (req, res) => {
 
         if (currentActive === 1) {
             const [empCount] = await db.query(
-                'SELECT COUNT(*) as cnt FROM employees WHERE school_office_id = ?',
+                'SELECT COUNT(*) as cnt FROM v_appointed_employees WHERE school_office_id = ?',
                 [id]
             );
             if (empCount[0].cnt > 0) {

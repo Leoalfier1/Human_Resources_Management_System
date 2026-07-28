@@ -162,7 +162,7 @@ const RSPApplicantManagement = () => {
         setExporting(false);
     };
 
-    const COL_COUNT = 17;
+    const COL_COUNT = 19;
 
     const list = applicants.applicants || [];
 
@@ -309,24 +309,33 @@ const RSPApplicantManagement = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse" style={{ minWidth: '2100px' }}>
                         <thead>
+                            {/* Row 1: group headers */}
                             <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider w-12 text-center sticky left-0 bg-slate-50 z-10">No.</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">App Code</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Name of Applicant</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Address</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider w-12 text-center sticky left-0 bg-slate-50 z-10">No.</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">App Code</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Name of Applicant</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Address</th>
+                                <th colSpan={6} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap border-x border-slate-200">Personal Information</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Email Address</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Contact No.</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Education</th>
+                                <th colSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap border-x border-slate-200">Training</th>
+                                <th colSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap border-x border-slate-200">Experience</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Eligibility</th>
+                                <th rowSpan={2} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Remarks</th>
+                            </tr>
+                            {/* Row 2: sub-columns under Personal Information, Training, Experience */}
+                            <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap">Age</th>
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap">Sex</th>
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Civil Status</th>
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Religion</th>
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Disability</th>
                                 <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Ethnic Group</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Email Address</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Education</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Training (Hours)</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap">Experience (Years)</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Eligibility</th>
-                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Remarks</th>
+                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Title</th>
+                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap">Hours</th>
+                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">Details</th>
+                                <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap">Years</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -388,8 +397,14 @@ const RSPApplicantManagement = () => {
                                         <td className="px-3 py-3 text-[11px] font-bold text-slate-600 max-w-[180px]" title={app.education}>
                                             <span className="line-clamp-2">{fmt(app.education)}</span>
                                         </td>
+                                        <td className="px-3 py-3 text-[11px] font-bold text-slate-600 max-w-[180px]" title={app.training_title}>
+                                            <span className="line-clamp-2">{fmt(app.training_title)}</span>
+                                        </td>
                                         <td className="px-3 py-3 text-[11px] font-bold text-slate-600 text-center">
                                             {app.training_hours != null ? app.training_hours : <span className="text-slate-300">&mdash;</span>}
+                                        </td>
+                                        <td className="px-3 py-3 text-[11px] font-bold text-slate-600">
+                                            {fmt(app.experience_details)}
                                         </td>
                                         <td className="px-3 py-3 text-[11px] font-bold text-slate-600 text-center">
                                             {app.experience_years != null ? app.experience_years : <span className="text-slate-300">&mdash;</span>}
@@ -412,17 +427,27 @@ const RSPApplicantManagement = () => {
                                                             if (e.target.value) handleStatusChange(app, e.target.value);
                                                             e.target.value = '';
                                                         }}
-                                                        className={`appearance-none pl-2.5 pr-7 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/30 transition-all ${
-                                                            app.status === 'qualified' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-400'
-                                                            : app.status === 'disqualified' ? 'bg-red-50 text-red-600 border-red-200 hover:border-red-400'
-                                                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-[#1B3A6B]/40'
-                                                        }`}
+                                                        style={{
+                                                            backgroundColor:
+                                                                app.status === 'qualified' ? '#ecfdf5'
+                                                                : app.status === 'disqualified' ? '#fef2f2'
+                                                                : '#f8fafc',
+                                                            color:
+                                                                app.status === 'qualified' ? '#059669'
+                                                                : app.status === 'disqualified' ? '#dc2626'
+                                                                : '#64748b',
+                                                            borderColor:
+                                                                app.status === 'qualified' ? '#a7f3d0'
+                                                                : app.status === 'disqualified' ? '#fecaca'
+                                                                : '#e2e8f0',
+                                                        }}
+                                                        className="pl-2.5 pr-7 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/30 transition-all hover:border-[#1B3A6B]/40"
                                                     >
-                                                        <option value="" disabled>
+                                                        <option value="" disabled style={{ backgroundColor: '#fff', color: '#1e293b' }}>
                                                             {app.status === 'qualified' ? 'Qualified' : app.status === 'disqualified' ? 'Disqualified' : 'Set status…'}
                                                         </option>
-                                                        <option value="qualified">Qualified</option>
-                                                        <option value="disqualified">Disqualified</option>
+                                                        <option value="qualified" style={{ backgroundColor: '#fff', color: '#1e293b' }}>Qualified</option>
+                                                        <option value="disqualified" style={{ backgroundColor: '#fff', color: '#1e293b' }}>Disqualified</option>
                                                     </select>
                                                     <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                                                 </div>

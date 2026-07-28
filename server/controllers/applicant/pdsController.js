@@ -81,6 +81,24 @@ function normalizeRow(row) {
             try { out[f] = JSON.parse(out[f]); } catch { out[f] = null; }
         }
     });
+    // Sanitize out-of-range values so the form never loads garbage
+    if (out.height_m !== null && out.height_m !== undefined) {
+        const h = Number(out.height_m);
+        if (isNaN(h) || h < 0.5 || h > 2.5) out.height_m = null;
+    }
+    if (out.weight_kg !== null && out.weight_kg !== undefined) {
+        const w = Number(out.weight_kg);
+        if (isNaN(w) || w < 10 || w > 300) out.weight_kg = null;
+    }
+    if (out.date_accomplished !== null && out.date_accomplished !== undefined) {
+        const d = new Date(out.date_accomplished);
+        if (!isNaN(d.getTime())) {
+            const yr = d.getFullYear();
+            if (yr < 2000 || yr > new Date().getFullYear()) out.date_accomplished = null;
+        } else {
+            out.date_accomplished = null;
+        }
+    }
     return out;
 }
 
@@ -210,6 +228,34 @@ exports.updateMyPDS = async (req, res) => {
             return res.status(400).json({ message: 'No valid fields provided.' });
         }
 
+        // ── Validate numeric fields (DECIMAL(4,2) = 0.00–99.99) ──
+        if (payload.height_m !== undefined && payload.height_m !== null) {
+            const h = Number(payload.height_m);
+            if (isNaN(h) || h < 0 || h > 99.99) {
+                return res.status(400).json({ message: 'Height must be a number between 0.00 and 99.99 meters.' });
+            }
+            payload.height_m = h;
+        }
+        if (payload.weight_kg !== undefined && payload.weight_kg !== null) {
+            const w = Number(payload.weight_kg);
+            if (isNaN(w) || w < 0 || w > 999.99) {
+                return res.status(400).json({ message: 'Weight must be a number between 0.00 and 999.99 kg.' });
+            }
+            payload.weight_kg = w;
+        }
+
+        // ── Validate date_accomplished ──
+        if (payload.date_accomplished !== undefined && payload.date_accomplished !== null) {
+            const d = new Date(payload.date_accomplished);
+            if (isNaN(d.getTime())) {
+                return res.status(400).json({ message: 'Date Accomplished is not a valid date.' });
+            }
+            const year = d.getFullYear();
+            if (year < 2000 || year > 2099) {
+                return res.status(400).json({ message: 'Date Accomplished year must be between 2000 and 2099.' });
+            }
+        }
+
         const [existing] = await db.query('SELECT id, status FROM personal_data_sheets WHERE user_id = ?', [userId]);
         if (existing.length === 0) {
             await db.query('INSERT INTO personal_data_sheets (user_id) VALUES (?)', [userId]);
@@ -225,6 +271,12 @@ exports.updateMyPDS = async (req, res) => {
         res.json({ message: 'Progress saved.', pds, isComplete: isComplete(pds) });
     } catch (error) {
         console.error('updateMyPDS Error:', error);
+        if (error.message && error.message.includes('Out of range')) {
+            return res.status(400).json({ message: 'A numeric field contains a value outside the allowed range. Please check Height and Weight.' });
+        }
+        if (error.message && error.message.includes('Incorrect date value')) {
+            return res.status(400).json({ message: 'A date field contains an invalid date. Please check Date Accomplished and other date fields.' });
+        }
         res.status(500).json({ message: 'Could not save Personal Data Sheet: ' + error.message });
     }
 };
@@ -321,7 +373,7 @@ async function handleImageUpload(req, res, columnName) {
             }
             return res.json({ message: 'Image removed.', path: null });
         }
-        const relativePath = 'pds/' + req.file.filename;
+        const relativePath = '/pds/' + req.file.filename;
 
         // Delete old file if one existed
         const [existing] = await db.query(`SELECT ${columnName} FROM personal_data_sheets WHERE user_id = ?`, [userId]);

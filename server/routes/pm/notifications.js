@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
         // Fetch recent active submissions that the supervisor needs to inspect
         const [rows] = await db.query(`
             SELECT e.name, i.status, i.submitted_at
-            FROM employees e
+            FROM v_appointed_employees e
             JOIN ipcrf i ON e.id = i.employee_id
             WHERE i.status IN ('submitted', 'under_review', 'needs_revision')
             ORDER BY i.submitted_at DESC, i.id DESC

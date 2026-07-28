@@ -289,7 +289,7 @@ exports.adminStats = async (req, res) => {
         const [recommended] = await db.query("SELECT COUNT(*) as c FROM leave_applications WHERE status = 'recommended'");
         const [approved] = await db.query("SELECT COUNT(*) as c FROM leave_applications WHERE status = 'approved'");
         const [rejected] = await db.query("SELECT COUNT(*) as c FROM leave_applications WHERE status = 'rejected'");
-        const [employees] = await db.query('SELECT COUNT(*) as c FROM employees');
+        const [employees] = await db.query('SELECT COUNT(*) as c FROM v_appointed_employees');
         const [credits] = await db.query('SELECT COUNT(*) as c FROM leave_credits');
         const [lockExists] = await db.query(
             'SELECT fiscal_year FROM leave_carryover WHERE fiscal_year = ?',

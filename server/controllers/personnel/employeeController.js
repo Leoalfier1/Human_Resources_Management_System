@@ -4,6 +4,76 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// ── PDS derivation helpers (duplicated from syncEligibilityScreening.js to avoid cross-module import) ──
+function safeParseJSON(field) {
+    if (!field) return null;
+    if (typeof field === 'string') { try { return JSON.parse(field); } catch { return null; } }
+    return field;
+}
+
+function getHighestEducation(pds) {
+    if (!pds) return '';
+    try {
+        const graduate = safeParseJSON(pds.graduate_studies);
+        if (Array.isArray(graduate) && graduate.length > 0) {
+            const entry = graduate.find(e => e.degree_course) || graduate[0];
+            if (entry.degree_course) return entry.degree_course;
+        }
+        const college = safeParseJSON(pds.college);
+        if (Array.isArray(college) && college.length > 0) {
+            const entry = college.find(e => e.degree_course) || college[0];
+            if (entry.degree_course) return entry.degree_course;
+        }
+        const vocational = safeParseJSON(pds.vocational);
+        if (Array.isArray(vocational) && vocational.length > 0) {
+            const entry = vocational.find(e => e.degree_course) || vocational[0];
+            if (entry.degree_course) return `Vocational - ${entry.degree_course}`;
+        }
+        const secondary = safeParseJSON(pds.secondary);
+        if (secondary && secondary.school_name) return `High School - ${secondary.school_name}`;
+        const elementary = safeParseJSON(pds.elementary);
+        if (elementary && elementary.school_name) return `Elementary - ${elementary.school_name}`;
+    } catch {}
+    return '';
+}
+
+const PDS_OVERLAY_SELECT = `
+    pds.sss_no as pds_sss_no,
+    pds.agency_employee_no as pds_agency_employee_no,
+    pds.height_m as pds_height_m,
+    pds.weight_kg as pds_weight_kg,
+    pds.religion as pds_religion,
+    pds.disability as pds_disability,
+    pds.ethnic_group as pds_ethnic_group,
+    pds.civil_service_eligibility as pds_civil_service_eligibility,
+    pds.elementary as pds_elementary,
+    pds.secondary as pds_secondary,
+    pds.vocational as pds_vocational,
+    pds.college as pds_college,
+    pds.graduate_studies as pds_graduate_studies`;
+
+const applyPdsOverlay = (d) => {
+    if (d.pds_sss_no) d.sss_no = d.pds_sss_no;
+    if (d.pds_agency_employee_no) d.agency_employee_no = d.pds_agency_employee_no;
+    if (d.pds_height_m) d.height_m = d.pds_height_m;
+    if (d.pds_weight_kg) d.weight_kg = d.pds_weight_kg;
+    if (d.pds_religion) d.religion = d.pds_religion;
+    if (d.pds_disability !== undefined && d.pds_disability !== null) d.disability = d.pds_disability;
+    if (d.pds_ethnic_group) d.ethnic_group = d.pds_ethnic_group;
+
+    const highestEdu = getHighestEducation({
+        elementary: d.pds_elementary, secondary: d.pds_secondary,
+        vocational: d.pds_vocational, college: d.pds_college,
+        graduate_studies: d.pds_graduate_studies
+    });
+    if (highestEdu) d.highest_education = highestEdu;
+
+    const eligibilityArr = safeParseJSON(d.pds_civil_service_eligibility);
+    if (Array.isArray(eligibilityArr) && eligibilityArr.length > 0) {
+        d.eligibility_details = eligibilityArr;
+    }
+};
+
 const photoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(__dirname, '../../uploads/personnel/employees');
@@ -82,7 +152,8 @@ exports.getMyProfile = async (req, res) => {
                     pds.perm_subdivision_village as pds_perm_subdivision_village,
                     pds.perm_barangay as pds_perm_barangay,
                     pds.perm_city_municipality as pds_perm_city_municipality,
-                    pds.perm_province as pds_perm_province
+                    pds.perm_province as pds_perm_province,
+                    ${PDS_OVERLAY_SELECT}
              FROM employees e
              LEFT JOIN leave_credits lc ON lc.employee_id = e.id
              LEFT JOIN personal_data_sheets pds ON pds.user_id = e.user_id
@@ -122,7 +193,9 @@ exports.getMyProfile = async (req, res) => {
             if (employeeData.pds_pagibig_id_no) employeeData.pagibig_id = employeeData.pds_pagibig_id_no;
             if (employeeData.pds_philhealth_no) employeeData.philhealth_no = employeeData.pds_philhealth_no;
             if (employeeData.pds_tin_no) employeeData.tin_no = employeeData.pds_tin_no;
-            if (employeeData.pds_photo_path) employeeData.photo_path = employeeData.photo_path || employeeData.pds_photo_path;
+            if (employeeData.pds_photo_path) employeeData.photo_path = employeeData.photo_path || ('/' + employeeData.pds_photo_path).replace(/^\/{2,}/, '/');
+
+            applyPdsOverlay(employeeData);
         }
 
         res.json(employeeData);
@@ -176,8 +249,8 @@ exports.getAllEmployees = async (req, res) => {
         let params = [];
 
         if (search) {
-            where.push('(e.first_name LIKE ? OR e.last_name LIKE ? OR e.employee_no LIKE ?)');
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            where.push('(e.first_name LIKE ? OR e.last_name LIKE ? OR e.employee_no LIKE ? OR pds.first_name LIKE ? OR pds.surname LIKE ?)');
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
         if (employment_type) { where.push('e.employment_type = ?'); params.push(employment_type); }
         if (employment_status) { where.push('e.employment_status = ?'); params.push(employment_status); }
@@ -207,41 +280,55 @@ exports.getAllEmployees = async (req, res) => {
 
         const select = `e.*, u.email as user_email,
             so.name as location_name, so.type as location_type, so.district as location_district,
+            pds.status as pds_status, pds.first_name as pds_first_name,
+            pds.middle_name as pds_middle_name, pds.surname as pds_surname, pds.name_extension as pds_name_extension,
             TIMESTAMPDIFF(MONTH, COALESCE(e.date_hired, e.date_original_appointment), CURDATE()) as months_of_service`;
 
         if (format === 'csv') {
             const [rows] = await db.query(
-                `SELECT ${select} FROM employees e LEFT JOIN users u ON u.id = e.user_id LEFT JOIN schools_offices so ON so.id = e.school_office_id WHERE ${whereClause} ORDER BY ${sortCol} ${sortDir}`,
+                `SELECT ${select} FROM v_appointed_employees e LEFT JOIN users u ON u.id = e.user_id LEFT JOIN schools_offices so ON so.id = e.school_office_id LEFT JOIN personal_data_sheets pds ON pds.user_id = e.user_id WHERE ${whereClause} ORDER BY ${sortCol} ${sortDir}`,
                 params
             );
+            const applyNameOverlay = (r) => {
+                if (r.pds_status === 'submitted') {
+                    if (r.pds_first_name) r.first_name = r.pds_first_name;
+                    if (r.pds_middle_name) r.middle_name = r.pds_middle_name;
+                    if (r.pds_surname) r.last_name = r.pds_surname;
+                }
+                return r;
+            };
             const header = 'Employee No,Last Name,First Name,Middle Name,Position,School/Office,District,Category,Employment Status,Job Status,Eligibility,Years of Service,Date Hired,Email';
-            const csvRows = rows.map(r => [
-                csvEscape(r.employee_no),
-                csvEscape(r.last_name),
-                csvEscape(r.first_name),
-                csvEscape(r.middle_name),
-                csvEscape(r.position_title),
-                csvEscape(r.location_name || r.assigned_school || r.office),
-                csvEscape(r.location_district),
-                csvEscape(r.employment_type),
-                csvEscape(r.employment_status),
-                csvEscape(r.job_status),
-                csvEscape(r.eligibility),
-                csvEscape(formatYearsOfService(r.months_of_service)),
-                csvEscape(r.date_hired ? new Date(r.date_hired).toLocaleDateString() : ''),
-                csvEscape(r.user_email)
-            ].join(',')).join('\n');
+            const csvRows = rows.map(r => {
+                applyNameOverlay(r);
+                return [
+                    csvEscape(r.employee_no),
+                    csvEscape(r.last_name),
+                    csvEscape(r.first_name),
+                    csvEscape(r.middle_name),
+                    csvEscape(r.position_title),
+                    csvEscape(r.location_name || r.assigned_school || r.office),
+                    csvEscape(r.location_district),
+                    csvEscape(r.employment_type),
+                    csvEscape(r.employment_status),
+                    csvEscape(r.job_status),
+                    csvEscape(r.eligibility),
+                    csvEscape(formatYearsOfService(r.months_of_service)),
+                    csvEscape(r.date_hired ? new Date(r.date_hired).toLocaleDateString() : ''),
+                    csvEscape(r.user_email)
+                ].join(',');
+            }).join('\n');
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('Content-Disposition', 'attachment; filename="employee_masterlist.csv"');
             return res.send(header + '\n' + csvRows);
         }
 
-        const [count] = await db.query(`SELECT COUNT(*) as total FROM employees e WHERE ${whereClause}`, params);
+        const [count] = await db.query(`SELECT COUNT(*) as total FROM v_appointed_employees e LEFT JOIN personal_data_sheets pds ON pds.user_id = e.user_id WHERE ${whereClause}`, params);
         const [rows] = await db.query(
             `SELECT ${select}
-             FROM employees e
+             FROM v_appointed_employees e
              LEFT JOIN users u ON u.id = e.user_id
              LEFT JOIN schools_offices so ON so.id = e.school_office_id
+             LEFT JOIN personal_data_sheets pds ON pds.user_id = e.user_id
              WHERE ${whereClause}
              ORDER BY ${sortCol} ${sortDir}
              LIMIT ? OFFSET ?`,
@@ -249,10 +336,14 @@ exports.getAllEmployees = async (req, res) => {
         );
 
         res.json({
-            employees: rows.map(r => ({
-                ...r,
-                years_of_service: formatYearsOfService(r.months_of_service)
-            })),
+            employees: rows.map(r => {
+                if (r.pds_status === 'submitted') {
+                    if (r.pds_first_name) r.first_name = r.pds_first_name;
+                    if (r.pds_middle_name) r.middle_name = r.pds_middle_name;
+                    if (r.pds_surname) r.last_name = r.pds_surname;
+                }
+                return { ...r, years_of_service: formatYearsOfService(r.months_of_service) };
+            }),
             total: count[0].total,
             page: parseInt(page),
             totalPages: Math.ceil(count[0].total / parseInt(limit))
@@ -269,7 +360,7 @@ exports.getFilterOptions = async (req, res) => {
             `SELECT id, name, type, district FROM schools_offices WHERE is_active = 1 ORDER BY type, district, name`
         );
         const [positions] = await db.query(
-            `SELECT DISTINCT position_title as value FROM employees WHERE position_title IS NOT NULL AND is_active = 1 ORDER BY position_title`
+            `SELECT DISTINCT position_title as value FROM v_appointed_employees WHERE position_title IS NOT NULL AND is_active = 1 ORDER BY position_title`
         );
         res.json({
             locations: locations,
@@ -318,6 +409,7 @@ exports.getEmployeeById = async (req, res) => {
                     pds.perm_barangay as pds_perm_barangay,
                     pds.perm_city_municipality as pds_perm_city_municipality,
                     pds.perm_province as pds_perm_province,
+                    ${PDS_OVERLAY_SELECT},
                     so.name as location_name, so.type as location_type, so.district as location_district
              FROM employees e
              LEFT JOIN users u ON u.id = e.user_id
@@ -330,6 +422,7 @@ exports.getEmployeeById = async (req, res) => {
         if (emp.length === 0) return res.status(404).json({ message: 'Employee not found.' });
 
         const employeeData = { ...emp[0] };
+        if (!employeeData.employee_no) return res.status(404).json({ message: 'Employee not found.' });
         if (employeeData.pds_status === 'submitted') {
             if (employeeData.pds_first_name) employeeData.first_name = employeeData.pds_first_name;
             if (employeeData.pds_middle_name) employeeData.middle_name = employeeData.pds_middle_name;
@@ -360,12 +453,139 @@ exports.getEmployeeById = async (req, res) => {
             if (employeeData.pds_pagibig_id_no) employeeData.pagibig_id = employeeData.pds_pagibig_id_no;
             if (employeeData.pds_philhealth_no) employeeData.philhealth_no = employeeData.pds_philhealth_no;
             if (employeeData.pds_tin_no) employeeData.tin_no = employeeData.pds_tin_no;
-            if (employeeData.pds_photo_path) employeeData.photo_path = employeeData.photo_path || employeeData.pds_photo_path;
+            if (employeeData.pds_photo_path) employeeData.photo_path = employeeData.photo_path || ('/' + employeeData.pds_photo_path).replace(/^\/{2,}/, '/');
+
+            applyPdsOverlay(employeeData);
         }
 
         res.json(employeeData);
     } catch (error) {
         console.error('getEmployeeById Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ── GET /api/personnel/employees/qualified-applicants ──
+// Returns qualified/selected/appointed applicants who don't yet have a real employee record.
+exports.getQualifiedApplicants = async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT a.id            AS application_id,
+                   a.applicant_id  AS user_id,
+                   a.full_name,
+                   a.email,
+                   a.phone,
+                   a.status        AS app_status,
+                   v.position_title AS vacancy_position,
+                   v.item_number,
+                   v.salary_grade,
+                   v.monthly_salary,
+                   v.assigned_school,
+                   v.position_type,
+                   pds.status      AS pds_status
+            FROM applications a
+            LEFT JOIN vacancies v              ON v.id = a.vacancy_id
+            LEFT JOIN personal_data_sheets pds ON pds.user_id = a.applicant_id
+            LEFT JOIN employees emp            ON emp.user_id = a.applicant_id
+            WHERE a.status IN ('qualified','selected','appointed')
+              AND (emp.id IS NULL OR (emp.employee_no IS NULL AND emp.position_title IS NULL))
+            ORDER BY a.status = 'appointed' DESC,
+                     a.status = 'selected' DESC,
+                     a.full_name ASC
+        `);
+        res.json(rows);
+    } catch (error) {
+        console.error('getQualifiedApplicants Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ── GET /api/personnel/employees/prefill/:userId ──
+// Returns a flat payload matching CreateEmployee.jsx form fields,
+// sourced from personal_data_sheets + applications + vacancies.
+exports.getPrefillData = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Get the most recent qualified/selected/appointed application for this user
+        const [apps] = await db.query(`
+            SELECT a.*, v.position_title, v.item_number, v.salary_grade,
+                   v.monthly_salary, v.assigned_school, v.position_type
+            FROM applications a
+            LEFT JOIN vacancies v ON v.id = a.vacancy_id
+            WHERE a.applicant_id = ? AND a.status IN ('qualified','selected','appointed')
+            ORDER BY a.updated_at DESC LIMIT 1
+        `, [userId]);
+
+        // Get PDS
+        const [pdsRows] = await db.query(
+            'SELECT * FROM personal_data_sheets WHERE user_id = ?',
+            [userId]
+        );
+        const pds = pdsRows[0] || null;
+
+        // Build the flat prefill object matching CreateEmployee form fields
+        const prefilled = { user_id: Number(userId) };
+
+        // ── From PDS (personal info) ──
+        if (pds) {
+            prefilled.first_name    = pds.first_name || '';
+            prefilled.middle_name   = pds.middle_name || '';
+            prefilled.last_name     = pds.surname || '';
+            prefilled.name_extension = pds.name_extension || '';
+
+            if (pds.date_of_birth) {
+                try { prefilled.date_of_birth = new Date(pds.date_of_birth).toISOString().split('T')[0]; } catch { prefilled.date_of_birth = ''; }
+            }
+            prefilled.place_of_birth = pds.place_of_birth || '';
+            prefilled.sex            = pds.sex || '';
+            prefilled.civil_status   = pds.civil_status || '';
+            prefilled.blood_type     = pds.blood_type || '';
+            prefilled.mobile_no      = pds.mobile_no || '';
+            prefilled.email          = pds.email_address || '';
+
+            // Government IDs (PDS field name → employee form field name)
+            prefilled.gsis_id       = pds.gsis_id_no || '';
+            prefilled.pagibig_id    = pds.pagibig_id_no || '';
+            prefilled.philhealth_no = pds.philhealth_no || '';
+            prefilled.tin_no        = pds.tin_no || '';
+
+            // Address: combine residential (or permanent) address parts
+            const usePerm = pds.perm_same_as_residential;
+            const addrParts = [
+                usePerm ? pds.perm_house_block_lot  : pds.res_house_block_lot,
+                usePerm ? pds.perm_street            : pds.res_street,
+                usePerm ? pds.perm_barangay          : pds.res_barangay,
+                usePerm ? pds.perm_city_municipality : pds.res_city_municipality,
+                usePerm ? pds.perm_province          : pds.res_province,
+            ].filter(Boolean);
+            prefilled.address = addrParts.join(', ');
+
+            // Eligibility: extract from PDS civil_service_eligibility JSON
+            const eligArr = safeParseJSON(pds.civil_service_eligibility);
+            if (Array.isArray(eligArr) && eligArr.length > 0) {
+                const names = eligArr.map(e => e.eligibility_name).filter(Boolean);
+                prefilled.eligibility = names.join(', ');
+            }
+        }
+
+        // ── From application + vacancy (employment details) ──
+        if (apps.length > 0) {
+            const app = apps[0];
+            prefilled.position_title   = app.position_title || '';
+            prefilled.salary_grade     = app.salary_grade != null ? String(app.salary_grade) : '';
+            prefilled.monthly_salary   = app.monthly_salary || '';
+            prefilled.item_number      = app.item_number || '';
+            prefilled.assigned_school  = app.assigned_school || '';
+            // Map position_type to employment_type enum
+            if (app.position_type) {
+                prefilled.employment_type = app.position_type;
+            }
+        }
+
+        res.json(prefilled);
+    } catch (error) {
+        console.error('getPrefillData Error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -431,8 +651,7 @@ exports.createEmployee = async (req, res) => {
             }
         }
 
-        const [result] = await db.query(
-            `INSERT INTO employees (user_id, employee_no, first_name, middle_name, last_name, name_extension,
+        const empColumns = `user_id, employee_no, first_name, middle_name, last_name, name_extension,
              date_of_birth, place_of_birth, sex, civil_status, blood_type,
              gsis_id, pagibig_id, philhealth_no, tin_no, mobile_no, email, address,
              photo_path,
@@ -440,9 +659,9 @@ exports.createEmployee = async (req, res) => {
              authorized_salary, actual_salary, monthly_salary, salary_step,
              eligibility, item_number, assigned_school, office, job_status,
              school_office_id,
-             date_hired, date_original_appointment)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-            [user_id, trimmedEmployeeNo, first_name, middle_name || null, last_name, name_extension || null,
+             date_hired, date_original_appointment`;
+        const empQ = empColumns.split(',').length;
+        const empValues = [user_id, trimmedEmployeeNo, first_name, middle_name || null, last_name, name_extension || null,
              date_of_birth || null, place_of_birth || null, sex || null, civil_status || null, blood_type || null,
              gsis_id || null, pagibig_id || null, philhealth_no || null, tin_no || null, mobile_no || null, email || null, address || null,
              photoPath,
@@ -450,7 +669,13 @@ exports.createEmployee = async (req, res) => {
              authorized_salary || null, actual_salary || null, monthly_salary || null, salary_step || null,
              eligibility || null, item_number || null, resolvedSchool, resolvedOffice, job_status || 'active',
              resolvedSchoolOfficeId,
-             date_hired || null, date_original_appointment || null]
+             date_hired || null, date_original_appointment || null];
+        console.log('Emp cols count:', empQ, 'Values count:', empValues.length);
+        console.log('Values:', empValues);
+        const [result] = await db.query(
+            `INSERT INTO employees (${empColumns})
+             VALUES (${empValues.map(() => '?').join(',')})`,
+            empValues
         );
 
         await db.query(

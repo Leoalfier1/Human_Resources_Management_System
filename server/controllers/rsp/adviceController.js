@@ -55,7 +55,6 @@ const getEligible = async (req, res) => {
                  WHERE applicant_id = a.id) AS already_sent
             FROM applications a
             LEFT JOIN comparative_assessment_results r ON a.id = r.applicant_id
-            LEFT JOIN deliberation_notes n ON a.id = n.applicant_id
             WHERE a.vacancy_id = ?
               AND a.status IN ('qualified', 'shortlisted', 'selected', 'appointed')
             ORDER BY rank_val ASC
@@ -261,28 +260,10 @@ const generatePDF = async (req, res) => {
         const defaultReportDate = (() => {
             const d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(1); return d;
         })();
-        const defaultDeadline = (() => {
-            const d = new Date(); d.setDate(d.getDate() + 7); return d;
-        })();
 
         const effectiveDate = d.report_date
             ? new Date(d.report_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
             : defaultReportDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        const deadlineDate = d.document_submission_deadline
-            ? new Date(d.document_submission_deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-            : defaultDeadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-        // Fetch required docs from appointment_documents (same source as applicant portal)
-        const [apptDocs] = await db.query(
-            `SELECT document_type, verification_status
-             FROM appointment_documents
-             WHERE applicant_id = ?
-             ORDER BY id`,
-            [d.application_id]
-        );
-        const pdfDocs = apptDocs.length > 0
-            ? apptDocs.map(r => r.document_type)
-            : getRequiredDocs(d.position_type || 'teaching');
 
         // Resolve signatory from signatories table (prefer Schools Division Superintendent)
         // Do NOT use the raw appointing_authority_name text as a display name
@@ -373,9 +354,7 @@ const generatePDF = async (req, res) => {
 
         doc.moveDown(0.8);
         doc.font(S).fontSize(11).text(
-            `You are hereby required to report to your assigned station on the said date. ` +
-            `Please submit the following documents to the Human Resource Management Division ` +
-            `on or before ${deadlineDate}:`,
+            'You are hereby required to report to your assigned station on the said date.',
             L, doc.y, { width: W, align: 'justify' }
         );
         doc.moveDown(0.5);
@@ -387,55 +366,9 @@ const generatePDF = async (req, res) => {
             'PRIME-HRM guidelines.',
             L, doc.y, { width: W, align: 'justify' }
         );
-        doc.moveDown(0.5);
-
-        // ── DOCUMENT CHECKLIST: two-column grid with equal row heights ──────────
-        // Split docs into two equal columns; both columns share the same Y baseline.
-        // We pre-measure item heights so each row has a consistent height regardless
-        // of whether text wraps.
-        const docFontSize = 9;
-        const colW        = (W - 20) / 2;   // equal column width with 20pt gutter
-        const col1X       = L;
-        const col2X       = L + colW + 20;
-        const mid         = Math.ceil(pdfDocs.length / 2);
-        const col1        = pdfDocs.slice(0, mid);
-        const col2        = pdfDocs.slice(mid);
-
-        doc.font(S).fontSize(docFontSize);
-
-        // Pre-measure row heights: for each row index, take the max of both column items
-        const rowCount = Math.max(col1.length, col2.length);
-        const rowHeights = [];
-        for (let i = 0; i < rowCount; i++) {
-            const h1 = col1[i] ? doc.heightOfString(`${i + 1}. ${col1[i]}`, { width: colW }) : 0;
-            const h2 = col2[i] ? doc.heightOfString(`${mid + i + 1}. ${col2[i]}`, { width: colW }) : 0;
-            rowHeights.push(Math.max(h1, h2) + 2); // +2pt inter-row padding
-        }
-
-        // Render both columns row by row, sharing the same Y per row
-        let rowY = doc.y;
-        for (let i = 0; i < rowCount; i++) {
-            if (col1[i]) {
-                doc.text(`${i + 1}. ${col1[i]}`, col1X, rowY, { width: colW });
-            }
-            if (col2[i]) {
-                doc.text(`${mid + i + 1}. ${col2[i]}`, col2X, rowY, { width: colW });
-            }
-            rowY += rowHeights[i];
-        }
-
-        // Advance cursor past the checklist
-        doc.y = rowY;
-
-        doc.moveDown(0.8);
-        doc.font(S).fontSize(11).text(
-            'Failure to submit the required documents within the prescribed period may result ' +
-            'in the withdrawal of this advice. Please acknowledge receipt of this letter by signing below.',
-            L, doc.y, { width: W, align: 'justify' }
-        );
         doc.moveDown(0.8);
         doc.font(SB).fontSize(11).text('Congratulations once again!', L, doc.y, { width: W });
-        doc.moveDown(1);  // compact gap before signature (was moveDown(3))
+        doc.moveDown(1);
 
         // ── SIGNATURE BLOCK ────────────────────────────────────────────────────
         const sigY   = doc.y;

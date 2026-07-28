@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Award, Download, Loader2 } from 'lucide-react';
+import { Award, Download, FileText, Loader2 } from 'lucide-react';
 
 const RANK_STYLES = [
   { bg: 'bg-yellow-400', text: 'text-yellow-900', label: 'Gold' },
@@ -16,7 +16,7 @@ const LEGACY_KEYS = ['A', 'B', 'C'];
 const RankingsSidebar = ({
   rankings, selectedApplicantId, onSelectApplicant,
   sectionScores, totalScore, currentTimestamp,
-  saving, onExport, layoutMode, criteria, sectionsMeta
+  saving, onExport, onExportPdf, layoutMode, criteria, sectionsMeta
 }) => {
   const maxScore = rankings.length > 0 ? Math.max(1, Number(rankings[0].total_score || 0)) : 1;
   const flatMax = 100;
@@ -27,6 +27,11 @@ const RankingsSidebar = ({
   }, [sectionsMeta]);
 
   const getSubscore = (r, key) => {
+    // Prefer the raw section_scores JSON (supports any key, not just A/B/C)
+    if (r.section_scores && typeof r.section_scores === 'object' && key in r.section_scores) {
+      return Number(r.section_scores[key] || 0);
+    }
+    // Fallback to legacy column names
     if (key === 'A') return Number(r.category_subscore_classroom || 0);
     if (key === 'B') return Number(r.category_subscore_nonclassroom || 0);
     if (key === 'C') return Number(r.category_subscore_document || 0);
@@ -42,13 +47,22 @@ const RankingsSidebar = ({
             <h3 className="text-xs font-black uppercase tracking-[0.2em]">Comparative Assessment Rankings</h3>
             <p className="text-[10px] font-bold text-blue-300 mt-0.5">Real-time ranked results</p>
           </div>
-          <button
-            onClick={onExport}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title="Bulk-Download results"
-          >
-            <Download size={16} className="text-blue-300" />
-          </button>
+          <div className="flex gap-1">
+            <button
+              onClick={onExportPdf}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Download CAR (PDF)"
+            >
+              <FileText size={16} className="text-blue-300" />
+            </button>
+            <button
+              onClick={onExport}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Download raw scores (CSV)"
+            >
+              <Download size={16} className="text-blue-300" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">

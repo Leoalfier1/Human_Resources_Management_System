@@ -190,7 +190,7 @@ exports.patchPublish = async (req, res) => {
             const [heads] = await db.query(`
                 SELECT DISTINCT u.id AS user_id
                 FROM users u
-                JOIN employees e ON e.user_id = u.id
+                JOIN v_appointed_employees e ON e.user_id = u.id
                 WHERE e.position_title LIKE '%Head%' OR e.position_title LIKE '%Director%'
             `);
             for (const h of heads) {

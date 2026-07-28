@@ -25,6 +25,7 @@ export const useCAWorkspace = (vacancyId) => {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [editVersion, setEditVersion] = useState(0);  // bumped on every local score edit to force memo recomputation
   const socketRef = useRef(null);
   // Keyed by applicantId -> { [criterionId]: number }
   const localEditsRef = useRef({});
@@ -95,7 +96,7 @@ export const useCAWorkspace = (vacancyId) => {
     const appEdits = localEditsRef.current[selectedApplicantId] || {};
     if (appEdits[criterionId] !== undefined) return appEdits[criterionId];
     return scoresMap[selectedApplicantId]?.[criterionId] ?? 0;
-  }, [scoresMap, selectedApplicantId]);
+  }, [scoresMap, selectedApplicantId, editVersion]);
 
   const updateLocalScore = useCallback((criterionId, value) => {
     const appId = selectedApplicantId;
@@ -185,6 +186,9 @@ export const useCAWorkspace = (vacancyId) => {
             ? {
                 ...r,
                 total_score: data.totalScore,
+                // Store raw section_scores object for any-key lookup in RankingsSidebar
+                section_scores: data.sectionScores,
+                // Also map to legacy columns for backward compat
                 category_subscore_classroom: data.sectionScores.A ?? data.sectionScores[Object.keys(data.sectionScores)[0]] ?? null,
                 category_subscore_nonclassroom: data.sectionScores.B ?? data.sectionScores[Object.keys(data.sectionScores)[1]] ?? null,
                 category_subscore_document: data.sectionScores.C ?? data.sectionScores[Object.keys(data.sectionScores)[2]] ?? null
@@ -216,11 +220,13 @@ export const useCAWorkspace = (vacancyId) => {
   /* ─── Public handlers ─── */
   const handleScoreChange = useCallback((criterionId, value) => {
     updateLocalScore(criterionId, value);
+    setEditVersion(v => v + 1);
     debouncedSave();
   }, [updateLocalScore, debouncedSave]);
 
   const handleScoreBlur = useCallback((criterionId, value) => {
     updateLocalScore(criterionId, value);
+    setEditVersion(v => v + 1);
     debouncedSave.cancel();
     commitScoresToServer();
   }, [updateLocalScore, commitScoresToServer]);
@@ -273,6 +279,13 @@ export const useCAWorkspace = (vacancyId) => {
     await downloadFile(`/api/rsp/ca-workspace/${vacancyId}/export`, 'ca_workspace_export.csv');
   }, [vacancyId]);
 
+  const handleExportPdf = useCallback(async () => {
+    if (!vacancyId) return;
+    const posTitle = (workspace?.vacancy?.position_title || 'CAR').replace(/[^a-zA-Z0-9]/g, '_');
+    const refNo    = workspace?.vacancy?.ref_no || vacancyId;
+    await downloadFile(`/api/rsp/ca-workspace/${vacancyId}/export/pdf`, `CAR_${posTitle}_${refNo}.pdf`);
+  }, [vacancyId, workspace]);
+
   /* ─── Derived: section scores + total ─── */
   const sectionScores = useMemo(() => {
     const appScores = scoresMap[selectedApplicantId] || {};
@@ -294,7 +307,7 @@ export const useCAWorkspace = (vacancyId) => {
       }
     });
     return result;
-  }, [scoresMap, selectedApplicantId, workspace, activeSection]);
+  }, [scoresMap, selectedApplicantId, workspace, editVersion]);
 
   const totalScore = useMemo(() => {
     return Object.values(sectionScores).reduce((sum, v) => sum + (Number(v) || 0), 0);
@@ -325,8 +338,8 @@ export const useCAWorkspace = (vacancyId) => {
     loading, saving, submitting, error,
     getScore, getRemarks, handleScoreChange, handleScoreBlur,
     handleRemarksChange, handleRemarksBlur,
-    handleSaveDraft, handleSubmit, handleExport,
-    currentTimestamp,
+    handleSaveDraft, handleSubmit, handleExport, handleExportPdf,
+    currentTimestamp, editVersion,
     refresh: fetchWorkspace
   };
 };

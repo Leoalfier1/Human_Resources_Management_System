@@ -2,6 +2,7 @@ const rawBase = import.meta.env.VITE_API_BASE_URL;
 
 export const API_BASE = rawBase.replace(/\/+$/, '');
 export const SERVER_BASE = API_BASE.replace(/\/api$/, '');
+export const SOCKET_URL = "http://localhost:5000"; // or wherever your Socket.IO server runs
 
 export const apiFetch = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
@@ -25,6 +26,56 @@ export const apiFetch = async (endpoint, options = {}) => {
         alert("Cannot reach the HRMIS Server. Please ensure the backend is running on port 5000.");
         throw err;
     }
+};
+
+// REST-style convenience wrappers around apiFetch. All of these return the
+// raw Response object (same as apiFetch), so existing `response.ok` /
+// `response.json()` call sites keep working unchanged.
+export const apiGet = apiFetch;
+
+export const apiPost = (endpoint, body, options = {}) => {
+    const isFormData = body instanceof FormData;
+    return apiFetch(endpoint, {
+        ...options,
+        method: 'POST',
+        body: isFormData ? body : JSON.stringify(body),
+    });
+};
+
+export const apiPut = (endpoint, body, options = {}) => {
+    const isFormData = body instanceof FormData;
+    return apiFetch(endpoint, {
+        ...options,
+        method: 'PUT',
+        body: isFormData ? body : JSON.stringify(body),
+    });
+};
+
+export const apiPatch = (endpoint, body, options = {}) => {
+    const isFormData = body instanceof FormData;
+    return apiFetch(endpoint, {
+        ...options,
+        method: 'PATCH',
+        body: isFormData ? body : JSON.stringify(body),
+    });
+};
+
+export const apiDelete = (endpoint, options = {}) => {
+    return apiFetch(endpoint, {
+        ...options,
+        method: 'DELETE',
+    });
+};
+
+// Consolidated object form, for files that do:
+//   import { api } from '../../utils/api';
+//   api.get(...) / api.post(...) / api.put(...) / api.patch(...) / api.delete(...)
+export const api = {
+    get: apiGet,
+    post: apiPost,
+    put: apiPut,
+    patch: apiPatch,
+    delete: apiDelete,
 };
 
 export const downloadFile = async (endpoint, filename) => {

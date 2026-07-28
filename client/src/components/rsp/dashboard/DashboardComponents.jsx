@@ -126,12 +126,11 @@ export const VacancyProgressTracker = ({ vacancies }) => {
             3: '/rsp/initial-evaluation',       // Screening
             4: '/rsp/initial-evaluation',       // Validation (usually same UI)
             5: '/rsp/applicants',              // Posting Qualified List
-            6: '/rsp/comparative-assessment',   // Scoring Rubric
-            7: '/rsp/results-posting',          // Result Preview
-            8: '/rsp/deliberation',             // HRMPSB Shortlist
-            9: '/rsp/congratulatory-advice',    // SDS Selection
-            10: '/rsp/appointment-processing',  // Document Review
-            11: '/rsp/notice-of-appointment'    // Final Posting
+            6: '/rsp/comparative-assessment',   // Individual Evaluation
+            7: '/rsp/comparative-assessment',   // Comparative Assessment
+            8: '/rsp/results-posting',          // Results Posting
+            9: '/rsp/congratulatory-advice',    // Congratulatory Advice
+            10: null                            // Appointment (no dedicated UI page)
         };
         return routes[stage] || '/rsp/dashboard';
     };
@@ -151,7 +150,7 @@ export const VacancyProgressTracker = ({ vacancies }) => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-50 pb-6">
                 <div>
                     <h3 className="text-xl font-black text-[#1B3A6B] uppercase italic">Active Vacancy Progress Tracker</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">11-Stage RSP Workflow Engine</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">9-Stage RSP Workflow Engine</p>
                 </div>
                 <button 
                     onClick={() => navigate('/rsp/vacancy-posting')} 
@@ -209,12 +208,12 @@ export const VacancyProgressTracker = ({ vacancies }) => {
                     <motion.div
     key={currentVac.current_stage}
     initial={{ width: 0 }}
-    animate={{ width: `${((currentVac.current_stage - 1) / 10) * 95}%` }}
+    animate={{ width: `${((Math.min(currentVac.current_stage, 9) - 1) / 9) * 95}%` }}
     transition={{ duration: 1.5, ease: "easeInOut" }}
     className="absolute left-10 top-6 h-1.5 bg-emerald-500 -z-0 rounded-full"
 />
 
-                    {currentVac.workflow?.map((node) => {
+                    {currentVac.workflow?.filter(node => node.stage <= 9).map((node) => {
                         const isComplete = node.status === 'complete';
                         const isActive = node.status === 'active';
 

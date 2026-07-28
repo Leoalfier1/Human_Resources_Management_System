@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useEmployeeProfile } from '../../hooks/useEmployeeProfile';
 import { SERVER_BASE } from '../../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,9 +73,12 @@ const EditField = ({ label, field, value, onChange }) => {
 const ProfileAvatar = ({ profile, editing, onPhotoSelect, photoPreview, uploading }) => {
   const fileInputRef = useRef(null);
   const [hovered, setHovered] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
 
   const initials = `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`;
-  const displaySrc = photoPreview || (profile.photo_path ? `${SERVER_BASE}${profile.photo_path}` : null);
+  const displaySrc = photoPreview || (!photoError && profile.photo_path ? `${SERVER_BASE}${profile.photo_path}` : null);
+
+  useEffect(() => { setPhotoError(false); }, [profile.photo_path, photoPreview]);
 
   const handleClick = () => {
     if (editing && !uploading) fileInputRef.current?.click();
@@ -107,6 +110,7 @@ const ProfileAvatar = ({ profile, editing, onPhotoSelect, photoPreview, uploadin
           src={displaySrc}
           alt={`${profile.first_name} ${profile.last_name}`}
           className="w-16 h-16 rounded-2xl object-cover border-2 border-[#1B3A6B]/20 shadow-sm bg-slate-50"
+          onError={() => setPhotoError(true)}
         />
       ) : (
         <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
@@ -374,8 +378,8 @@ const EmployeeProfile = () => {
           <Field label="Monthly Salary" value={profile.monthly_salary ? `₱${parseFloat(profile.monthly_salary).toLocaleString()}` : '—'} />
           <Field label="Item Number" value={profile.item_number} />
           <Field label="Assigned School" value={profile.assigned_school} />
-          <Field label="Date Hired" value={profile.date_hired} />
-          <Field label="Date of Original Appointment" value={profile.date_original_appointment} />
+          <Field label="Date Hired" value={profile.date_hired ? new Date(profile.date_hired).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null} />
+          <Field label="Date of Original Appointment" value={profile.date_original_appointment ? new Date(profile.date_original_appointment).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null} />
         </div>
       </div>
 

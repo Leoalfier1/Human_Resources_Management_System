@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import io from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
-import { apiGet, SOCKET_URL } from '../../utils/api';
+import { apiFetch, SOCKET_URL } from '../../utils/api';
+
 
 const pathTitles = {
   '/pm/dashboard': 'Performance Management',
@@ -61,7 +62,7 @@ const PMHeader = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await apiGet('/pm/notifications');
+        const response = await apiFetch('/pm/notifications');
         if (response.ok) {
           const data = await response.json();
           setNotifications(data);
@@ -98,7 +99,7 @@ const PMHeader = () => {
     if (!token) return;
     const fetchPeriods = async () => {
       try {
-        const response = await apiGet('/pm/dashboard/periods');
+        const response = await apiFetch('/pm/dashboard/periods');
         if (response.ok) {
           const data = await response.json();
           setPeriods(data);

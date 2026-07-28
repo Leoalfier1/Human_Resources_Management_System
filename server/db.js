@@ -136,6 +136,46 @@ async function patchDatabase() {
             console.log('🔹 Fixed schools_offices collation → utf8mb4_unicode_ci');
         }
 
+        // 8. Ensure v_appointed_employees view exists (migration 050)
+        //    This view excludes auto-created stub employees (employee_no IS NULL)
+        //    so every "list employees" query gets the filter by construction.
+        await db.query(`
+            CREATE OR REPLACE VIEW v_appointed_employees AS
+            SELECT * FROM employees WHERE employee_no IS NOT NULL
+        `);
+        console.log('🔹 Ensured v_appointed_employees view exists');
+
+        // 9. Extend personnel_notifications for RSP admin alerts (migration 051)
+        const [pnCols] = await db.query("SHOW COLUMNS FROM personnel_notifications");
+        const pnColNames = pnCols.map(c => c.Field);
+
+        if (!pnColNames.includes('application_id')) {
+            await db.query(
+                'ALTER TABLE personnel_notifications ADD COLUMN application_id INT DEFAULT NULL AFTER reference_id, ADD KEY idx_pn_application (application_id)'
+            );
+            console.log('🔹 Added application_id column to personnel_notifications');
+        }
+
+        // Ensure 'rsp_qualified' is in the type enum
+        const typeCol = pnCols.find(c => c.Field === 'type');
+        if (typeCol && !typeCol.Type.includes('rsp_qualified')) {
+            await db.query(
+                "ALTER TABLE personnel_notifications MODIFY COLUMN type ENUM('leave','travel','document','general','rsp_qualified') NOT NULL"
+            );
+            console.log("🔹 Added 'rsp_qualified' to personnel_notifications.type enum");
+        }
+
+        // 10. Widen height_m from DECIMAL(3,2) to DECIMAL(4,2) (migration 052)
+        // DECIMAL(3,2) max is 9.99 — a user typing cm (e.g. 168) crashes the insert.
+        const [hCols] = await db.query(
+            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'personal_data_sheets' AND COLUMN_NAME = 'height_m'"
+        );
+        if (hCols.length > 0 && hCols[0].COLUMN_TYPE === 'decimal(3,2)') {
+            await db.query("ALTER TABLE personal_data_sheets MODIFY COLUMN height_m DECIMAL(4,2) DEFAULT NULL");
+            await db.query("ALTER TABLE employees MODIFY COLUMN height_m DECIMAL(4,2) DEFAULT NULL");
+            console.log("🔹 Widened height_m from DECIMAL(3,2) to DECIMAL(4,2)");
+        }
+
         console.log("✅ Database self-healing check completed successfully.");
 
     } catch (err) {

@@ -1,5 +1,6 @@
-import React from 'react';
-import { ClipboardList } from 'lucide-react';
+import React, { useState } from 'react';
+import { ClipboardList, Expand, X, CheckCircle2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const CATEGORY_BADGE = {
     teacher_i: 'Teacher I - Teaching Position',
@@ -10,9 +11,26 @@ const CATEGORY_BADGE = {
 const numeric = (v) => Number(v || 0).toFixed(2);
 
 const ScoringCriteriaTable = ({ evaluation, getCriterionValue, getActualScore, onScoreChange, isLocked }) => {
+    const [expandedNote, setExpandedNote] = useState(null);
+    const [expandedNoteText, setExpandedNoteText] = useState('');
+
     if (!evaluation || !evaluation.criteria) return null;
 
+    const openNoteModal = (criteriaKey) => {
+        setExpandedNote(criteriaKey);
+        setExpandedNoteText(getCriterionValue(criteriaKey, 'qualification_notes'));
+    };
+
+    const saveNoteModal = () => {
+        if (expandedNote) {
+            onScoreChange(expandedNote, 'qualification_notes', expandedNoteText);
+        }
+        setExpandedNote(null);
+        setExpandedNoteText('');
+    };
+
     return (
+        <>
         <div className="rounded-[2.5rem] border border-slate-200 bg-white overflow-hidden">
             <div className="bg-[#1B3A6B] px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -52,14 +70,24 @@ const ScoringCriteriaTable = ({ evaluation, getCriterionValue, getActualScore, o
                                         </span>
                                     </td>
                                     <td className="px-3 py-2">
-                                        <textarea
-                                            value={getCriterionValue(criterion.criteria_key, 'qualification_notes')}
-                                            onChange={(e) => onScoreChange(criterion.criteria_key, 'qualification_notes', e.target.value)}
-                                            disabled={isLocked}
-                                            rows={3}
-                                            className="w-full resize-y rounded-xl border border-slate-200 bg-white p-2.5 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#1B3A6B] transition-colors disabled:bg-slate-50 disabled:cursor-not-allowed placeholder:text-slate-300"
-                                            placeholder="Enter applicant's actual qualifications..."
-                                        />
+                                        <div className="flex items-start gap-1.5">
+                                            <textarea
+                                                value={getCriterionValue(criterion.criteria_key, 'qualification_notes')}
+                                                onChange={(e) => onScoreChange(criterion.criteria_key, 'qualification_notes', e.target.value)}
+                                                disabled={isLocked}
+                                                rows={3}
+                                                className="flex-1 resize-y rounded-xl border border-slate-200 bg-white p-2.5 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#1B3A6B] transition-colors disabled:bg-slate-50 disabled:cursor-not-allowed placeholder:text-slate-300"
+                                                placeholder="Enter applicant's actual qualifications..."
+                                            />
+                                            <button
+                                                onClick={() => openNoteModal(criterion.criteria_key)}
+                                                disabled={isLocked}
+                                                title="Expand notes"
+                                                className="mt-1 p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-[#1B3A6B] hover:border-[#1B3A6B] hover:bg-blue-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                            >
+                                                <Expand size={12} />
+                                            </button>
+                                        </div>
                                     </td>
                                     <td className="px-3 py-2">
                                         <textarea
@@ -101,6 +129,67 @@ const ScoringCriteriaTable = ({ evaluation, getCriterionValue, getActualScore, o
                 </table>
             </div>
         </div>
+
+        <AnimatePresence>
+            {expandedNote && (
+                <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6"
+                    onClick={() => setExpandedNote(null)}
+                >
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-2xl w-full max-w-xl shadow-2xl"
+                    >
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Expand size={14} className="text-[#1B3A6B]" />
+                                <p className="text-sm font-black text-[#1B3A6B]">
+                                    {evaluation.criteria.find(c => c.criteria_key === expandedNote)?.criteria_label || expandedNote}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setExpandedNote(null)}
+                                className="text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="px-6 py-4">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                Details of Applicant's Actual Qualifications
+                            </label>
+                            <textarea
+                                value={expandedNoteText}
+                                onChange={(e) => setExpandedNoteText(e.target.value)}
+                                rows={8}
+                                disabled={isLocked}
+                                className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600 outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] placeholder:text-slate-300 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                placeholder="Enter applicant's actual qualifications..."
+                                autoFocus
+                            />
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+                            <button
+                                onClick={() => setExpandedNote(null)}
+                                className="px-4 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={saveNoteModal}
+                                disabled={isLocked}
+                                className="px-4 py-2 bg-[#1B3A6B] hover:bg-[#152d54] text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                            >
+                                <CheckCircle2 size={12} /> Save
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+        </>
     );
 };
 

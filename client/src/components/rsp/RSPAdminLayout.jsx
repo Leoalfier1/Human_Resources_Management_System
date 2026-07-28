@@ -21,10 +21,7 @@ const RSPAdminLayout = () => {
     '/rsp/initial-evaluation': 'Initial Evaluation',
     '/rsp/comparative-assessment': 'Comparative Assessment',
     '/rsp/results-posting': 'Results Posting',
-    '/rsp/deliberation': 'Deliberation & Shortlist',
     '/rsp/congratulatory-advice': 'Congratulatory Advice',
-    '/rsp/appointment-processing': 'Appointment Processing',
-    '/rsp/notice-of-appointment': 'Notice of Appointment',
   };
 
   // Get the title based on the path, or default to "RSP Module"

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   LayoutGrid, Briefcase, Users, ClipboardCheck, BarChart3, 
-  FileText, ListChecks, Star, Award, FileEdit, ChevronLeft, LogOut,
-  Settings, MessageSquare
+  FileText, Star, ChevronLeft, LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,16 +18,9 @@ const NAV_ITEMS = [
     { key: 'assessment', label: 'Comparative Assessment', icon: BarChart3, path: '/rsp/comparative-assessment' },
     { key: 'ies', label: 'Individual Evaluation', icon: FileText, path: '/rsp/individual-evaluation' },
     { key: 'results', label: 'Results Posting', icon: FileText, path: '/rsp/results-posting' },
-    { key: 'shortlist', label: 'Deliberation & Shortlist', icon: ListChecks, path: '/rsp/deliberation' },
   ]},
   { section: 'APPOINTMENT', items: [
     { key: 'advice', label: 'Congratulatory Advice', icon: Star, path: '/rsp/congratulatory-advice' },
-    { key: 'processing', label: 'Appointment Processing', icon: Award, path: '/rsp/appointment-processing' },
-    { key: 'notice', label: 'Notice of Appointment', icon: FileEdit, path: '/rsp/notice-of-appointment' },
-  ]},
-  { section: 'ADMIN', items: [
-    { key: 'users', label: 'User Management', icon: Settings, path: '/rsp/user-management' },
-    { key: 'appeals', label: 'Appeals', icon: MessageSquare, path: '/rsp/appeals' },
   ]},
 ];
 
@@ -38,14 +30,12 @@ const RSPSidebar = ({ userName, userRole, onBack }) => {
   const role = user?.role || 'staff';
 
   const hasPermission = (key, role) => {
-    if (key === 'users') return role === 'admin';
-    if (key === 'appeals') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
     if (key === 'assessment') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
     if (key === 'ies') return ['admin', 'hr_staff', 'hrmpsb'].includes(role);
-    if (['results', 'shortlist', 'advice', 'notice'].includes(key)) {
+    if (['results', 'advice'].includes(key)) {
       return ['admin', 'hr_staff'].includes(role);
     }
-    if (['dashboard', 'vacancy', 'applicants', 'evaluation', 'processing'].includes(key)) {
+    if (['dashboard', 'vacancy', 'applicants', 'evaluation'].includes(key)) {
       return ['admin', 'hr_staff', 'hrmpsb', 'appointing_authority'].includes(role);
     }
     return false;

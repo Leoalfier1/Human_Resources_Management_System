@@ -19,19 +19,18 @@ const getWorkingDaysElapsed = (startDate) => {
     return count;
 };
 
-// Stage label map (11 stages)
+// Stage label map (10 stages)
 const STAGE_DEFS = [
     { stage: 1,  name: 'Publication',       target: '10 cal days' },
     { stage: 2,  name: 'Submission',         target: '10 cal days' },
     { stage: 3,  name: 'Initial Eval',       target: '1 WD/30 apps' },
     { stage: 4,  name: 'Validation',         target: '1 WD/30 apps' },
     { stage: 5,  name: 'Posting Qual List',  target: '1 WD' },
-    { stage: 6,  name: 'Comparative Asmt',   target: '7 WD/30 apps' },
-    { stage: 7,  name: 'Post CA Results',    target: '1 WD/30 apps' },
-    { stage: 8,  name: 'Deliberation',       target: '1 WD' },
-    { stage: 9,  name: 'Selection',          target: '1–2 WD' },
-    { stage: 10, name: 'Doc Submission',     target: '3–5 WD' },
-    { stage: 11, name: 'Issue Appointment',  target: 'Final' },
+    { stage: 6,  name: 'Individual Eval',    target: '3 WD/30 apps' },
+    { stage: 7,  name: 'Comparative Asmt',   target: '7 WD/30 apps' },
+    { stage: 8,  name: 'Results Posting',    target: '1 WD/30 apps' },
+    { stage: 9,  name: 'Congrat. Advice',    target: '1–2 WD' },
+    { stage: 10, name: 'Notice of Appt.',    target: 'Final' },
 ];
 
 // ─────────────────────────────────────────────

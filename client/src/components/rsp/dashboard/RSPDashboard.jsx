@@ -160,7 +160,7 @@ const RSPDashboard = () => {
         </div>
       </div>
 
-      {/* 11-STAGE PROGRESS TRACKER */}
+      {/* 9-STAGE PROGRESS TRACKER */}
       <VacancyProgressTracker vacancies={data?.activePostings} />
 
       {/* THREE-COLUMN SECONDARY ROW */}

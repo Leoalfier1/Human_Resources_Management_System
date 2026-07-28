@@ -142,7 +142,7 @@ exports.rejectDocument = async (req, res) => {
 exports.get201Summary = async (req, res) => {
     try {
         const [employees] = await db.query(
-            'SELECT id, employee_no, CONCAT(first_name, \' \', last_name) AS employee_name FROM employees ORDER BY last_name, first_name'
+            'SELECT id, employee_no, CONCAT(first_name, \' \', last_name) AS employee_name FROM v_appointed_employees ORDER BY last_name, first_name'
         );
 
         const aliasValues = Object.values(CHECKLIST_ALIASES).flat();

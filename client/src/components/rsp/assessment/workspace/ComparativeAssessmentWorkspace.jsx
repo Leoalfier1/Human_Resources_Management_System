@@ -17,8 +17,8 @@ const ComparativeAssessmentWorkspace = ({ vacancyId }) => {
     loading, saving, submitting, error,
     getScore, getRemarks, handleScoreChange, handleScoreBlur,
     handleRemarksChange, handleRemarksBlur,
-    handleSaveDraft, handleSubmit, handleExport,
-    currentTimestamp
+    handleSaveDraft, handleSubmit, handleExport, handleExportPdf,
+    currentTimestamp, editVersion
   } = useCAWorkspace(vacancyId);
 
   const [submitResult, setSubmitResult] = useState(null);
@@ -297,7 +297,7 @@ const ComparativeAssessmentWorkspace = ({ vacancyId }) => {
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-xl font-black text-[#1B3A6B] tabular-nums">
+              <span className={`text-xl font-black text-[#1B3A6B] tabular-nums transition-opacity ${saving ? 'opacity-50' : ''}`}>
                 {sectionSubScore.score.toFixed(2)}
               </span>
               <span className="text-xs font-bold text-slate-400">
@@ -306,6 +306,11 @@ const ComparativeAssessmentWorkspace = ({ vacancyId }) => {
                   {sectionSubScore.max}%
                 </span>
               </span>
+              {saving && (
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse ml-1">
+                  Saving…
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -321,6 +326,7 @@ const ComparativeAssessmentWorkspace = ({ vacancyId }) => {
         currentTimestamp={currentTimestamp}
         saving={saving}
         onExport={handleExport}
+        onExportPdf={handleExportPdf}
         layoutMode={layoutMode}
         criteria={criteria}
         sectionsMeta={sectionsMeta}

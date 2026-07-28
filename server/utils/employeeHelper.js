@@ -21,8 +21,8 @@ async function findOrCreateEmployee(userId) {
     const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : null;
 
     const [result] = await db.query(
-        `INSERT INTO employees (user_id, first_name, middle_name, last_name, email, mobile_no, employment_type, employment_status, date_hired)
-         VALUES (?, ?, ?, ?, ?, ?, 'teaching', 'permanent', CURDATE())`,
+        `INSERT INTO employees (user_id, first_name, middle_name, last_name, email, mobile_no, employment_type)
+         VALUES (?, ?, ?, ?, ?, ?, 'teaching')`,
         [userId, firstName, middleName, lastName, u.email, u.mobile || null]
     );
 
@@ -34,4 +34,28 @@ async function findOrCreateEmployee(userId) {
     return { id: result.insertId };
 }
 
-module.exports = { findOrCreateEmployee };
+/**
+ * Returns a SQL WHERE fragment that excludes auto-created stub employees.
+ * Every query that LISTS or AGGREGATES employees MUST include this clause.
+ *
+ * Stubs are rows created by findOrCreateEmployee() with employee_no IS NULL
+ * — they represent applicants who have never been properly onboarded.
+ *
+ * For personnel-module queries, prefer using the `v_appointed_employees` view
+ * instead of the raw `employees` table — it applies this filter automatically.
+ *
+ * @param {string} alias - table alias (default 'e')
+ * @returns {string} SQL fragment, e.g. "e.employee_no IS NOT NULL"
+ *
+ * @example
+ *   // In a WHERE clause:
+ *   WHERE ${isAppointedEmployee()} AND e.is_active = 1
+ *
+ *   // In a WHERE array:
+ *   where.push(isAppointedEmployee());
+ */
+function isAppointedEmployee(alias = 'e') {
+    return `${alias}.employee_no IS NOT NULL`;
+}
+
+module.exports = { findOrCreateEmployee, isAppointedEmployee };

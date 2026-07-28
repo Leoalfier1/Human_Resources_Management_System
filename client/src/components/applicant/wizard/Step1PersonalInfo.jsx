@@ -83,10 +83,38 @@ function getTotalTrainingHours(pds) {
     return '';
 }
 
+function getTopTrainingTitle(pds) {
+    if (!pds) return '';
+    try {
+        const training = safeParseJSON(pds.ld_training);
+        if (Array.isArray(training) && training.length > 0) {
+            const entry = training.find(e => e.title) || training[0];
+            return entry.title || '';
+        }
+    } catch { /* malformed JSON */ }
+    return '';
+}
+
+function buildExperienceDetails(pds) {
+    if (!pds) return '';
+    try {
+        const work = safeParseJSON(pds.work_experience);
+        if (Array.isArray(work) && work.length > 0) {
+            return work.map(w => {
+                const parts = [];
+                if (w.position_title) parts.push(w.position_title);
+                if (w.company_agency) parts.push(w.company_agency);
+                if (w.date_from) parts.push(`${w.date_from} – ${w.date_to || 'Present'}`);
+                return parts.join(' at ');
+            }).join('; ');
+        }
+    } catch { /* malformed JSON */ }
+    return '';
+}
+
 const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [pdsReady, setPdsReady] = useState(false);
 
     const isNonTeaching = vacancy?.position_type === 'non_teaching';
     const isTeachingRelated = vacancy?.position_type === 'teaching_related';
@@ -106,7 +134,9 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
         snap_ethnic_group: '',
         snap_education: '',
         snap_training_hours: '',
-        snap_eligibility: ''
+        snap_eligibility: '',
+        snap_training_title: '',
+        snap_experience_details: ''
     });
 
     useEffect(() => {
@@ -132,12 +162,12 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                     snap_ethnic_group: pds.ethnic_group || '',
                     snap_education: getHighestEducation(pds),
                     snap_training_hours: getTotalTrainingHours(pds),
-                    snap_eligibility: getTopEligibility(pds)
+                    snap_eligibility: getTopEligibility(pds),
+                    snap_training_title: getTopTrainingTitle(pds),
+                    snap_experience_details: buildExperienceDetails(pds)
                 }));
             } catch (err) {
                 console.error('Error fetching PDS for Step 1:', err);
-            } finally {
-                setPdsReady(true);
             }
         };
         fetchPDS();
@@ -233,13 +263,6 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
 
                 {/* ── PDS-DERIVED FIELDS ────────────────────────────────── */}
                 <div className="mt-8 pt-6 border-t border-slate-100">
-                    <div className="flex items-center gap-3 mb-5">
-                        <h4 className="font-black text-sm text-[#1B3A6B] uppercase italic">Personal Data (from PDS)</h4>
-                        {!pdsReady && <Loader2 size={14} className="animate-spin text-slate-400" />}
-                        {pdsReady && <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Pre-filled</span>}
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-400 mb-5 -mt-3">These fields are auto-filled from your Personal Data Sheet. You may correct them for this application.</p>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Address */}
                         <div className="md:col-span-2">
@@ -296,6 +319,12 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                             <input type="text" className={inputCls} value={formData.snap_education} onChange={set('snap_education')} />
                         </div>
 
+                        {/* Training Title */}
+                        <div className="md:col-span-2">
+                            <label className={labelCls}>Training (Most Recent Title)</label>
+                            <input type="text" className={inputCls} value={formData.snap_training_title} onChange={set('snap_training_title')} placeholder="e.g. Child Protection Policy" />
+                        </div>
+
                         {/* Training Hours + Eligibility */}
                         <div>
                             <label className={labelCls}>Training (Total Hours)</label>
@@ -304,6 +333,13 @@ const Step1PersonalInfo = ({ applicationId, setApplicationId, vacancy, onNext })
                         <div>
                             <label className={labelCls}>Eligibility</label>
                             <input type="text" className={inputCls} value={formData.snap_eligibility} onChange={set('snap_eligibility')} />
+                        </div>
+
+                        {/* Experience Details */}
+                        <div className="md:col-span-2">
+                            <label className={labelCls}>Experience (Key Roles)</label>
+                            <textarea rows={3} className={inputCls} value={formData.snap_experience_details} onChange={set('snap_experience_details')}
+                                placeholder="e.g. Teacher I at Dapitan CNHS from 01/2020 – Present; School Head at Dumaluan NHS from 06/2016 – 12/2019" />
                         </div>
                     </div>
                 </div>

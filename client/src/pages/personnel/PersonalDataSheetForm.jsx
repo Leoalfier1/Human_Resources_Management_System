@@ -21,9 +21,12 @@ const Field = ({ label, required, children }) => (
 
 const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#1B3A6B] focus:ring-1 focus:ring-[#1B3A6B] disabled:opacity-60 disabled:cursor-not-allowed transition-all";
 
-const TextInput = ({ value, onChange, disabled, placeholder, type = 'text' }) => (
+const TextInput = ({ value, onChange, disabled, placeholder, type = 'text', min, max, step }) => (
     <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-        disabled={disabled} placeholder={placeholder} className={inputCls} />
+        disabled={disabled} placeholder={placeholder} className={inputCls}
+        {...(min !== undefined && { min })}
+        {...(max !== undefined && { max })}
+        {...(step !== undefined && { step })} />
 );
 
 const SelectInput = ({ value, onChange, disabled, options, placeholder }) => (
@@ -227,6 +230,13 @@ const PersonalDataSheetForm = () => {
             references:  pds.references?.length  ? pds.references  : [emptyReference(), emptyReference(), emptyReference()],
             govt_ids:    pds.govt_ids?.length    ? pds.govt_ids    : [emptyGovtId()],
             date_accomplished: pds.date_accomplished || '',
+            // Defensive: sanitize out-of-range values so they never re-submit as garbage
+            height_m: (pds.height_m !== null && pds.height_m !== undefined && Number(pds.height_m) >= 0.5 && Number(pds.height_m) <= 2.5) ? pds.height_m : null,
+            weight_kg: (pds.weight_kg !== null && pds.weight_kg !== undefined && Number(pds.weight_kg) >= 10 && Number(pds.weight_kg) <= 300) ? pds.weight_kg : null,
+            ...(pds.date_accomplished ? (() => {
+                const yr = new Date(pds.date_accomplished).getFullYear();
+                return (yr >= 2000 && yr <= new Date().getFullYear()) ? {} : { date_accomplished: '' };
+            })() : {}),
         });
     }, [pds]);
 
@@ -421,8 +431,8 @@ const PersonalDataSheetForm = () => {
                                     <SelectInput value={form.civil_status} onChange={v => set('civil_status', v)} disabled={isLocked}
                                         options={[{ value:'single',label:'Single'},{value:'married',label:'Married'},{value:'widowed',label:'Widowed'},{value:'separated',label:'Separated'},{value:'others',label:'Others'}]} />
                                 </Field>
-                                <Field label="Height (m)"><TextInput type="number" value={form.height_m} onChange={v => set('height_m', v)} disabled={isLocked} placeholder="1.68" /></Field>
-                                <Field label="Weight (kg)"><TextInput type="number" value={form.weight_kg} onChange={v => set('weight_kg', v)} disabled={isLocked} placeholder="61" /></Field>
+                                <Field label="Height (m)"><TextInput type="number" value={form.height_m} onChange={v => set('height_m', v)} disabled={isLocked} placeholder="e.g. 1.68" min="0.50" max="2.50" step="0.01" /></Field>
+                                <Field label="Weight (kg)"><TextInput type="number" value={form.weight_kg} onChange={v => set('weight_kg', v)} disabled={isLocked} placeholder="e.g. 61" min="20" max="300" step="0.1" /></Field>
                                 <Field label="Blood Type"><TextInput value={form.blood_type} onChange={v => set('blood_type', v)} disabled={isLocked} placeholder="O, A, B, AB" /></Field>
                             </div>
                             {form.civil_status === 'others' && (
@@ -1072,7 +1082,7 @@ const PersonalDataSheetForm = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <Field label="Date Accomplished">
-                                        <TextInput type="date" value={form.date_accomplished} onChange={v => set('date_accomplished', v)} disabled={isLocked} />
+                                        <TextInput type="date" value={form.date_accomplished} onChange={v => set('date_accomplished', v)} disabled={isLocked} min="2000-01-01" max="2099-12-31" />
                                     </Field>
                                 </div>
                                 {!isLocked && (

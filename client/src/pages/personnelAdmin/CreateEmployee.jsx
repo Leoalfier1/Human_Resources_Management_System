@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Camera } from 'lucide-react';
+import { Plus, Camera, Search, UserCheck, X, Loader2, Users } from 'lucide-react';
 import { API_BASE, SERVER_BASE } from '../../utils/api';
 
 const CreateEmployee = () => {
@@ -22,6 +22,11 @@ const CreateEmployee = () => {
   const [message, setMessage] = useState(null);
 
   const [locations, setLocations] = useState([]);
+  const [qualifiedApplicants, setQualifiedApplicants] = useState([]);
+  const [applicantSearch, setApplicantSearch] = useState('');
+  const [selectedApplicant, setSelectedApplicant] = useState(null);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [prefilling, setPrefilling] = useState(false);
 
   useEffect(() => {
     setUsers([
@@ -30,6 +35,14 @@ const CreateEmployee = () => {
     fetch(`${API_BASE}/api/personnel/schools-offices?active_only=1`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     }).then(r => r.json()).then(d => setLocations(d)).catch(() => {});
+
+    // Fetch qualified applicants on mount
+    setLoadingApplicants(true);
+    fetch(`${API_BASE}/api/personnel/employees/qualified-applicants`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    }).then(r => r.json()).then(d => {
+      setQualifiedApplicants(Array.isArray(d) ? d : []);
+    }).catch(() => {}).finally(() => setLoadingApplicants(false));
   }, []);
 
   const [users, setUsers] = useState([]);
@@ -37,6 +50,79 @@ const CreateEmployee = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectApplicant = async (applicant) => {
+    setPrefilling(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/personnel/employees/prefill/${applicant.user_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch prefill data');
+      const data = await res.json();
+
+      // Apply prefilled data to form, preserving defaults for employment fields
+      setForm(prev => ({
+        ...prev,
+        user_id: data.user_id || '',
+        first_name: data.first_name || '',
+        middle_name: data.middle_name || '',
+        last_name: data.last_name || '',
+        name_extension: data.name_extension || '',
+        date_of_birth: data.date_of_birth || '',
+        place_of_birth: data.place_of_birth || '',
+        sex: data.sex || '',
+        civil_status: data.civil_status || '',
+        blood_type: data.blood_type || '',
+        mobile_no: data.mobile_no || '',
+        email: data.email || '',
+        address: data.address || '',
+        gsis_id: data.gsis_id || '',
+        pagibig_id: data.pagibig_id || '',
+        philhealth_no: data.philhealth_no || '',
+        tin_no: data.tin_no || '',
+        position_title: data.position_title || '',
+        salary_grade: data.salary_grade || '',
+        monthly_salary: data.monthly_salary || '',
+        item_number: data.item_number || '',
+        assigned_school: data.assigned_school || '',
+        employment_type: data.employment_type || 'teaching',
+        eligibility: data.eligibility || '',
+        // Keep HR-only fields at defaults
+        employment_status: prev.employment_status,
+        job_status: prev.job_status,
+        salary_step: prev.salary_step,
+        authorized_salary: prev.authorized_salary,
+        actual_salary: prev.actual_salary,
+        school_office_id: prev.school_office_id,
+        date_hired: prev.date_hired,
+        date_original_appointment: prev.date_original_appointment,
+      }));
+
+      setSelectedApplicant(applicant);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to load applicant data. Please try again.' });
+    } finally {
+      setPrefilling(false);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedApplicant(null);
+    setForm({
+      user_id: '', employee_no: '', first_name: '', middle_name: '', last_name: '', name_extension: '',
+      date_of_birth: '', place_of_birth: '', sex: '', civil_status: '', blood_type: '',
+      gsis_id: '', pagibig_id: '', philhealth_no: '', tin_no: '', mobile_no: '', email: '', address: '',
+      employment_status: 'permanent', employment_type: 'teaching', position_title: '',
+      salary_grade: '', authorized_salary: '', actual_salary: '', salary_step: '',
+      monthly_salary: '', item_number: '', school_office_id: '',
+      eligibility: '', job_status: 'active',
+      date_hired: '', date_original_appointment: ''
+    });
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   const handlePhotoChange = (e) => {
@@ -106,6 +192,113 @@ const CreateEmployee = () => {
           </div>
         )}
 
+        {/* Qualified Applicant Picker */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic flex items-center gap-2">
+                <Users size={18} /> Select from Qualified Applicants
+              </h3>
+              <p className="text-[10px] font-bold text-slate-400 mt-1">
+                Applicants who are qualified/selected/appointed but not yet onboarded as employees.
+                Their PDS data will pre-fill the form below.
+              </p>
+            </div>
+            {selectedApplicant && (
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="text-[10px] font-black text-red-500 uppercase border border-red-200 rounded-xl px-4 py-2 hover:bg-red-50 flex items-center gap-1"
+              >
+                <X size={12} /> Clear Selection
+              </button>
+            )}
+          </div>
+
+          {selectedApplicant ? (
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <UserCheck size={20} className="text-green-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-green-800 truncate">{selectedApplicant.full_name}</p>
+                <p className="text-[10px] font-bold text-green-600">
+                  {selectedApplicant.vacancy_position || 'No position'} · {selectedApplicant.app_status} · PDS: {selectedApplicant.pds_status || 'none'}
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-lg shrink-0">PREFILLED</span>
+            </div>
+          ) : (
+            <>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={applicantSearch}
+                  onChange={(e) => setApplicantSearch(e.target.value)}
+                  placeholder="Search by name, position, or status..."
+                  className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm font-bold text-slate-700 bg-white focus:ring-2 focus:ring-[#1B3A6B] outline-none"
+                />
+              </div>
+
+              {loadingApplicants ? (
+                <div className="flex items-center justify-center py-8 text-slate-400">
+                  <Loader2 size={20} className="animate-spin mr-2" /> Loading applicants...
+                </div>
+              ) : qualifiedApplicants.length === 0 ? (
+                <div className="text-center py-8 text-xs font-bold text-slate-400">
+                  No qualified applicants found. They will appear here once RSP marks them as qualified/selected/appointed.
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-xl">
+                  {qualifiedApplicants
+                    .filter(a => {
+                      if (!applicantSearch.trim()) return true;
+                      const q = applicantSearch.toLowerCase();
+                      return (a.full_name || '').toLowerCase().includes(q)
+                          || (a.vacancy_position || '').toLowerCase().includes(q)
+                          || (a.app_status || '').toLowerCase().includes(q)
+                          || (a.email || '').toLowerCase().includes(q);
+                    })
+                    .map((a) => (
+                      <button
+                        key={a.application_id}
+                        type="button"
+                        onClick={() => handleSelectApplicant(a)}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[#1B3A6B] text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                          {(a.full_name || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-700 truncate">{a.full_name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 truncate">
+                            {a.vacancy_position || 'No position'} · {a.email || ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            a.app_status === 'appointed' ? 'bg-purple-100 text-purple-700'
+                            : a.app_status === 'selected' ? 'bg-blue-100 text-blue-700'
+                            : 'bg-green-100 text-green-700'
+                          }`}>{a.app_status}</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            a.pds_status === 'submitted' ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-100 text-slate-500'
+                          }`}>PDS: {a.pds_status || 'none'}</span>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              {qualifiedApplicants.length > 0 && (
+                <p className="text-[9px] font-bold text-slate-400 text-center">
+                  Or enter a User ID manually below if the applicant is not listed.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Photo + User Account */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
           <h3 className="text-lg font-black text-[#1B3A6B] uppercase italic">Photo & Account</h3>
@@ -149,8 +342,16 @@ const CreateEmployee = () => {
 
             <div className="flex-1">
               <p className={labelClass}>User ID *</p>
-              <input type="number" name="user_id" value={form.user_id} onChange={handleChange} required className={inputClass} placeholder="Enter the user ID from the users table" />
-              <p className="text-[9px] font-bold text-slate-400 mt-1">The user must already exist in the system. Ask them to register first.</p>
+              {selectedApplicant ? (
+                <input type="number" name="user_id" value={form.user_id} readOnly required className={`${inputClass} bg-slate-50 cursor-not-allowed`} />
+              ) : (
+                <input type="number" name="user_id" value={form.user_id} onChange={handleChange} required className={inputClass} placeholder="Enter the user ID from the users table" />
+              )}
+              <p className="text-[9px] font-bold text-slate-400 mt-1">
+                {selectedApplicant
+                  ? 'Auto-filled from selected applicant. Clear selection to enter manually.'
+                  : 'The user must already exist in the system. Ask them to register first.'}
+              </p>
             </div>
           </div>
         </div>

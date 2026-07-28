@@ -21,13 +21,10 @@ router.get('/:id/status',       ctrl.getApplicationStatus);
 router.post('/:id/documents',            ctrl.uploadDocument);
 router.delete('/:id/documents/:docId',   ctrl.deleteDocument);
 
-// ── Phase 4: Congratulatory Advice & Appointment Documents ───────
+// ── Phase 4: Congratulatory Advice ─────────────────────────────────
 const adviceCtrl = require('../../controllers/applicant/adviceController');
 router.get('/:id/advice',                adviceCtrl.getAdvice);
 router.get('/:id/advice/pdf',            adviceCtrl.getAdvicePDF);
-router.post('/:id/appointment-documents', adviceCtrl.uploadAppointmentDocument); // same — multer is internal to the controller
-router.get('/:id/appointment', adviceCtrl.getMyAppointment);
-router.get('/:id/appointment/pdf', adviceCtrl.getAppointmentPDF);
 
 // ── Withdrawal & Appeal ────────────────────────────────────────────
 router.patch('/:id/withdraw',           ctrl.withdrawApplication);
