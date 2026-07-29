@@ -49,7 +49,7 @@ exports.createPlan = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `New LDP created: ${title}`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `New LDP created: ${title}`, type: 'ld' });
         }
         res.status(201).json({ id: result.insertId, message: 'Plan created' });
     } catch (error) { console.error('createPlan Error:', error); res.status(500).json({ message: error.message }); }
@@ -58,17 +58,109 @@ exports.createPlan = async (req, res) => {
 exports.updatePlan = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, school_year, description } = req.body;
+        const { title, school_year, schoolYear, division, prepared_by, preparedBy, description, division_priorities, priorities } = req.body;
+        const sy = school_year || schoolYear;
+        const prepBy = prepared_by || preparedBy;
+        const divPrio = division_priorities || priorities;
+
         await db.query(
-            'UPDATE ld_plans SET title=COALESCE(?,title), school_year=COALESCE(?,school_year), description=COALESCE(?,description) WHERE id=?',
-            [title, school_year, description, id]);
+            `UPDATE ld_plans SET
+             title=COALESCE(?,title), school_year=COALESCE(?,school_year), division=COALESCE(?,division),
+             prepared_by=COALESCE(?,prepared_by), description=COALESCE(?,description),
+             division_priorities=COALESCE(?,division_priorities) WHERE id=?`,
+            [title || null, sy || null, division || null, prepBy || null, description || null, divPrio || null, id]);
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `LDP updated (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `LDP updated (ID: ${id})`, type: 'ld' });
         }
-        res.json({ message: 'Plan updated' });
+        res.json({ message: 'Plan updated successfully' });
     } catch (error) { console.error('updatePlan Error:', error); res.status(500).json({ message: error.message }); }
+};
+
+exports.getActivePlan = async (req, res) => {
+    try {
+        let [plans] = await db.query(
+            `SELECT p.* FROM ld_plans p ORDER BY p.created_at DESC LIMIT 1`
+        );
+        if (plans.length === 0) {
+            const defaultPreparedBy = req.user?.full_name ? `${req.user.full_name}, HRMO` : 'Ma. Rosa Santos, HRMO-II';
+            const [result] = await db.query(
+                `INSERT INTO ld_plans (title, school_year, division, prepared_by, division_priorities, status)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                ['Division L&D Master Plan SY 2025–2026', '2025–2026', 'Dapitan City', defaultPreparedBy,
+                 'Alignment with National Learning Recovery Program, MATATAG Curriculum rollout, and SDO Strategic Plan SY 2025–2028.', 'approved']
+            );
+            [plans] = await db.query(`SELECT * FROM ld_plans WHERE id = ?`, [result.insertId]);
+        }
+
+        const plan = plans[0];
+
+        const [programs] = await db.query(
+            `SELECT pr.id, pr.title, pr.budget_estimate AS budget,
+                    (SELECT COUNT(*) FROM ld_attendance a WHERE a.program_id = pr.id) AS pax_actual,
+                    COALESCE(pr.target_participants, '80 Teaching Personnel') AS target_participants
+             FROM ld_programs pr
+             WHERE pr.plan_id = ? AND pr.status != 'cancelled'
+             ORDER BY pr.created_at ASC`, [plan.id]
+        );
+
+        res.json({
+            id: plan.id,
+            schoolYear: plan.school_year || '2025–2026',
+            division: plan.division || 'Dapitan City',
+            preparedBy: plan.prepared_by || (req.user?.full_name ? `${req.user.full_name}, HRMO` : 'Ma. Rosa Santos, HRMO-II'),
+            priorities: plan.division_priorities || 'Alignment with National Learning Recovery Program, MATATAG Curriculum rollout, and SDO Strategic Plan SY 2025–2028.',
+            programs: programs.map(p => {
+                const paxMatch = (p.target_participants || '').match(/\d+/);
+                const paxVal = paxMatch ? parseInt(paxMatch[0], 10) : (p.pax_actual || 80);
+                return {
+                    id: p.id,
+                    title: p.title,
+                    budget: Number(p.budget) || 0,
+                    pax: paxVal,
+                };
+            }),
+        });
+    } catch (error) {
+        console.error('getActivePlan Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.addWFPProgram = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, budget, pax } = req.body;
+        if (!title) return res.status(400).json({ message: 'Program title is required' });
+
+        const [result] = await db.query(
+            `INSERT INTO ld_programs (plan_id, title, budget_estimate, target_participants, methodology, status)
+             VALUES (?, ?, ?, ?, 'Seminar', 'upcoming')`,
+            [id, title, budget || 0, `${pax || 80} Teaching Personnel`]
+        );
+
+        const io = req.app.get('socketio');
+        if (io) io.emit('ld:dashboard:update');
+
+        res.status(201).json({ id: result.insertId, title, budget: Number(budget) || 0, pax: Number(pax) || 80, message: 'WFP Program added' });
+    } catch (error) {
+        console.error('addWFPProgram Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.deleteWFPProgram = async (req, res) => {
+    try {
+        const { progId } = req.params;
+        await db.query(`DELETE FROM ld_programs WHERE id = ?`, [progId]);
+        const io = req.app.get('socketio');
+        if (io) io.emit('ld:dashboard:update');
+        res.json({ message: 'Program removed from WFP' });
+    } catch (error) {
+        console.error('deleteWFPProgram Error:', error);
+        res.status(500).json({ message: error.message });
+    }
 };
 
 exports.submitPlan = async (req, res) => {
@@ -78,7 +170,7 @@ exports.submitPlan = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `LDP submitted for approval (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `LDP submitted for approval (ID: ${id})`, type: 'ld' });
         }
         res.json({ message: 'Plan submitted for approval' });
     } catch (error) { console.error('submitPlan Error:', error); res.status(500).json({ message: error.message }); }
@@ -92,7 +184,7 @@ exports.approvePlan = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `LDP approved (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `LDP approved (ID: ${id})`, type: 'ld' });
         }
         res.json({ message: 'Plan approved' });
     } catch (error) { console.error('approvePlan Error:', error); res.status(500).json({ message: error.message }); }

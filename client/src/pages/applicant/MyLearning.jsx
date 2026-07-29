@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GraduationCap, ClipboardList, Calendar, CheckCircle, Star, Clock, Download, FileText, ArrowRight, BookOpen, Award, Target, Users, Bell, X } from 'lucide-react';
+import { GraduationCap, ClipboardList, Calendar, CheckCircle, Star, Clock, Download, FileText, ArrowRight, BookOpen, Award, Target, Users, Bell, X, Sparkles, BadgeCheck } from 'lucide-react';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
@@ -230,34 +230,41 @@ const MyLearning = () => {
                 </AnimatePresence>
             </div>
             {/* Header */}
-            <div className="flex items-center gap-3 mb-2">
-                <div className="bg-emerald-600 p-2 rounded-xl">
-                    <GraduationCap size={22} className="text-white" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-black uppercase italic text-[#1B3A6B]">My Learning & Development</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Training Needs Assessment to Completion</p>
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-2xl bg-[#1B3A6B] p-2.5 text-white">
+                            <GraduationCap size={22} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-[#1B3A6B]">My Learning & Development</h2>
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Training Needs Assessment to Completion</p>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
+                        <span className="flex items-center gap-2"><Sparkles size={16} /> Ready for next opportunity</span>
+                    </div>
                 </div>
             </div>
 
             {/* Training Hours Summary */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6">
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">My Training Hours</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">My Training Hours</p>
                     <p className="text-xs font-bold text-[#1B3A6B]">{totalHoursCompleted}h / {TARGET_HOURS}h target</p>
                 </div>
                 <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min((totalHoursCompleted / TARGET_HOURS) * 100, 100)}%` }}
-                        className="h-full bg-emerald-500 rounded-full"
+                        className="h-full bg-[#D6402F] rounded-full"
                     />
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2 font-semibold">{Math.min((totalHoursCompleted / TARGET_HOURS) * 100, 100).toFixed(0)}% of annual target completed</p>
             </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-2 flex gap-1">
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-2 shadow-sm flex gap-1">
                 {tabs.map(tab => (
                     <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSelectedForm(null); }}
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -272,20 +279,20 @@ const MyLearning = () => {
             {activeTab === 'dashboard' && !selectedForm && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-emerald-700 text-white rounded-[2.5rem] p-6">
+                        <div className="rounded-[2.5rem] bg-[#1B3A6B] p-6 text-white shadow-sm">
                             <ClipboardList size={24} className="mb-2 opacity-80" />
                             <p className="text-3xl font-black">{data?.tnaForms?.filter(f => f.status !== 'submitted').length || 0}</p>
-                            <p className="text-xs opacity-80 font-bold uppercase tracking-wider mt-1">Pending TNA Forms</p>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-200">Pending TNA Forms</p>
                         </div>
-                        <div className="bg-amber-600 text-white rounded-[2.5rem] p-6">
+                        <div className="rounded-[2.5rem] bg-[#D6402F] p-6 text-white shadow-sm">
                             <Calendar size={24} className="mb-2 opacity-80" />
                             <p className="text-3xl font-black">{data?.programs?.length || 0}</p>
-                            <p className="text-xs opacity-80 font-bold uppercase tracking-wider mt-1">My Programs</p>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-100">My Programs</p>
                         </div>
-                        <div className="bg-emerald-600 text-white rounded-[2.5rem] p-6">
+                        <div className="rounded-[2.5rem] bg-emerald-600 p-6 text-white shadow-sm">
                             <Star size={24} className="mb-2 opacity-80" />
                             <p className="text-3xl font-black">{data?.evalForms?.filter(f => !f.has_submitted).length || 0}</p>
-                            <p className="text-xs opacity-80 font-bold uppercase tracking-wider mt-1">Pending Evaluations</p>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-emerald-50">Pending Evaluations</p>
                         </div>
                     </div>
 
@@ -311,15 +318,15 @@ const MyLearning = () => {
                     {/* Upcoming Programs */}
                     {data?.programs?.filter(p => p.status === 'ongoing' || p.status === 'planned').length > 0 && (
                         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-5">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Upcoming Programs</p>
-                            <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-4">Upcoming Programs</p>
+                            <div className="space-y-3">
                                 {data.programs.filter(p => p.status === 'ongoing' || p.status === 'planned').map(p => (
-                                    <div key={p.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                                    <div key={p.id} className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                                         <div>
                                             <p className="text-sm font-bold text-[#1B3A6B]">{p.title}</p>
-                                            <p className="text-[10px] text-slate-500">{new Date(p.start_date).toLocaleDateString()} · {p.venue || ''}</p>
+                                            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{new Date(p.start_date).toLocaleDateString()} · {p.venue || 'To be announced'}</p>
                                         </div>
-                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${p.status === 'ongoing' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{p.status}</span>
+                                        <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${p.status === 'ongoing' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{p.status}</span>
                                     </div>
                                 ))}
                             </div>

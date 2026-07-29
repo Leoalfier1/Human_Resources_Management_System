@@ -18,7 +18,7 @@ exports.createEvalForm = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `Evaluation form created for program ${program_id}`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `Evaluation form created for program ${program_id}`, type: 'ld' });
         }
         res.status(201).json({ id: evalFormId, message: 'Evaluation form created' });
     } catch (error) { console.error('createEvalForm Error:', error); res.status(500).json({ message: error.message }); }
@@ -31,7 +31,7 @@ exports.activateEvalForm = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `Evaluation form activated (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `Evaluation form activated (ID: ${id})`, type: 'ld' });
             // Notify present attendees of the program that the eval form is live
             const [rows] = await db.query(
                 `SELECT DISTINCT a.user_id, pr.title AS program_title
@@ -99,7 +99,6 @@ exports.submitEvalResponse = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `Evaluation submitted for form ID: ${eval_form_id}`, type: 'ld_applicant' });
             // Notify the ld-admin room with the submitter's name and program title
             const [metaRows] = await db.query(
                 `SELECT u.full_name, pr.title AS program_title

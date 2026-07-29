@@ -73,6 +73,13 @@ export const useTNAResponses = () => {
         finally { setLoading(false); }
     }, []);
 
+    useEffect(() => {
+        fetchResponses();
+        const socket = io(API_BASE);
+        socket.on('ld:dashboard:update', () => fetchResponses());
+        return () => socket.disconnect();
+    }, [fetchResponses]);
+
     return { responses, loading, fetchResponses };
 };
 
@@ -232,6 +239,13 @@ export const useEvaluations = () => {
         } catch (e) { /* ignore */ }
         finally { setLoading(false); }
     }, []);
+
+    useEffect(() => {
+        fetchData();
+        const socket = io(API_BASE);
+        socket.on('ld:dashboard:update', () => fetchData());
+        return () => socket.disconnect();
+    }, [fetchData]);
 
     const submit = async (data) => {
         const res = await fetch(`${API_BASE}/api/ld/evaluations`, { method: 'POST', headers: headers(), body: JSON.stringify(data) });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, Star, Download, X, ChevronDown, ChevronUp, CheckCircle, Users, FileText, Target, PlayCircle } from 'lucide-react';
+import { BarChart3, Star, Download, Printer, X, ChevronDown, ChevronUp, CheckCircle, Users, FileText, Target, PlayCircle } from 'lucide-react';
 import { API_BASE } from '../../../utils/api';
 
 const token = () => localStorage.getItem('token');
@@ -246,6 +246,10 @@ const LDEvaluationManagement = () => {
                                     <button onClick={exportCSV}
                                         className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-200">
                                         <Download size={12} /> Export CSV
+                                    </button>
+                                    <button onClick={() => window.print()}
+                                        className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-50">
+                                        <Printer size={12} /> Print
                                     </button>
                                     <button onClick={() => setShowReport(false)}><X size={20} className="text-slate-400" /></button>
                                 </div>

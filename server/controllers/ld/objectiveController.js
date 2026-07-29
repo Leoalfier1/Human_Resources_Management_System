@@ -31,7 +31,7 @@ exports.createObjective = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `New L&D objective created: ${title}`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `New L&D objective created: ${title}`, type: 'ld' });
         }
         res.status(201).json({ id: result.insertId, message: 'Objective created' });
     } catch (error) { console.error('createObjective Error:', error); res.status(500).json({ message: error.message }); }
@@ -51,7 +51,7 @@ exports.updateObjective = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `L&D objective updated (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `L&D objective updated (ID: ${id})`, type: 'ld' });
         }
         res.json({ message: 'Objective updated' });
     } catch (error) { console.error('updateObjective Error:', error); res.status(500).json({ message: error.message }); }
@@ -64,7 +64,7 @@ exports.approveObjective = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `L&D objective approved (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `L&D objective approved (ID: ${id})`, type: 'ld' });
         }
         res.json({ message: 'Objective approved' });
     } catch (error) { console.error('approveObjective Error:', error); res.status(500).json({ message: error.message }); }
@@ -77,7 +77,7 @@ exports.deleteObjective = async (req, res) => {
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
-            io.emit('notification:admin', { message: `L&D objective deleted (ID: ${id})`, type: 'ld' });
+            io.to('ld-admin').emit('ld:notification:admin', { message: `L&D objective deleted (ID: ${id})`, type: 'ld' });
         }
         res.json({ message: 'Objective deleted' });
     } catch (error) { console.error('deleteObjective Error:', error); res.status(500).json({ message: error.message }); }

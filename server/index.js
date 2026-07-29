@@ -107,6 +107,10 @@ registerRoute('/api/ld/objectives', './routes/ld/objectives');
 registerRoute('/api/ld/plans', './routes/ld/plans');
 registerRoute('/api/ld/programs', './routes/ld/programs');
 registerRoute('/api/ld/evaluation', './routes/ld/evaluation');
+registerRoute('/api/ld/reports',       './routes/ld/reports');
+registerRoute('/api/ld/proposals',     './routes/ld/proposals');
+registerRoute('/api/ld/notifications', './routes/ld/notifications');
+registerRoute('/api/ld',               './routes/ld/compatibility');
 
 // PM routes
 registerRoute('/api/pm/periods', './routes/pm/periods');

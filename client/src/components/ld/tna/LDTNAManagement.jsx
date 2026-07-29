@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Eye, Download, Filter, X, ChevronDown, ChevronUp, Activity, CheckCircle, Clock, Users, ClipboardList } from 'lucide-react';
+import { Plus, Eye, Download, Printer, Filter, X, ChevronDown, ChevronUp, Activity, CheckCircle, Clock, Users, ClipboardList } from 'lucide-react';
 import { API_BASE } from '../../../utils/api';
 import LDTNAFormBuilder from './LDTNAFormBuilder';
 
@@ -188,6 +188,8 @@ const LDTNAManagement = () => {
                                                 )}
                                                 <button onClick={() => exportCSV(f.id)}
                                                     className="p-1.5 hover:bg-slate-100 rounded-xl"><Download size={14} className="text-slate-400" /></button>
+                                                <button onClick={() => window.print()}
+                                                    className="p-1.5 hover:bg-slate-100 rounded-xl"><Printer size={14} className="text-slate-400" /></button>
                                                 <button onClick={() => { setEditingForm(f); setShowBuilder(true); }}
                                                     className="p-1.5 hover:bg-slate-100 rounded-xl"><Eye size={14} className="text-slate-400" /></button>
                                             </div>

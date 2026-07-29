@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Bell, GraduationCap, UserCheck, LayoutDashboard, ClipboardList, Target, BarChart3, PlayCircle, FileText } from 'lucide-react';
+import { X, Bell, GraduationCap, UserCheck, LayoutDashboard, ClipboardList, Target, BarChart3, PlayCircle, FileText, CalendarCheck2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 
@@ -29,6 +29,7 @@ const LDAdminLayout = () => {
         { path: '/ld/objectives', label: 'Step 2\nObjectives', icon: Target },
         { path: '/ld/plans', label: 'Step 3\nPlans', icon: FileText },
         { path: '/ld/programs', label: 'Step 4\nPrograms', icon: PlayCircle },
+        { path: '/ld/attendance', label: 'Attendance', icon: CalendarCheck2 },
         { path: '/ld/evaluation', label: 'Step 5\nEvaluation', icon: BarChart3 },
     ];
 
@@ -54,8 +55,8 @@ const LDAdminLayout = () => {
                 className="bg-emerald-900 text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-[100] overflow-hidden"
             >
                 <div className="p-5 flex items-center gap-3 border-b border-white/10">
-                    <div className="bg-emerald-500 p-2 rounded-xl shrink-0 overflow-hidden">
-                        <img src="/assets/deped-seal.png" alt="DepEd" className="w-5 h-5 object-contain" />
+                    <div className="bg-[#D6402F] p-2 rounded-xl shrink-0">
+                        <GraduationCap size={22} />
                     </div>
                     {!isCollapsed && (
                         <div className="overflow-hidden">
@@ -73,7 +74,7 @@ const LDAdminLayout = () => {
                             <button
                                 key={item.path}
                                 onClick={() => navigate(item.path)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all text-left
                                     ${active ? 'bg-white/20 text-white shadow-lg' : 'text-emerald-200 hover:bg-white/10 hover:text-white'}`}
                             >
                                 <item.icon size={20} className="shrink-0" />
@@ -108,17 +109,20 @@ const LDAdminLayout = () => {
             </motion.div>
 
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-                <header className="h-[72px] bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
+                <header className="h-[78px] border-b border-slate-200 bg-white/90 px-8 backdrop-blur-sm flex items-center justify-between sticky top-0 z-10 shrink-0">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-900 leading-tight">
+                        <h1 className="text-xl font-black text-[#1B3A6B] leading-tight">
                             {navItems.find(n => location.pathname.startsWith(n.path))?.label.split('\n')[0] || 'L&D Module'}
                         </h1>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-[0.25em] font-bold">
                             L&D Module · PRIME-HRM · SDO Dapitan City
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 bg-emerald-900 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600">
+                            {user?.fullName || 'HR Staff'}
+                        </div>
+                        <div className="w-10 h-10 bg-[#1B3A6B] rounded-full flex items-center justify-center text-white font-black text-sm">
                             {user?.fullName?.charAt(0) || 'HR'}
                         </div>
                     </div>

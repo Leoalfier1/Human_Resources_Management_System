@@ -219,7 +219,12 @@ const LDProgramDetail = ({ program, onClose }) => {
                                                     <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
                                                         onChange={e => e.target.files[0] && handleUpload(`${API_BASE}/api/ld/programs/attendance/${a.id}/certificate`, e.target.files[0])} />
                                                 </label>
-                                                {a.certificate_path && <Download size={14} className="text-emerald-500" />}
+                                                {a.certificate_path && (
+                                                    <a href={`${API_BASE.replace('/api', '')}/${a.certificate_path}`} target="_blank" rel="noreferrer"
+                                                        className="px-2 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-bold hover:bg-emerald-200 inline-flex items-center gap-1">
+                                                        <Download size={12} /> Cert
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

@@ -26,6 +26,24 @@ import LDObjectivesManagement from './components/ld/objectives/LDObjectivesManag
 import LDPlanManagement from './components/ld/plans/LDPlanManagement';
 import LDImplementation from './components/ld/programs/LDImplementation';
 import LDEvaluationManagement from './components/ld/evaluation/LDEvaluationManagement';
+import LDPortalLayout from './components/ld/portal/LDPortalLayout';
+import LDPortalDashboard from './components/ld/portal/pages/LDPortalDashboard';
+import LDPortalNeedsAnalysis from './components/ld/portal/pages/LDPortalNeedsAnalysis';
+import LDPortalPDProgram from './components/ld/portal/pages/LDPortalPDProgram';
+import LDPortalQA from './components/ld/portal/pages/LDPortalQA';
+import LDPortalConduct from './components/ld/portal/pages/LDPortalConduct';
+import LDPortalAttendanceMonitor from './components/ld/portal/pages/LDPortalAttendanceMonitor';
+import LDPortalReports from './components/ld/portal/pages/LDPortalReports';
+import LDPortalParticipants from './components/ld/portal/pages/LDPortalParticipants';
+import LDEmployeeLayout from './components/ld/employee/LDEmployeeLayout';
+import LDEmployeeProfile from './components/ld/employee/pages/LDEmployeeProfile';
+import LDEmployeeSelfAssessment from './components/ld/employee/pages/LDEmployeeSelfAssessment';
+import LDEmployeeProposeProgram from './components/ld/employee/pages/LDEmployeeProposeProgram';
+import LDEmployeeBrowsePrograms from './components/ld/employee/pages/LDEmployeeBrowsePrograms';
+import LDEmployeeProgramDetail from './components/ld/employee/pages/LDEmployeeProgramDetail';
+import LDEmployeeTrainingSession from './components/ld/employee/pages/LDEmployeeTrainingSession';
+import LDEmployeeAttendance from './components/ld/employee/pages/LDEmployeeAttendance';
+import LDEmployeeMyRecords from './components/ld/employee/pages/LDEmployeeMyRecords';
 import MyLearning from './pages/applicant/MyLearning';
 
 // --- APPLICANT PORTAL (Top-Tab Layout) ---
@@ -184,6 +202,39 @@ function App() {
           <Route path="plans" element={<LDPlanManagement />} />
           <Route path="programs" element={<LDImplementation />} />
           <Route path="evaluation" element={<LDEvaluationManagement />} />
+        </Route>
+
+        {/* 4c. L&D — admin portal layout */}
+        <Route
+          path="/ld/portal"
+          element={(isAuthenticated && isAdmin) ? <LDPortalLayout /> : <Navigate to="/" replace />}
+        >
+          <Route index element={<Navigate to="/ld/portal/dashboard" replace />} />
+          <Route path="dashboard" element={<LDPortalDashboard />} />
+          <Route path="needs-analysis" element={<LDPortalNeedsAnalysis />} />
+          <Route path="pd-program-design" element={<LDPortalPDProgram />} />
+          <Route path="quality-assurance" element={<LDPortalQA />} />
+          <Route path="conduct-monitor" element={<LDPortalConduct />} />
+          <Route path="attendance-monitor" element={<LDPortalAttendanceMonitor />} />
+          <Route path="reports" element={<LDPortalReports />} />
+          <Route path="programs/:id/participants" element={<LDPortalParticipants />} />
+        </Route>
+
+        {/* 4d. L&D — employee self-service layout */}
+        <Route
+          path="/ld/employee"
+          element={(isAuthenticated && isApplicant) ? <LDEmployeeLayout /> : <Navigate to="/" replace />}
+        >
+          <Route index element={<Navigate to="/ld/employee/profile" replace />} />
+          <Route path="profile" element={<LDEmployeeProfile />} />
+          <Route path="self-assessment" element={<LDEmployeeSelfAssessment />} />
+          <Route path="propose-program" element={<LDEmployeeProposeProgram />} />
+          <Route path="browse-programs" element={<LDEmployeeBrowsePrograms />} />
+          <Route path="program-detail" element={<LDEmployeeProgramDetail />} />
+          <Route path="programs/:id" element={<LDEmployeeProgramDetail />} />
+          <Route path="training-session" element={<LDEmployeeTrainingSession />} />
+          <Route path="attendance" element={<LDEmployeeAttendance />} />
+          <Route path="my-records" element={<LDEmployeeMyRecords />} />
         </Route>
 
         {/* 4c. L&D — applicant My Learning page */}
