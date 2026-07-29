@@ -116,8 +116,17 @@ registerRoute('/api/ld',               './routes/ld/compatibility');
 registerRoute('/api/pm/periods', './routes/pm/periods');
 registerRoute('/api/pm/commitments', './routes/pm/commitments');
 registerRoute('/api/pm/coaching', './routes/pm/coaching');
+registerRoute('/api/pm/dashboard', './routes/pm/dashboard');
+registerRoute('/api/pm/planning', './routes/pm/planning');
+registerRoute('/api/pm/review', './routes/pm/review');
+registerRoute('/api/pm/monitoring', './routes/pm/monitoring');
+registerRoute('/api/pm/rewarding', './routes/pm/rewarding');
+registerRoute('/api/pm/form-config', './routes/pm/form-config');
 registerRoute('/api/pm/ratings', './routes/pm/ratings');
 registerRoute('/api/pm/rewards', './routes/pm/rewards');
+registerRoute('/api/pm/notifications', './routes/pm/notifications');
+registerRoute('/api/pm/employee', './routes/pm/employee');
+registerRoute('/api/pm/performance', './routes/pm/performance');
 
 // R&R routes
 registerRoute('/api/rr/praise-meetings', './routes/rr/praise-meetings');
