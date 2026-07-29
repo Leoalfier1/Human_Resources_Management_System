@@ -4,6 +4,11 @@ const path = require('path');
 const fs = require('fs');
 const { sendAnnexEEmail } = require('../../utils/mailer');
 
+// ─── Shared exports (used by applicant-facing controller) ────────────────────
+module.exports.buildAnnexEPayload = buildAnnexEPayload;
+module.exports.renderAnnexEContent = renderAnnexEContent;
+module.exports.generateAnnexEBuffer = generateAnnexEBuffer;
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function parseJson(val) {

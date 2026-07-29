@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Award, BookOpen, Users, Star, CheckCircle } from 'lucide-react';
+import { Shield, Award, BookOpen, Users, Star, Folder, CheckCircle } from 'lucide-react';
+import loginBg from '../../assets/images/sdo-dapitan-login-bg.jpg';
 
 const AuthLayout = ({ children }) => {
   return (
@@ -14,11 +15,8 @@ const AuthLayout = ({ children }) => {
       </div>
 
       {/* LEFT PANEL - PERSISTENT BRANDING */}
-      <div className="relative w-full md:w-[42%] bg-[#1B3A6B] text-white p-8 md:p-12 flex flex-col justify-between overflow-hidden">
-        
-        {/* Subtle Decorative Rings */}
-        <div className="absolute -bottom-20 -left-20 w-64 h-64 border-4 border-white/5 rounded-full"></div>
-        <div className="absolute -bottom-10 -left-10 w-64 h-64 border-4 border-white/5 rounded-full"></div>
+      <div className="relative w-full md:w-[42%] text-white p-8 md:p-12 flex flex-col justify-between overflow-hidden" style={{ backgroundImage: `url(${loginBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-black/65 z-[1]" />
 
         <div className="relative z-10">
           {/* Header Logos Section */}
@@ -56,12 +54,13 @@ const AuthLayout = ({ children }) => {
 
           {/* Module Grid */}
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-4">System Modules</p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
               { id: 'RSP', name: 'Recruitment & Placement', icon: <Users size={18} /> },
               { id: 'L&D', name: 'Learning & Development', icon: <BookOpen size={18} /> },
               { id: 'PM', name: 'Performance Management', icon: <Award size={18} /> },
-              { id: 'R&R', name: 'Rewards & Recognition', icon: <Star size={18} /> }
+              { id: 'R&R', name: 'Rewards & Recognition', icon: <Star size={18} /> },
+              { id: 'PERS', name: 'Personnel', icon: <Folder size={18} /> }
             ].map((mod) => (
               <div key={mod.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col gap-2">
                 <div className="bg-orange-600 w-8 h-8 rounded-lg flex items-center justify-center">

@@ -139,8 +139,9 @@ const PillarsLandingPage = () => {
       </nav>
 
       {/* ── HERO HEADER ─────────────────────────────────────────── */}
-      <section className="bg-[#1B3A6B] relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-[#D6402F]" />
+      <section className="relative overflow-hidden" style={{ backgroundImage: 'url(/assets/images/sdo-dapitan-building.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-black/65 z-[1]" />
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-[#D6402F] z-[2]" />
 
         <div className="max-w-[1440px] mx-auto px-6 pt-14 pb-16 text-center relative z-10 flex flex-col items-center">
           {/* Seals + Agency Text */}

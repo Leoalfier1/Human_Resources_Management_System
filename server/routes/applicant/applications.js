@@ -26,6 +26,11 @@ const adviceCtrl = require('../../controllers/applicant/adviceController');
 router.get('/:id/advice',                adviceCtrl.getAdvice);
 router.get('/:id/advice/pdf',            adviceCtrl.getAdvicePDF);
 
+// ── Annex E (Initial Evaluation Advice) ─────────────────────────────
+const annexECtrl = require('../../controllers/applicant/annexEController');
+router.get('/:id/annex-e',               annexECtrl.getAnnexEAdvice);
+router.get('/:id/annex-e/pdf',           annexECtrl.getAnnexEAdvicePDF);
+
 // ── Withdrawal & Appeal ────────────────────────────────────────────
 router.patch('/:id/withdraw',           ctrl.withdrawApplication);
 router.post('/:id/appeal',              ctrl.submitAppeal);
