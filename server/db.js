@@ -176,6 +176,18 @@ async function patchDatabase() {
             console.log("🔹 Widened height_m from DECIMAL(3,2) to DECIMAL(4,2)");
         }
 
+        // 11. Add source column to ld_programs and ld_plans for ownership tracking (migration 054)
+        const [progCols] = await db.query("SHOW COLUMNS FROM ld_programs");
+        if (!progCols.find(c => c.Field === 'source')) {
+            await db.query("ALTER TABLE ld_programs ADD COLUMN source VARCHAR(50) DEFAULT 'plans'");
+            console.log("🔹 Added source column to ld_programs");
+        }
+        const [planCols] = await db.query("SHOW COLUMNS FROM ld_plans");
+        if (!planCols.find(c => c.Field === 'source')) {
+            await db.query("ALTER TABLE ld_plans ADD COLUMN source VARCHAR(50) DEFAULT 'plans'");
+            console.log("🔹 Added source column to ld_plans");
+        }
+
         console.log("✅ Database self-healing check completed successfully.");
 
     } catch (err) {

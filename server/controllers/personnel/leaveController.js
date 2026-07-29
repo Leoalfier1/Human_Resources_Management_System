@@ -1,5 +1,7 @@
 const db = require('../../db');
 const { findOrCreateEmployee } = require('../../utils/employeeHelper');
+const { sendLeaveApprovalEmail, sendLeaveRejectionEmail } = require('../../utils/mailer');
+
 
 exports.getMyLeaveCredits = async (req, res) => {
     try {
@@ -197,7 +199,36 @@ exports.recommendLeave = async (req, res) => {
                 io.emit('personnel:leave:update');
                 io.emit('personnel:notification:update');
             }
+
+            // Fire-and-forget rejection email notification
+            db.query(
+                `SELECT COALESCE(e.first_name, u.full_name) AS emp_name, COALESCE(e.email, u.email) AS recipient_email
+                 FROM employees e
+                 JOIN users u ON u.id = e.user_id
+                 WHERE e.id = ?`,
+                [leave[0].employee_id]
+            ).then(([[empRow]]) => {
+                const recipientEmail = empRow ? empRow.recipient_email : null;
+                const recipientName  = empRow ? empRow.emp_name : 'Employee';
+                if (recipientEmail) {
+                    sendLeaveRejectionEmail(
+                        recipientEmail,
+                        recipientName,
+                        leave[0].leave_type,
+                        leave[0].date_from,
+                        leave[0].date_to,
+                        remark || null,
+                        'recommendation'
+                    ).then(result => {
+                        if (result) console.log(`✅ Leave rejection email sent → ${recipientEmail}`);
+                    });
+                } else {
+                    console.warn(`⚠️ Leave rejection email skipped: No email found for employee_id=${leave[0].employee_id}`);
+                }
+            }).catch(err => console.error('⚠️ Post-reject leave email lookup failed:', err.message));
+
             res.json({ message: 'Leave disapproved at recommendation.' });
+
         }
     } catch (error) {
         console.error('recommendLeave Error:', error);
@@ -262,7 +293,37 @@ exports.finalApproveLeave = async (req, res) => {
             io.emit('personnel:leave:update');
             io.emit('personnel:notification:update');
         }
+
+        // Fire-and-forget approval email notification
+        db.query(
+            `SELECT COALESCE(e.first_name, u.full_name) AS emp_name, COALESCE(e.email, u.email) AS recipient_email
+             FROM employees e
+             JOIN users u ON u.id = e.user_id
+             WHERE e.id = ?`,
+            [l.employee_id]
+        ).then(([[empRow]]) => {
+            const recipientEmail = empRow ? empRow.recipient_email : null;
+            const recipientName  = empRow ? empRow.emp_name : 'Employee';
+            if (recipientEmail) {
+                sendLeaveApprovalEmail(
+                    recipientEmail,
+                    recipientName,
+                    l.leave_type,
+                    l.date_from,
+                    l.date_to,
+                    l.num_days,
+                    days_type || 'with_pay',
+                    remark || null
+                ).then(result => {
+                    if (result) console.log(`✅ Leave approval email sent → ${recipientEmail}`);
+                });
+            } else {
+                console.warn(`⚠️ Leave approval email skipped: No email found for employee_id=${l.employee_id}`);
+            }
+        }).catch(err => console.error('⚠️ Post-approve leave email lookup failed:', err.message));
+
         res.json({ message: 'Leave approved (final action).' });
+
     } catch (error) {
         console.error('finalApproveLeave Error:', error);
         res.status(500).json({ message: error.message });
@@ -321,7 +382,36 @@ exports.rejectLeave = async (req, res) => {
             io.emit('personnel:leave:update');
             io.emit('personnel:notification:update');
         }
+
+        // Fire-and-forget rejection email notification
+        db.query(
+            `SELECT COALESCE(e.first_name, u.full_name) AS emp_name, COALESCE(e.email, u.email) AS recipient_email
+             FROM employees e
+             JOIN users u ON u.id = e.user_id
+             WHERE e.id = ?`,
+            [leave[0].employee_id]
+        ).then(([[empRow]]) => {
+            const recipientEmail = empRow ? empRow.recipient_email : null;
+            const recipientName  = empRow ? empRow.emp_name : 'Employee';
+            if (recipientEmail) {
+                sendLeaveRejectionEmail(
+                    recipientEmail,
+                    recipientName,
+                    leave[0].leave_type,
+                    leave[0].date_from,
+                    leave[0].date_to,
+                    rejection_reason || null,
+                    stage
+                ).then(result => {
+                    if (result) console.log(`✅ Leave rejection email sent → ${recipientEmail}`);
+                });
+            } else {
+                console.warn(`⚠️ Leave rejection email skipped: No email found for employee_id=${leave[0].employee_id}`);
+            }
+        }).catch(err => console.error('⚠️ Post-reject leave email lookup failed:', err.message));
+
         res.json({ message: 'Leave rejected.' });
+
     } catch (error) {
         console.error('rejectLeave Error:', error);
         res.status(500).json({ message: error.message });

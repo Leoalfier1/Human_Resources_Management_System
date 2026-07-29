@@ -206,10 +206,10 @@ function App() {
 
         {/* 4c. L&D — admin portal layout */}
         <Route
-          path="/ld/portal"
+          path="/ld-portal"
           element={(isAuthenticated && isAdmin) ? <LDPortalLayout /> : <Navigate to="/" replace />}
         >
-          <Route index element={<Navigate to="/ld/portal/dashboard" replace />} />
+          <Route index element={<Navigate to="/ld-portal/dashboard" replace />} />
           <Route path="dashboard" element={<LDPortalDashboard />} />
           <Route path="needs-analysis" element={<LDPortalNeedsAnalysis />} />
           <Route path="pd-program-design" element={<LDPortalPDProgram />} />
@@ -222,10 +222,10 @@ function App() {
 
         {/* 4d. L&D — employee self-service layout */}
         <Route
-          path="/ld/employee"
+          path="/ld-employee"
           element={(isAuthenticated && isApplicant) ? <LDEmployeeLayout /> : <Navigate to="/" replace />}
         >
-          <Route index element={<Navigate to="/ld/employee/profile" replace />} />
+          <Route index element={<Navigate to="/ld-employee/profile" replace />} />
           <Route path="profile" element={<LDEmployeeProfile />} />
           <Route path="self-assessment" element={<LDEmployeeSelfAssessment />} />
           <Route path="propose-program" element={<LDEmployeeProposeProgram />} />

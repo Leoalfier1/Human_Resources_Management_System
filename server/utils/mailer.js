@@ -148,4 +148,206 @@ const sendAnnexEEmail = async (email, applicantName, positionTitle, letterType, 
     }
 };
 
-module.exports = { sendVerificationEmail, sendResetPasswordEmail, sendAnnexEEmail };
+const sendAppointmentConfirmationEmail = async (email, appointeeName, positionTitle, station, employeeNo) => {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_ADDRESS,
+            to: email,
+            subject: `Official Notice of Appointment – ${positionTitle}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #1B3A6B; margin: 0;">Schools Division Office of Dapitan City</h2>
+                        <p style="color: #64748b; font-size: 12px; margin: 4px 0 0;">Department of Education – Region IX</p>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                    <h3 style="color: #166534; text-align: center; margin-top: 0;">Notice of Official Appointment</h3>
+                    <p>Dear <strong>${appointeeName}</strong>,</p>
+                    <p>We are pleased to inform you that your official appointment for the position of <strong>${positionTitle}</strong> at <strong>${station}</strong> has been issued.</p>
+                    <div style="background-color: #f0fdf4; border-left: 4px solid #166534; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px;"><strong>Employee No.:</strong> ${employeeNo}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Position:</strong> ${positionTitle}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Station / Office:</strong> ${station}</p>
+                    </div>
+                    <p>Your record is now active in the DepEd HRMIS Personnel Directory. You may log in to your Personnel Portal to view your profile, service record, and leave credits.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">
+                        This is an automated system notification from the Human Resource Management Division.<br>
+                        Please do not reply to this email. For inquiries, contact the HRMO directly.
+                    </p>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('❌ Resend API error (appointment confirmation email):', error);
+            return null;
+        }
+
+        return data;
+    } catch (err) {
+        console.error('❌ Failed to send appointment confirmation email:', err.message || err);
+        return null;
+    }
+};
+
+const sendCongratulatoryAdviceEmail = async (email, applicantName, positionTitle, station, reportDate, docDeadline) => {
+    try {
+        if (!email) {
+            console.warn('⚠️ sendCongratulatoryAdviceEmail: Recipient email is empty, skipping email send.');
+            return null;
+        }
+
+        const formattedReportDate = reportDate
+            ? new Date(reportDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            : 'To Be Announced';
+
+        const formattedDeadline = docDeadline
+            ? new Date(docDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            : '7 days from receipt';
+
+        const { data, error } = await resend.emails.send({
+            from: FROM_ADDRESS,
+            to: email,
+            subject: `Selection & Congratulatory Advice – ${positionTitle}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #1B3A6B; margin: 0;">Schools Division Office of Dapitan City</h2>
+                        <p style="color: #64748b; font-size: 12px; margin: 4px 0 0;">Department of Education – Region IX</p>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                    <h3 style="color: #15803d; text-align: center; margin-top: 0;">Congratulations on Your Selection!</h3>
+                    <p>Dear <strong>${applicantName}</strong>,</p>
+                    <p>We are pleased to inform you of your selection for appointment to the position of <strong>${positionTitle}</strong> at <strong>${station}</strong>.</p>
+                    <div style="background-color: #f0fdf4; border-left: 4px solid #15803d; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px;"><strong>Effective Date of Report:</strong> ${formattedReportDate}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Document Submission Deadline:</strong> ${formattedDeadline}</p>
+                    </div>
+                    <p>Please log in to your Applicant Portal to view the full Notice of Selection and submit the required appointment documents before the specified deadline.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">
+                        This is an official communication from the Human Resource Management Division.<br>
+                        Please do not reply to this email.
+                    </p>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('❌ Resend API error (congratulatory advice email):', error);
+            return null;
+        }
+
+        return data;
+    } catch (err) {
+        console.error('❌ Failed to send congratulatory advice email:', err.message || err);
+        return null;
+    }
+};
+
+const sendLeaveApprovalEmail = async (email, employeeName, leaveType, dateFrom, dateTo, numDays, daysType, remark) => {
+    try {
+        if (!email) {
+            console.warn('⚠️ sendLeaveApprovalEmail: Recipient email is empty, skipping email send.');
+            return null;
+        }
+
+        const formattedDaysType = (daysType || 'with_pay').replace(/_/g, ' ');
+
+        const { data, error } = await resend.emails.send({
+            from: FROM_ADDRESS,
+            to: email,
+            subject: `Leave Application Approved – ${leaveType.toUpperCase()}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #1B3A6B; margin: 0;">Schools Division Office of Dapitan City</h2>
+                        <p style="color: #64748b; font-size: 12px; margin: 4px 0 0;">Department of Education – Region IX</p>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                    <h3 style="color: #166534; text-align: center; margin-top: 0;">Leave Application Approved</h3>
+                    <p>Dear <strong>${employeeName}</strong>,</p>
+                    <p>Your leave application has been officially approved by the Appointing Authority.</p>
+                    <div style="background-color: #f0fdf4; border-left: 4px solid #166534; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px;"><strong>Leave Type:</strong> ${leaveType.toUpperCase()}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Inclusive Dates:</strong> ${dateFrom} to ${dateTo} (${numDays || 1} day/s)</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Action:</strong> Approved (${formattedDaysType})</p>
+                        ${remark ? `<p style="margin: 6px 0 0; font-size: 14px;"><strong>Remarks:</strong> ${remark}</p>` : ''}
+                    </div>
+                    <p>You may view your updated leave credit balance and application status on your Personnel Portal.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">This is an automated system notification from DepEd SDO Dapitan City HRMIS.</p>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('❌ Resend API error (leave approval email):', error);
+            return null;
+        }
+
+        return data;
+    } catch (err) {
+        console.error('❌ Failed to send leave approval email:', err.message || err);
+        return null;
+    }
+};
+
+const sendLeaveRejectionEmail = async (email, employeeName, leaveType, dateFrom, dateTo, rejectionReason, stage) => {
+    try {
+        if (!email) {
+            console.warn('⚠️ sendLeaveRejectionEmail: Recipient email is empty, skipping email send.');
+            return null;
+        }
+
+        const stageText = stage === 'final_action' ? 'Final Action' : 'Recommendation';
+
+        const { data, error } = await resend.emails.send({
+            from: FROM_ADDRESS,
+            to: email,
+            subject: `Leave Application Disapproved – ${leaveType.toUpperCase()}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #1B3A6B; margin: 0;">Schools Division Office of Dapitan City</h2>
+                        <p style="color: #64748b; font-size: 12px; margin: 4px 0 0;">Department of Education – Region IX</p>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                    <h3 style="color: #991b1b; text-align: center; margin-top: 0;">Notice of Leave Disapproval</h3>
+                    <p>Dear <strong>${employeeName}</strong>,</p>
+                    <p>Regrettably, your application for leave has been disapproved at the <strong>${stageText}</strong> stage.</p>
+                    <div style="background-color: #fef2f2; border-left: 4px solid #991b1b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px;"><strong>Leave Type:</strong> ${leaveType.toUpperCase()}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Inclusive Dates:</strong> ${dateFrom} to ${dateTo}</p>
+                        <p style="margin: 6px 0 0; font-size: 14px;"><strong>Reason for Disapproval:</strong> ${rejectionReason || 'Not specified'}</p>
+                    </div>
+                    <p>If you have any questions, please contact the Personnel Unit.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">This is an automated system notification from DepEd SDO Dapitan City HRMIS.</p>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('❌ Resend API error (leave rejection email):', error);
+            return null;
+        }
+
+        return data;
+    } catch (err) {
+        console.error('❌ Failed to send leave rejection email:', err.message || err);
+        return null;
+    }
+};
+
+module.exports = {
+    sendVerificationEmail,
+    sendResetPasswordEmail,
+    sendAnnexEEmail,
+    sendAppointmentConfirmationEmail,
+    sendCongratulatoryAdviceEmail,
+    sendLeaveApprovalEmail,
+    sendLeaveRejectionEmail
+};
+

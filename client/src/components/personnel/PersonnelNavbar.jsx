@@ -8,6 +8,7 @@ const navItems = [
   { label: '201 FILES', path: '/personnel/201-files', icon: Folder },
   { label: 'LEAVE', path: '/personnel/leave', icon: CalendarCheck },
   { label: 'CERTIFICATES', path: '/personnel/certificates', icon: FileSignature },
+
   { label: 'NOTIFICATIONS', path: '/personnel/notifications', icon: Bell },
 ];
 

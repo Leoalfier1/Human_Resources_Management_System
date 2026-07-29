@@ -64,9 +64,9 @@ const PillarsLandingPage = () => {
       }
     } else if (moduleId === 'L&D') {
       if (isAdmin) {
-        navigate('/ld/dashboard');
+        navigate('/ld-portal/dashboard');
       } else {
-        navigate('/jobs/my-learning');
+        navigate('/ld-employee/profile');
       }
     } else if (moduleId === 'PM') {
       if (isAdmin) {

@@ -247,9 +247,9 @@ exports.convertProposal = async (req, res) => {
             planId = plans[0].id;
         } else {
             const [newPlan] = await db.query(
-                `INSERT INTO ld_plans (title, school_year, description, status)
-                 VALUES (?, ?, ?, ?)`,
-                ['Division L&D Master Plan SY 2025–2026', '2025-2026', 'Auto-generated master plan for converted proposals', 'approved']
+                `INSERT INTO ld_plans (title, school_year, description, status, source)
+                 VALUES (?, ?, ?, ?, ?)`,
+                ['Division L&D Master Plan SY 2025–2026', '2025-2026', 'Auto-generated master plan for converted proposals', 'approved', 'portal']
             );
             planId = newPlan.insertId;
         }
@@ -260,8 +260,8 @@ exports.convertProposal = async (req, res) => {
         const [result] = await db.query(
             `INSERT INTO ld_programs
                 (plan_id, title, description, methodology, target_position_type,
-                 start_date, end_date, budget_estimate, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'upcoming')`,
+                 start_date, end_date, budget_estimate, status, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', 'portal')`,
             [
                 planId,
                 proposal.title,

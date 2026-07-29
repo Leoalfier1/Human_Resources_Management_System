@@ -41,11 +41,11 @@ exports.getPlanById = async (req, res) => {
 
 exports.createPlan = async (req, res) => {
     try {
-        const { title, school_year, description } = req.body;
+        const { title, school_year, description, source } = req.body;
         if (!title || !school_year) return res.status(400).json({ message: 'Title and school year are required' });
         const [result] = await db.query(
-            'INSERT INTO ld_plans (title, school_year, description, created_by) VALUES (?, ?, ?, ?)',
-            [title, school_year, description || '', req.user.id]);
+            'INSERT INTO ld_plans (title, school_year, description, created_by, source) VALUES (?, ?, ?, ?, ?)',
+            [title, school_year, description || '', req.user.id, source || 'plans']);
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
@@ -58,7 +58,7 @@ exports.createPlan = async (req, res) => {
 exports.updatePlan = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, school_year, schoolYear, division, prepared_by, preparedBy, description, division_priorities, priorities } = req.body;
+        const { title, school_year, schoolYear, division, prepared_by, preparedBy, description, division_priorities, priorities, source } = req.body;
         const sy = school_year || schoolYear;
         const prepBy = prepared_by || preparedBy;
         const divPrio = division_priorities || priorities;
@@ -67,8 +67,8 @@ exports.updatePlan = async (req, res) => {
             `UPDATE ld_plans SET
              title=COALESCE(?,title), school_year=COALESCE(?,school_year), division=COALESCE(?,division),
              prepared_by=COALESCE(?,prepared_by), description=COALESCE(?,description),
-             division_priorities=COALESCE(?,division_priorities) WHERE id=?`,
-            [title || null, sy || null, division || null, prepBy || null, description || null, divPrio || null, id]);
+             division_priorities=COALESCE(?,division_priorities), source=COALESCE(?,source) WHERE id=?`,
+            [title || null, sy || null, division || null, prepBy || null, description || null, divPrio || null, source || null, id]);
         const io = req.app.get('socketio');
         if (io) {
             io.emit('ld:dashboard:update');
@@ -86,10 +86,10 @@ exports.getActivePlan = async (req, res) => {
         if (plans.length === 0) {
             const defaultPreparedBy = req.user?.full_name ? `${req.user.full_name}, HRMO` : 'Ma. Rosa Santos, HRMO-II';
             const [result] = await db.query(
-                `INSERT INTO ld_plans (title, school_year, division, prepared_by, division_priorities, status)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO ld_plans (title, school_year, division, prepared_by, division_priorities, status, source)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 ['Division L&D Master Plan SY 2025–2026', '2025–2026', 'Dapitan City', defaultPreparedBy,
-                 'Alignment with National Learning Recovery Program, MATATAG Curriculum rollout, and SDO Strategic Plan SY 2025–2028.', 'approved']
+                 'Alignment with National Learning Recovery Program, MATATAG Curriculum rollout, and SDO Strategic Plan SY 2025–2028.', 'approved', 'portal']
             );
             [plans] = await db.query(`SELECT * FROM ld_plans WHERE id = ?`, [result.insertId]);
         }
@@ -135,8 +135,8 @@ exports.addWFPProgram = async (req, res) => {
         if (!title) return res.status(400).json({ message: 'Program title is required' });
 
         const [result] = await db.query(
-            `INSERT INTO ld_programs (plan_id, title, budget_estimate, target_participants, methodology, status)
-             VALUES (?, ?, ?, ?, 'Seminar', 'upcoming')`,
+            `INSERT INTO ld_programs (plan_id, title, budget_estimate, target_participants, methodology, status, source)
+             VALUES (?, ?, ?, ?, 'Seminar', 'upcoming', 'portal')`,
             [id, title, budget || 0, `${pax || 80} Teaching Personnel`]
         );
 

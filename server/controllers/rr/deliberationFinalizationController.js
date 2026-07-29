@@ -203,6 +203,16 @@ exports.putVote = async (req, res) => {
  */
 exports.patchFinalize = async (req, res) => {
     try {
+        // Gate: only active PRAISE committee members may finalize deliberation.
+        // Mirrors the exact check used in putVote (lines 141-148).
+        const [memberRows] = await db.query(
+            'SELECT id FROM rr_praise_committee_members WHERE user_id = ? AND is_active = 1',
+            [req.user.id]
+        );
+        if (memberRows.length === 0) {
+            return res.status(403).json({ message: 'You are not an active committee member.' });
+        }
+
         const [nominees] = await db.query(`
             SELECT cn.id, cn.nominee_name, cn.deliberation_status
             FROM rr_call_nominations cn

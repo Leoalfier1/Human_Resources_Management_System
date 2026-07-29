@@ -1,5 +1,6 @@
 const db = require('../../db');
 const syncApplicationsStage = require('../../utils/syncApplicationsStage');
+const { sendCongratulatoryAdviceEmail } = require('../../utils/mailer');
 const path = require('path');
 const fs = require('fs');
 
@@ -218,7 +219,35 @@ const saveAndGenerate = async (req, res) => {
             });
         }
 
+        // Fire-and-forget email notification
+        db.query(
+            `SELECT a.full_name, COALESCE(pds.email_address, a.email, u.email) AS recipient_email
+             FROM applications a
+             JOIN users u ON u.id = a.applicant_id
+             LEFT JOIN personal_data_sheets pds ON pds.user_id = u.id
+             WHERE a.id = ?`,
+            [applicant_id]
+        ).then(([[appRow]]) => {
+            const recipientEmail = appRow ? appRow.recipient_email : null;
+            const recipientName  = appRow ? (appRow.full_name || full_name) : full_name;
+            if (recipientEmail) {
+                sendCongratulatoryAdviceEmail(
+                    recipientEmail,
+                    recipientName,
+                    position_title,
+                    place_of_assignment,
+                    report_date,
+                    document_submission_deadline
+                ).then(result => {
+                    if (result) console.log(`✅ Congratulatory Advice email sent → ${recipientEmail}`);
+                });
+            } else {
+                console.warn(`⚠️ Congratulatory Advice email skipped: No email found for application id=${applicant_id}`);
+            }
+        }).catch(err => console.error('⚠️ Post-save advice email lookup failed:', err.message));
+
         res.json({ message: 'Congratulatory Advice saved successfully.', letter_content });
+
     } catch (error) {
         console.error('saveAndGenerate Error:', error);
         res.status(500).json({ message: error.message });

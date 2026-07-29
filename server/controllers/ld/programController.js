@@ -57,7 +57,7 @@ exports.getProgramById = async (req, res) => {
 
 exports.createProgram = async (req, res) => {
     try {
-        let { plan_id, objective_id, title, description, methodology, target_position_type, duration_hours, start_date, end_date, venue, resource_person, provider, budget_estimate } = req.body;
+        let { plan_id, objective_id, title, description, methodology, target_position_type, duration_hours, start_date, end_date, venue, resource_person, provider, budget_estimate, source } = req.body;
         if (!title || !title.trim()) return res.status(400).json({ message: 'Program title is required' });
 
         if (!plan_id) {
@@ -67,10 +67,10 @@ exports.createProgram = async (req, res) => {
         }
 
         const [result] = await db.query(
-            `INSERT INTO ld_programs (plan_id, objective_id, title, description, methodology, target_position_type, duration_hours, start_date, end_date, venue, resource_person, provider, budget_estimate)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO ld_programs (plan_id, objective_id, title, description, methodology, target_position_type, duration_hours, start_date, end_date, venue, resource_person, provider, budget_estimate, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [plan_id, objective_id || null, title.trim(), description || '', methodology || 'Face-to-Face', target_position_type || 'all',
-             duration_hours || null, start_date || null, end_date || null, venue || null, resource_person || null, provider || null, budget_estimate || null]);
+             duration_hours || null, start_date || null, end_date || null, venue || null, resource_person || null, provider || null, budget_estimate || null, source || 'plans']);
 
         const io = req.app.get('socketio');
         if (io) {

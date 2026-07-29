@@ -1,10 +1,17 @@
 const db = require('../db');
 
 /**
- * Finds the employee record for a given user_id.
- * If none exists, auto-creates one (and leave_credits) so that
- * personnel-module endpoints work immediately after registration.
+ * Fallback helper: finds an existing employees row for a user, or creates a
+ * STUB row (employee_no IS NULL) if none exists.
  *
+ * NOTE: For applicants who go through the RSP pipeline, a FULL employees row
+ * (with employee_no, position data, PDS data, and a service_records entry) is
+ * now created automatically by issueAppointment() in appointmentController.js.
+ * This helper is kept as a safety-net for personnel-module endpoints that need
+ * an employees row before a proper appointment has been issued (e.g., leave
+ * applications submitted before an appointment is processed).
+ *
+ * Stub rows are excluded from v_appointed_employees (employee_no IS NOT NULL).
  * Returns { id } or null if the users row itself is missing.
  */
 async function findOrCreateEmployee(userId) {
